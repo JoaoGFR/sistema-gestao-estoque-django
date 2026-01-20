@@ -1,0 +1,28 @@
+{% extends 'estoque/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-4">
+        <div class="card shadow-lg">
+            <div class="card-header bg-dark text-white text-center py-3">
+                <h4 class="mb-0">Acesso Restrito</h4>
+            </div>
+            <div class="card-body p-4">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    {{ form|crispy }}
+                    
+                    <div class="d-grid mt-3">
+                        <button type="submit" class="btn btn-primary btn-lg">Entrar</button>
+                    </div>
+                </form>
+            </div>
+            <div class="card-footer text-center text-muted">
+                <small>Sistema de Gestão JGTECH</small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

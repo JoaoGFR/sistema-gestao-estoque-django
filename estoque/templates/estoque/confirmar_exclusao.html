@@ -1,0 +1,16 @@
+{% extends 'estoque/base.html' %}
+
+{% block content %}
+<div class="alert alert-danger shadow">
+    <h2 class="alert-heading">Atenção!</h2>
+    <p>Tens a certeza que desejas remover o item: <strong>{{ produto.nome }}</strong>?</p>
+    <hr>
+    <p class="mb-0">Esta ação não pode ser desfeita.</p>
+    
+    <form method="post" class="mt-3">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger">Sim, apagar definitivamente</button>
+        <a href="{% url 'lista_produtos' %}" class="btn btn-light">Cancelar</a>
+    </form>
+</div>
+{% endblock %}

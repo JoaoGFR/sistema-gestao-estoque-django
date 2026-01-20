@@ -1,0 +1,63 @@
+{% extends 'estoque/base.html' %}
+
+{% block content %}
+<div class="row mb-3">
+    <div class="col-md-8">
+        <h2>Controle de Empréstimos</h2>
+    </div>
+    <div class="col-md-4 text-end">
+        <a href="{% url 'registrar_emprestimo' %}" class="btn btn-warning text-dark">+ Registrar Saída</a>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <table class="table align-middle">
+            <thead class="table-dark">
+                <tr>
+                    <th>Ferramenta</th>
+                    <th>Retirado Por (Funcionário)</th>
+                    <th>Autorizado Por (TI)</th> <th>Data Saída</th>
+                    <th>Status / Devolução</th>
+                    <th>Ação</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for emp in emprestimos %}
+                <tr class="{% if emp.devolvido %}table-success{% else %}table-warning{% endif %}">
+                    <td>{{ emp.produto.nome }}</td>
+                    <td>{{ emp.nome_funcionario }}</td>
+                    
+                    <td>
+                        <small class="text-muted">{{ emp.responsavel_saida.username|default:"-" }}</small>
+                    </td>
+
+                    <td>{{ emp.data_saida|date:"d/m/Y H:i" }}</td>
+                    
+                    <td>
+                        {% if emp.devolvido %}
+                            <span class="badge bg-success">Devolvido</span><br>
+                            <small style="font-size: 0.8em;">
+                                Em: {{ emp.data_devolucao|date:"d/m H:i" }}<br>
+                                Por: <strong>{{ emp.responsavel_devolucao.username|default:"-" }}</strong>
+                            </small>
+                        {% else %}
+                            <span class="badge bg-danger animate-pulse">PENDENTE</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if not emp.devolvido %}
+                            <a href="{% url 'devolver_ferramenta' emp.id %}" class="btn btn-sm btn-success">
+                                Receber
+                            </a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6">Nenhum empréstimo registrado.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

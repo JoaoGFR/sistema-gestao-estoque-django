@@ -1,0 +1,31 @@
+{% extends 'estoque/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card shadow border-danger">
+            <div class="card-header bg-danger text-white">
+                <h4 class="mb-0">Registrar Consumo de Material</h4>
+            </div>
+            <div class="card-body">
+                
+                {% if error_message %}
+                <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                    <strong>Atenção:</strong> {{ error_message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                {% endif %}
+
+                <form method="post">
+                    {% csrf_token %}
+                    {{ form|crispy }}
+                    <div class="d-grid mt-3">
+                        <button type="submit" class="btn btn-danger btn-lg">Confirmar Baixa</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
