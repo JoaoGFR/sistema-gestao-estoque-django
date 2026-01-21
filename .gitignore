@@ -1,22 +1,36 @@
-# --- Banco de Dados (Importante!) ---
+# --- SEGURANÇA (O mais importante) ---
+.env
+.env.*
+secrets.json
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+
+# --- Django ---
+*.log
 db.sqlite3
 db.sqlite3-journal
+local_settings.py
 
-# --- Python (Arquivos temporários/compilados) ---
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
+# --- Arquivos Estáticos e Mídia (Gerados automaticamente) ---
+staticfiles/
+media/
+assets/
 
-# --- Ambiente Virtual ---
-# Dependendo de como você nomeou sua pasta
+# --- Ambientes Virtuais ---
 venv/
 env/
-.env
+.venv/
 
-# --- Arquivos do Sistema Operacional (Lixo) ---
+# --- IDEs e Sistema Operacional ---
+.vscode/
+.idea/
 .DS_Store
 Thumbs.db
 
-# --- Arquivos do Editor (VS Code) ---
-.vscode/
+# --- Docker ---
+# Ignora logs ou dados se você mapear volumes locais no futuro
+docker-compose.override.yml
+postgres_data/

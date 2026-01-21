@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.urls import path, include
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    path('gerencia-segura/', admin.site.urls), # Mudou de 'admin/' para algo único
     
     # Rotas de Login/Logout/Senha (Geridas pelo Django)
     path('accounts/', include('django.contrib.auth.urls')),

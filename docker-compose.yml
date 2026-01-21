@@ -1,0 +1,36 @@
+services:
+  # Serviço do Banco de Dados
+  db:
+    image: postgres:15
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    # AQUI ESTÁ A MUDANÇA: Lê as variáveis do arquivo .env
+    env_file:
+      - .env
+    restart: always
+    # Verifica se o banco está pronto
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jgtech_user -d jgtech_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Serviço do Site (Django)
+  web:
+    restart: always
+    build: .
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    # Só inicia quando o banco estiver 'Saudável'
+    depends_on:
+      db:
+        condition: service_healthy
+    # AQUI ESTÁ A MUDANÇA: Também lê do .env
+    env_file:
+      - .env
+
+volumes:
+  postgres_data:
