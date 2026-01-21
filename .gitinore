@@ -1,0 +1,22 @@
+# --- Banco de Dados (Importante!) ---
+db.sqlite3
+db.sqlite3-journal
+
+# --- Python (Arquivos temporários/compilados) ---
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# --- Ambiente Virtual ---
+# Dependendo de como você nomeou sua pasta
+venv/
+env/
+.env
+
+# --- Arquivos do Sistema Operacional (Lixo) ---
+.DS_Store
+Thumbs.db
+
+# --- Arquivos do Editor (VS Code) ---
+.vscode/
