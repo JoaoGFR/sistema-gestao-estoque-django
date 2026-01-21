@@ -11,12 +11,9 @@ class Produto(models.Model):
     nome = models.CharField(max_length=100)
     categoria = models.CharField(max_length=5, choices=CATEGORIAS)
     quantidade = models.IntegerField(default=0)
+    estoque_minimo = models.IntegerField(default=5, verbose_name="Estoque Mínimo")
     preco_custo = models.DecimalField(max_digits=9, decimal_places=2, null=True, blank=True)
-    
-    # --- CAMPO NOVO ---
     locacao = models.CharField(max_length=100, blank=True, null=True, verbose_name="Localização na Estante")
-    # ------------------
-
     data_entrada = models.DateTimeField(auto_now_add=True)
     descricao = models.TextField(blank=True)
 

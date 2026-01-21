@@ -5,6 +5,7 @@ from django.contrib.auth.decorators import login_required
 from .models import Produto, Emprestimo, SaidaEstoque
 from .forms import ProdutoForm, EmprestimoForm, SaidaEstoqueForm
 from django.utils import timezone
+from django.db.models import F
 
 @login_required
 def lista_produtos(request):
@@ -158,3 +159,29 @@ def registrar_saida(request):
         form = SaidaEstoqueForm()
     
     return render(request, 'estoque/form_saida.html', {'form': form, 'error_message': error_message})
+
+@login_required
+def dashboard(request):
+    # 1. Totais Gerais
+    total_pecas = Produto.objects.filter(categoria='PECA').count()
+    total_ferramentas = Produto.objects.filter(categoria__in=['FERRA', 'EQUIP']).count()
+    
+    # 2. Alertas (Estoque Baixo)
+    # Vamos considerar baixo qualquer coisa com menos de 5 unidades
+    estoque_baixo = Produto.objects.filter(categoria='PECA', quantidade__lt=F('estoque_minimo')).count()
+    
+    # 3. Empréstimos Pendentes (Quantas ferramentas estão na rua?)
+    emprestimos_pendentes = Emprestimo.objects.filter(devolvido=False).count()
+    
+    # 4. Últimas Movimentações (Para mostrar uma listinha rápida)
+    ultimas_saidas = SaidaEstoque.objects.all().order_by('-data')[:5]
+
+    contexto = {
+        'total_pecas': total_pecas,
+        'total_ferramentas': total_ferramentas,
+        'estoque_baixo': estoque_baixo,
+        'emprestimos_pendentes': emprestimos_pendentes,
+        'ultimas_saidas': ultimas_saidas
+    }
+    
+    return render(request, 'estoque/dashboard.html', contexto)

@@ -5,12 +5,13 @@ class ProdutoForm(forms.ModelForm):
     class Meta:
         model = Produto
         # Adicionei 'locacao' na lista abaixo
-        fields = ['nome', 'categoria', 'quantidade', 'preco_custo', 'locacao', 'descricao']
+        fields = ['nome', 'categoria', 'quantidade', 'estoque_minimo', 'preco_custo', 'locacao', 'descricao']
         
         widgets = {
             'nome': forms.TextInput(attrs={'placeholder': 'Ex: Parafusadeira Makita 12v'}),
             'categoria': forms.Select(attrs={'class': 'form-select'}),
             'quantidade': forms.NumberInput(attrs={'placeholder': '0'}),
+            'estoque_minimo': forms.NumberInput(attrs={'placeholder': 'Mínimo Ideal'}),
             'preco_custo': forms.NumberInput(attrs={'placeholder': '0.00'}),
             # Visual do campo Locacao
             'locacao': forms.TextInput(attrs={'placeholder': 'Ex: Estante B, Prateleira 2'}), 

@@ -115,10 +115,14 @@
 
                         <td><span class="badge bg-info text-dark">{{ produto.get_categoria_display }}</span></td>
                         <td>
-                            {% if produto.quantidade == 0 %}
-                                <span class="badge bg-danger">Indisponível</span>
+                            {% if produto.quantidade < produto.estoque_minimo %}
+                                <span class="text-danger fw-bold" title="Mínimo esperado: {{ produto.estoque_minimo }}">
+                                    {{ produto.quantidade }} (Baixo!)
+                                </span>
                             {% else %}
-                                <span class="badge bg-success">{{ produto.quantidade }} em estoque</span>
+                                <span class="text-success">
+                                    {{ produto.quantidade }}
+                                </span>
                             {% endif %}
                         </td>
                         <td class="text-end">

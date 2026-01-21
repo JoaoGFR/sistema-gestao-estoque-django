@@ -1,0 +1,96 @@
+{% extends 'estoque/base.html' %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h2 class="fw-bold text-dark">Painel de Controle</h2>
+        <p class="text-muted">Visão geral do estoque JGTECH</p>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card shadow-sm border-start border-primary border-5">
+            <div class="card-body">
+                <h6 class="text-muted text-uppercase mb-1">Peças em Estoque</h6>
+                <h2 class="fw-bold text-primary">{{ total_pecas }}</h2>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card shadow-sm border-start border-info border-5">
+            <div class="card-body">
+                <h6 class="text-muted text-uppercase mb-1">Ferramentas</h6>
+                <h2 class="fw-bold text-info">{{ total_ferramentas }}</h2>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card shadow-sm border-start border-warning border-5">
+            <div class="card-body">
+                <h6 class="text-muted text-uppercase mb-1">Empréstimos Ativos</h6>
+                <h2 class="fw-bold text-warning">{{ emprestimos_pendentes }}</h2>
+                {% if emprestimos_pendentes > 0 %}
+                    <small><a href="{% url 'lista_emprestimos' %}" class="text-decoration-none">Ver detalhes &rarr;</a></small>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card shadow-sm border-start border-danger border-5">
+            <div class="card-body">
+                <h6 class="text-muted text-uppercase mb-1">Estoque Crítico</h6>
+                <h2 class="fw-bold text-danger">{{ estoque_baixo }}</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4 mb-3">
+        <div class="card h-100 shadow-sm">
+            <div class="card-header bg-dark text-white">
+                Ações Rápidas
+            </div>
+            <div class="card-body d-grid gap-2">
+                <a href="{% url 'registrar_saida' %}" class="btn btn-outline-danger text-start">
+                    <i class="bi bi-box-arrow-right"></i> Baixar Material (Consumo)
+                </a>
+                <a href="{% url 'registrar_emprestimo' %}" class="btn btn-outline-warning text-start">
+                    <i class="bi bi-tools"></i> Emprestar Ferramenta
+                </a>
+                <a href="{% url 'criar_produto' %}" class="btn btn-outline-primary text-start">
+                    <i class="bi bi-plus-circle"></i> Cadastrar Novo Item
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <div class="card h-100 shadow-sm">
+            <div class="card-header bg-white fw-bold">
+                Últimas 5 Baixas de Material
+            </div>
+            <ul class="list-group list-group-flush">
+                {% for saida in ultimas_saidas %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>{{ saida.produto.nome }}</strong>
+                        <small class="d-block text-muted">Retirado por: {{ saida.usuario.username }}</small>
+                    </div>
+                    <div class="text-end">
+                        <span class="badge bg-danger rounded-pill">-{{ saida.quantidade }}</span>
+                        <small class="d-block text-muted mt-1">{{ saida.data|date:"d/m H:i" }}</small>
+                    </div>
+                </li>
+                {% empty %}
+                <li class="list-group-item text-center text-muted">Nenhuma movimentação recente.</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
