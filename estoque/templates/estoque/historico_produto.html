@@ -1,0 +1,139 @@
+{% extends 'estoque/base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Histórico: {{ produto.nome }}</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{% url 'lista_produtos' %}" class="btn btn-secondary me-2">
+            <i class="bi bi-arrow-left"></i> Voltar
+        </a>
+        <a href="{% url 'entrada_estoque' %}" class="btn btn-success">
+            <i class="bi bi-plus-circle"></i> Nova Entrada
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12 mb-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white fw-bold">
+                <i class="bi bi-graph-up"></i> Evolução do Preço de Custo
+            </div>
+            <div class="card-body">
+                <canvas id="precoChart" style="max-height: 300px;"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-success text-white">
+                <h6 class="mb-0"><i class="bi bi-box-arrow-in-down"></i> Entradas (Lotes)</h6>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Lote</th>
+                            <th>Qtd Inicial</th>
+                            <th>Preço UN</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for lote in lotes %}
+                        <tr>
+                            <td>{{ lote.data_entrada|date:"d/m/Y" }}</td>
+                            <td>{{ lote.numero_lote }}</td>
+                            <td>{{ lote.quantidade_inicial }}</td>
+                            <td class="fw-bold text-success">R$ {{ lote.preco_compra }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4" class="text-center text-muted">Nenhuma entrada registrada.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-danger text-white">
+                <h6 class="mb-0"><i class="bi bi-box-arrow-up"></i> Saídas / Baixas</h6>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Motivo</th>
+                            <th>Qtd</th>
+                            <th>Usuário</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for saida in saidas %}
+                        <tr>
+                            <td>{{ saida.data|date:"d/m/Y H:i" }}</td>
+                            <td>{{ saida.motivo }}</td>
+                            <td class="fw-bold text-danger">-{{ saida.quantidade }}</td>
+                            <td><small>{{ saida.usuario.username|default:"Sistema" }}</small></td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4" class="text-center text-muted">Nenhuma saída registrada.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    const ctx = document.getElementById('precoChart').getContext('2d');
+    
+    // Pegando dados do Django
+    const labels = JSON.parse('{{ datas_json|escapejs }}');
+    const dataPrecos = JSON.parse('{{ precos_json|escapejs }}');
+
+    if (labels.length === 0) {
+        // Se não tiver dados, mostra mensagem no lugar do gráfico
+        document.getElementById('precoChart').style.display = 'none';
+        const cardBody = document.querySelector('#precoChart').parentElement;
+        cardBody.innerHTML = '<p class="text-center text-muted my-5">Ainda não há histórico de preços para gerar gráfico.</p>';
+    } else {
+        const myChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Preço de Custo (R$)',
+                    data: dataPrecos,
+                    borderColor: 'rgba(40, 167, 69, 1)',
+                    backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.3 // Deixa a linha curva (suave)
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) { return 'R$ ' + value; }
+                        }
+                    }
+                }
+            }
+        });
+    }
+</script>
+{% endblock %}

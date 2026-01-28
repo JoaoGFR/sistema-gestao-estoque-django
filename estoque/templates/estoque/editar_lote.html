@@ -1,0 +1,70 @@
+{% extends 'estoque/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow border-warning">
+            <div class="card-header bg-warning text-dark">
+                <h4 class="mb-0"><i class="bi bi-pencil-square"></i> Editar Lançamento (Lote)</h4>
+            </div>
+            <div class="card-body">
+                
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle-fill"></i> <strong>Atenção:</strong> 
+                    Ao alterar a "Quantidade Inicial", o sistema recalculará automaticamente o saldo atual deste lote, mantendo o histórico de vendas já realizadas.
+                </div>
+
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    
+                    {% if form.errors %}
+                        <div class="alert alert-danger">Verifique os erros abaixo.</div>
+                    {% endif %}
+
+                    <h6 class="text-muted border-bottom pb-2 mb-3">Dados do Item</h6>
+                    <div class="row">
+                        <div class="col-md-8 mb-3">
+                            {{ form.produto|as_crispy_field }}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            {{ form.numero_lote|as_crispy_field }}
+                        </div>
+                    </div>
+
+                    <h6 class="text-muted border-bottom pb-2 mb-3 mt-3">Quantidades e Valores</h6>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            {{ form.quantidade_inicial|as_crispy_field }}
+                            <small class="text-muted">Alterar isso afeta o saldo atual.</small>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            {{ form.preco_compra|as_crispy_field }}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            {{ form.data_validade|as_crispy_field }}
+                        </div>
+                    </div>
+
+                    <h6 class="text-muted border-bottom pb-2 mb-3 mt-3">Detalhes Adicionais</h6>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.fornecedor|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            {{ form.data_fabricacao|as_crispy_field }}
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                        <a href="{% url 'lista_lotes' %}" class="btn btn-secondary me-md-2">Cancelar</a>
+                        <button type="submit" class="btn btn-warning fw-bold">
+                            <i class="bi bi-check-lg"></i> Salvar Alterações
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,16 +1,23 @@
 from django.contrib import admin
-from .models import Produto, Emprestimo, SaidaEstoque
+from .models import Produto, Emprestimo, SaidaEstoque, Empresa, UserProfile
 
-# Configuração para mostrar mais detalhes na listagem do admin (Opcional, mas ajuda muito)
-class EmprestimoAdmin(admin.ModelAdmin):
-    list_display = ('produto', 'nome_funcionario', 'data_saida', 'devolvido')
-    list_filter = ('devolvido', 'data_saida')
-    search_fields = ('nome_funcionario', 'produto__nome')
+# Configuração para editar o UserProfile dentro da tela de Usuário
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from django.contrib.auth.models import User
 
-class SaidaEstoqueAdmin(admin.ModelAdmin):
-    list_display = ('produto', 'quantidade', 'usuario', 'data')
+class UserProfileInline(admin.StackedInline):
+    model = UserProfile
+    can_delete = False
 
-# Registra as tabelas
+class UserAdmin(BaseUserAdmin):
+    inlines = [UserProfileInline]
+
+# Remove o admin padrão e coloca o nosso com Profile
+admin.site.unregister(User)
+admin.site.register(User, UserAdmin)
+
+admin.site.register(Empresa)
+admin.site.register(UserProfile)
 admin.site.register(Produto)
-admin.site.register(Emprestimo, EmprestimoAdmin)
-admin.site.register(SaidaEstoque, SaidaEstoqueAdmin)
+admin.site.register(Emprestimo)
+admin.site.register(SaidaEstoque)

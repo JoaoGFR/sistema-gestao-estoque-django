@@ -1,0 +1,117 @@
+{% extends 'estoque/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card shadow">
+            <div class="card-header bg-success text-white">
+                <h4 class="mb-0"><i class="bi bi-box-arrow-in-down"></i> Entrada de Mercadoria</h4>
+            </div>
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data" id="formEntrada">
+                    {% csrf_token %}
+                    
+                    {% if form.errors %}
+                        <div class="alert alert-danger">Verifique os erros no formulário.</div>
+                    {% endif %}
+                    
+                    <h6 class="text-muted border-bottom pb-2 mb-3">Item e Custo</h6>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.produto|as_crispy_field }}
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            {{ form.quantidade_inicial|as_crispy_field }}
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            {{ form.preco_compra|as_crispy_field }}
+                        </div>
+                    </div>
+
+                    <div id="blocoRastreabilidade">
+                        <h6 class="text-muted border-bottom pb-2 mb-3 mt-3">Rastreabilidade (Lote e Validade)</h6>
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                {{ form.numero_lote|as_crispy_field }}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                {{ form.data_validade|as_crispy_field }}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                {{ form.data_fabricacao|as_crispy_field }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <h6 class="text-muted border-bottom pb-2 mb-3 mt-3">Origem e Documentos</h6>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            {{ form.fornecedor|as_crispy_field }}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            {{ form.numero_nota_fiscal|as_crispy_field }}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            {{ form.nota_fiscal|as_crispy_field }}
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2 mt-4 d-md-flex justify-content-md-end">
+                        <a href="{% url 'lista_lotes' %}" class="btn btn-outline-secondary me-md-2">Cancelar</a>
+                        <button type="submit" class="btn btn-success fw-bold">
+                            <i class="bi bi-check-lg"></i> Registrar Entrada
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const selectProduto = document.getElementById('id_produto');
+        const blocoRastreabilidade = document.getElementById('blocoRastreabilidade');
+        
+        // Campos que vamos manipular
+        const inputLote = document.getElementById('id_numero_lote');
+        const inputValidade = document.getElementById('id_data_validade');
+
+        function verificarProduto() {
+            const produtoId = selectProduto.value;
+            if (!produtoId) return;
+
+            // Chama nossa API criada no passo 3
+            fetch(`/api/produto/${produtoId}/`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.controla_lote) {
+                        // MOSTRA
+                        blocoRastreabilidade.style.display = 'block';
+                        inputLote.required = true;
+                        inputValidade.required = true;
+                    } else {
+                        // ESCONDE
+                        blocoRastreabilidade.style.display = 'none';
+                        inputLote.required = false;
+                        inputValidade.required = false;
+                        
+                        // Limpa valores para não enviar lixo
+                        inputLote.value = '';
+                        inputValidade.value = '';
+                    }
+                })
+                .catch(error => console.error('Erro ao buscar dados do produto:', error));
+        }
+
+        // Executa quando muda o produto
+        selectProduto.addEventListener('change', verificarProduto);
+        
+        // Executa ao carregar a página (caso tenha voltado de um erro de validação)
+        if (selectProduto.value) {
+            verificarProduto();
+        }
+    });
+</script>
+{% endblock %}

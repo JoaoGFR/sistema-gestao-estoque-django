@@ -1,60 +1,95 @@
 {% extends 'estoque/base.html' %}
 
 {% block content %}
-<div class="row mb-3">
-    <div class="col-md-8">
-        <h2>Controle de Empréstimos</h2>
-    </div>
-    <div class="col-md-4 text-end">
-        <a href="{% url 'registrar_emprestimo' %}" class="btn btn-warning text-dark">+ Registrar Saída</a>
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2"><i class="bi bi-person-badge"></i> Controle de Empréstimos</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{% url 'registrar_emprestimo' %}" class="btn btn-warning fw-bold text-dark shadow-sm">
+            <i class="bi bi-plus-lg"></i> Novo Empréstimo
+        </a>
     </div>
 </div>
 
-<div class="card shadow-sm">
-    <div class="card-body">
-        <table class="table align-middle">
-            <thead class="table-dark">
+<div class="card shadow-sm border-warning">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
                 <tr>
-                    <th>Ferramenta</th>
-                    <th>Retirado Por (Funcionário)</th>
-                    <th>Autorizado Por (TI)</th> <th>Data Saída</th>
-                    <th>Status / Devolução</th>
-                    <th>Ação</th>
+                    <th>Produto</th>
+                    <th>Solicitante</th>
+                    <th>Data Saída</th>
+                    <th>Status</th>
+                    <th class="text-end">Ações</th>
                 </tr>
             </thead>
             <tbody>
                 {% for emp in emprestimos %}
-                <tr class="{% if emp.devolvido %}table-success{% else %}table-warning{% endif %}">
-                    <td>{{ emp.produto.nome }}</td>
-                    <td>{{ emp.nome_funcionario }}</td>
+                <tr>
+                    <td>
+                        <div class="fw-bold">{{ emp.produto.nome }}</div>
+                        {% if emp.lote %}
+                            <small class="text-muted" style="font-size: 0.75rem;">
+                                Lote: {{ emp.lote.numero_lote }}
+                            </small>
+                        {% endif %}
+                    </td>
                     
                     <td>
-                        <small class="text-muted">{{ emp.responsavel_saida.username|default:"-" }}</small>
+                        <div class="d-flex align-items-center">
+                            <div class="bg-light rounded-circle p-2 me-2">
+                                <i class="bi bi-person text-secondary"></i>
+                            </div>
+                            <div>
+                                <span class="fw-bold">{{ emp.solicitante }}</span>
+                                <br>
+                                <small class="text-muted">Resp: {{ emp.responsavel_saida.first_name }}</small>
+                            </div>
+                        </div>
                     </td>
-
-                    <td>{{ emp.data_saida|date:"d/m/Y H:i" }}</td>
+                    
+                    <td>
+                        {{ emp.data_saida|date:"d/m/Y" }}
+                        <br>
+                        <small class="text-muted">{{ emp.data_saida|date:"H:i" }}</small>
+                    </td>
                     
                     <td>
                         {% if emp.devolvido %}
-                            <span class="badge bg-success">Devolvido</span><br>
-                            <small style="font-size: 0.8em;">
-                                Em: {{ emp.data_devolucao|date:"d/m H:i" }}<br>
-                                Por: <strong>{{ emp.responsavel_devolucao.username|default:"-" }}</strong>
-                            </small>
+                            <span class="badge bg-success">
+                                <i class="bi bi-check-circle"></i> Devolvido
+                            </span>
+                            <div class="small text-muted mt-1">
+                                em {{ emp.data_devolucao|date:"d/m/Y" }}
+                            </div>
                         {% else %}
-                            <span class="badge bg-danger animate-pulse">PENDENTE</span>
+                            <span class="badge bg-warning text-dark">
+                                <i class="bi bi-clock-history"></i> Em Aberto
+                            </span>
                         {% endif %}
                     </td>
-                    <td>
+                    
+                    <td class="text-end">
                         {% if not emp.devolvido %}
-                            <a href="{% url 'devolver_ferramenta' emp.id %}" class="btn btn-sm btn-success">
-                                Receber
-                            </a>
+                            <form action="{% url 'devolver_item' emp.id %}" method="post" class="d-inline" onsubmit="return confirm('Confirmar a devolução deste item ao estoque?');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-outline-success" title="Registrar Devolução">
+                                    <i class="bi bi-box-arrow-in-left"></i> Devolver
+                                </button>
+                            </form>
+                        {% else %}
+                            <button class="btn btn-sm btn-light disabled text-muted">
+                                <i class="bi bi-check-all"></i> Concluído
+                            </button>
                         {% endif %}
                     </td>
                 </tr>
                 {% empty %}
-                <tr><td colspan="6">Nenhum empréstimo registrado.</td></tr>
+                <tr>
+                    <td colspan="5" class="text-center py-5 text-muted">
+                        <i class="bi bi-inbox fs-1 d-block mb-3 text-secondary"></i>
+                        Nenhum empréstimo ativo no momento.
+                    </td>
+                </tr>
                 {% endfor %}
             </tbody>
         </table>

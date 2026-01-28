@@ -4,28 +4,132 @@
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-md-6">
-        <div class="card shadow border-danger">
-            <div class="card-header bg-danger text-white">
-                <h4 class="mb-0">Registrar Consumo de Material</h4>
+        <div class="card shadow">
+            <div class="card-header bg-secondary text-white">
+                <h4 class="mb-0"><i class="bi bi-box-arrow-down"></i> Registrar Saída / Baixa</h4>
             </div>
             <div class="card-body">
-                
                 {% if error_message %}
-                <div class="alert alert-warning alert-dismissible fade show" role="alert">
-                    <strong>Atenção:</strong> {{ error_message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-octagon-fill"></i> {{ error_message }}
+                    </div>
                 {% endif %}
 
                 <form method="post">
                     {% csrf_token %}
-                    {{ form|crispy }}
-                    <div class="d-grid mt-3">
-                        <button type="submit" class="btn btn-danger btn-lg">Confirmar Baixa</button>
+                    
+                    {{ form.produto|as_crispy_field }}
+                    
+                    {{ form.lote_especifico|as_crispy_field }}
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            {{ form.quantidade|as_crispy_field }}
+                            <small id="ajudaSaldo" class="form-text text-muted">Selecione um produto/lote.</small>
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.motivo|as_crispy_field }}
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2 mt-3">
+                        <button type="submit" class="btn btn-dark">Confirmar Baixa</button>
+                        <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">Cancelar</a>
                     </div>
                 </form>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const selectProduto = document.getElementById('id_produto');
+        const selectLote = document.getElementById('id_lote_especifico');
+        const inputQtd = document.getElementById('id_quantidade');
+        const textoAjuda = document.getElementById('ajudaSaldo');
+        
+        let saldoTotalProduto = 0; // Guardaremos o saldo total aqui
+
+        function carregarLotes() {
+            const produtoId = selectProduto.value;
+            
+            // Reseta
+            selectLote.innerHTML = '<option value="" data-qtd="0">Carregando...</option>';
+            inputQtd.max = ""; 
+            textoAjuda.innerText = "Buscando informações...";
+            textoAjuda.className = "form-text text-muted";
+
+            if (!produtoId) {
+                selectLote.innerHTML = '<option value="">Automático (Mais antigo primeiro)</option>';
+                return;
+            }
+
+            // Busca os lotes na API
+            fetch(`/api/lotes/${produtoId}/`)
+                .then(response => response.json())
+                .then(data => {
+                    selectLote.innerHTML = '<option value="" selected>Automático (Mais antigo primeiro)</option>';
+                    
+                    let somaTotal = 0;
+
+                    data.forEach(lote => {
+                        const option = document.createElement('option');
+                        option.value = lote.id;
+                        option.text = lote.texto; 
+                        
+                        // O "PULO DO GATO": Guardamos a quantidade DENTRO da opção HTML
+                        option.setAttribute('data-qtd', lote.qtd_disponivel);
+                        
+                        selectLote.appendChild(option);
+                        somaTotal += lote.qtd_disponivel;
+                    });
+                    
+                    saldoTotalProduto = somaTotal;
+                    atualizarLimiteQuantidade(); // Chama a função para definir o limite inicial
+                })
+                .catch(error => {
+                    console.error('Erro:', error);
+                    textoAjuda.innerText = "Erro ao carregar dados.";
+                    textoAjuda.className = "form-text text-danger";
+                });
+        }
+
+        function atualizarLimiteQuantidade() {
+            // Verifica qual opção está selecionada no LOTE
+            const loteSelecionado = selectLote.options[selectLote.selectedIndex];
+            
+            if (loteSelecionado && loteSelecionado.value) {
+                // MODO MANUAL: Tem um lote específico selecionado
+                const maximoLote = loteSelecionado.getAttribute('data-qtd');
+                
+                inputQtd.max = maximoLote;
+                inputQtd.placeholder = `Máx: ${maximoLote}`;
+                
+                textoAjuda.innerText = `Limite deste lote: ${maximoLote} unidades.`;
+                textoAjuda.className = "form-text text-primary fw-bold";
+            } else {
+                // MODO AUTOMÁTICO: Usa o saldo total do produto
+                if (saldoTotalProduto > 0) {
+                    inputQtd.max = saldoTotalProduto;
+                    inputQtd.placeholder = `Máx: ${saldoTotalProduto}`;
+                    textoAjuda.innerText = `Saldo total disponível: ${saldoTotalProduto} unidades.`;
+                    textoAjuda.className = "form-text text-success";
+                } else {
+                    textoAjuda.innerText = "Produto sem estoque.";
+                    textoAjuda.className = "form-text text-danger";
+                }
+            }
+        }
+
+        // Eventos
+        selectProduto.addEventListener('change', carregarLotes);
+        selectLote.addEventListener('change', atualizarLimiteQuantidade);
+        
+        // Inicialização
+        if (selectProduto.value) {
+            carregarLotes();
+        }
+    });
+</script>
 {% endblock %}

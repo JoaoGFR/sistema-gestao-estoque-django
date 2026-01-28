@@ -1,0 +1,76 @@
+{% extends 'estoque/base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-receipt"></i> Histórico de Entradas (Lotes)</h2>
+    <a href="{% url 'entrada_estoque' %}" class="btn btn-success">
+        <i class="bi bi-plus-circle"></i> Nova Entrada
+    </a>
+</div>
+
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Produto</th>
+                    <th>Lote</th>
+                    <th>Entrada</th>
+                    <th>Validade</th>
+                    <th>Qtd Original</th>
+                    <th>Qtd Atual</th>
+                    <th>Nota Fiscal</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for lote in lotes %}
+                <tr>
+                    <td class="fw-bold">{{ lote.produto.nome }}</td>
+                    <td><span class="badge bg-secondary">{{ lote.numero_lote }}</span></td>
+                    <td>{{ lote.data_entrada|date:"d/m/Y" }}</td>
+                    
+                    <td>
+                        {% if lote.data_validade %}
+                            {{ lote.data_validade|date:"d/m/Y" }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+
+                    <td>{{ lote.quantidade_inicial }}</td>
+                    
+                    <td>
+                        {% if lote.quantidade_atual == 0 %}
+                            <span class="badge bg-danger">Esgotado</span>
+                        {% else %}
+                            <span class="badge bg-success">{{ lote.quantidade_atual }}</span>
+                        {% endif %}
+                    </td>
+
+                    <td>
+                        {% if lote.nota_fiscal %}
+                            <a href="{{ lote.nota_fiscal.url }}" target="_blank" class="btn btn-sm btn-outline-primary" title="Baixar NF">
+                                <i class="bi bi-file-earmark-pdf-fill"></i> NF {{ lote.numero_nota_fiscal|default:"" }}
+                            </a>
+                        {% else %}
+                            <span class="text-muted small">-</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        {% if user.userprofile.e_dono %}
+                     <a href="{% url 'editar_lote' lote.id %}" class="btn btn-sm btn-outline-warning" title="Editar Lançamento">
+                                <i class="bi bi-pencil-fill"></i>
+                            </a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center py-4 text-muted">Nenhuma entrada registrada.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

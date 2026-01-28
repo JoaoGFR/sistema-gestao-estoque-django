@@ -2,77 +2,174 @@
 {% load crispy_forms_tags %}
 
 {% block content %}
-<style>
-    /* Pequeno ajuste CSS para deixar os títulos dos campos (labels) mais fortes */
-    label.form-label {
-        font-weight: bold;
-        color: #495057;
-    }
-</style>
-
-<div class="container mt-5">
-    <div class="row justify-content-center">
-        <div class="col-md-8 col-lg-8"> <div class="card shadow-lg border-0 rounded-lg">
-                <div class="card-header bg-primary text-white text-center py-3">
-                    <h4 class="mb-0 fw-bold">
-                        {% if form.instance.pk %}
-                            <i class="bi bi-pencil-square"></i> Editar Produto
-                        {% else %}
-                            <i class="bi bi-box-seam"></i> Novo Produto
-                        {% endif %}
-                    </h4>
-                </div>
-                
-                <div class="card-body p-4">
-                    <form method="post" novalidate>
-                        {% csrf_token %}
-                        
-                        <div class="row mb-3">
-                            <div class="col-12">
-                                {{ form.nome|as_crispy_field }}
-                            </div>
-                        </div>
-
-                        <div class="row mb-3">
-                            <div class="col-md-4">
-                                {{ form.categoria|as_crispy_field }}
-                            </div>
-                            <div class="col-md-4">
-                                {{ form.quantidade|as_crispy_field }}
-                            </div>
-                            <div class="col-md-4">
-                                {{ form.estoque_minimo|as_crispy_field }}
-                            </div>
-                        </div>
-
-                        <div class="row mb-3">
-                            <div class="col-md-6">
-                                 {{ form.preco_custo|as_crispy_field }}
-                            </div>
-                            <div class="col-md-6">
-                                 {{ form.locacao|as_crispy_field }}
-                            </div>
-                        </div>
-
-                        <div class="row mb-4">
-                            <div class="col-12">
-                                {{ form.descricao|as_crispy_field }}
-                            </div>
-                        </div>
-
-                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                            <a href="{% url 'lista_produtos' %}" class="btn btn-outline-secondary me-md-2">
-                                Cancelar
-                            </a>
-                            <button type="submit" class="btn btn-primary btn-lg fw-bold px-5">
-                                <i class="bi bi-save"></i> Salvar
-                            </button>
-                        </div>
-                    </form>
-                </div>
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">
+                    {% if form.instance.pk %}
+                        <i class="bi bi-pencil-square"></i> Editar Produto
+                    {% else %}
+                        <i class="bi bi-box-seam"></i> Novo Produto
+                    {% endif %}
+                </h4>
             </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <h6 class="text-muted border-bottom pb-2 mb-3">Dados Principais</h6>
+                    <div class="row mb-3 align-items-center">
+                        <div class="col-md-9">
+                            {{ form.nome|as_crispy_field }}
+                        </div>
+                        <div class="col-md-3">
+                            {{ form.controla_lote|as_crispy_field }}
+                        </div>
+                    </div>
 
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label requiredField">Categoria <span class="asteriskField">*</span></label>
+                            <div class="input-group">
+                                {{ form.categoria }}
+                                <button class="btn btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#modalCategoria" title="Nova Categoria">
+                                    <i class="bi bi-plus-lg"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.unidade|as_crispy_field }}
+                        </div>
+                    </div>
+
+                    <h6 class="text-muted border-bottom pb-2 mb-3 mt-4">Códigos e Rastreio</h6>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            {{ form.sku|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.ean|as_crispy_field }}
+                        </div>
+                    </div>
+
+                    <h6 class="text-muted border-bottom pb-2 mb-3 mt-4">Endereçamento</h6>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            {{ form.estoque_minimo|as_crispy_field }}
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label">Localização</label>
+                            <div class="input-group">
+                                {{ form.localizacao }}
+                                <button class="btn btn-outline-secondary" type="button" data-bs-toggle="modal" data-bs-target="#modalLocalizacao" title="Nova Localização">
+                                    <i class="bi bi-geo-alt-fill"></i> +
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                        <a href="{% url 'lista_produtos' %}" class="btn btn-secondary me-md-2">Cancelar</a>
+                        <button type="submit" class="btn btn-success fw-bold">
+                            <i class="bi bi-check-lg"></i> Salvar Produto
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 </div>
+
+<div class="modal fade" id="modalCategoria" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Nova Categoria</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="text" id="inputNomeCategoria" class="form-control" placeholder="Nome da categoria...">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="salvarAuxiliar('categoria')">Salvar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalLocalizacao" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Nova Localização</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="text" id="inputNomeLocalizacao" class="form-control" placeholder="Ex: Prateleira B3...">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="salvarAuxiliar('localizacao')">Salvar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Função Genérica para Salvar Categoria OU Localização
+    function salvarAuxiliar(tipo) {
+        let url, inputId, selectId, modalId;
+
+        if (tipo === 'categoria') {
+            url = '{% url "criar_categoria_api" %}';
+            inputId = 'inputNomeCategoria';
+            selectId = 'id_categoria';
+            modalId = 'modalCategoria';
+        } else {
+            url = '{% url "criar_localizacao_api" %}';
+            inputId = 'inputNomeLocalizacao';
+            selectId = 'id_localizacao';
+            modalId = 'modalLocalizacao';
+        }
+
+        const input = document.getElementById(inputId);
+        const nome = input.value;
+        const select = document.getElementById(selectId);
+        const modalElement = document.getElementById(modalId);
+
+        if (!nome) { alert("Digite um nome!"); return; }
+
+        const formData = new FormData();
+        formData.append('nome', nome);
+        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+        fetch(url, {
+            method: 'POST',
+            body: formData,
+            headers: {"X-CSRFToken": '{{ csrf_token }}'}
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                const option = new Option(data.nome, data.id, true, true);
+                select.add(option);
+                input.value = '';
+                
+                const modalInstance = bootstrap.Modal.getOrCreateInstance(modalElement);
+                modalInstance.hide();
+                document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+            } else {
+                alert("Erro: " + data.message);
+            }
+        })
+        .catch(err => alert("Erro no servidor."));
+    }
+</script>
+
+<style>
+    #id_categoria, #id_localizacao { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+</style>
 {% endblock %}

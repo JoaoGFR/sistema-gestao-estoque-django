@@ -1,0 +1,25 @@
+# Ignorar Git e configurações
+.git
+.gitignore
+.dockerignore
+
+# Ignorar Ambientes Virtuais e IDEs
+venv
+env
+.venv
+.vscode
+.idea
+__pycache__
+*.pyc
+*.pyo
+
+# Ignorar Arquivos de Ambiente (SEGURANÇA CRÍTICA)
+# Impede que suas senhas locais vão para dentro da imagem Docker
+.env
+.env.*
+secrets.json
+
+# Ignorar Mídia e Estáticos (Geralmente servidos por S3/Nginx, não precisam estar na imagem base)
+media/
+staticfiles/
+postgres_data/

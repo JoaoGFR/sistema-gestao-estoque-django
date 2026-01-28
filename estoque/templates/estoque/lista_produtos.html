@@ -1,143 +1,157 @@
 {% extends 'estoque/base.html' %}
 
 {% block content %}
-<div class="row mb-3">
-    <div class="col-md-8">
-        <h2>Controle de Estoque</h2>
-    </div>
-    <div class="col-md-4 text-end">
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Controle de Estoque</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
         <a href="{% url 'criar_produto' %}" class="btn btn-primary shadow-sm">
             <i class="bi bi-plus-lg"></i> Novo Item
         </a>
     </div>
 </div>
 
-<form method="get" class="mb-4">
-    <div class="input-group">
-        <input type="text" name="q" class="form-control" placeholder="Buscar peça ou ferramenta..." value="{{ request.GET.q|default:'' }}">
-        <button class="btn btn-outline-primary" type="submit">Buscar</button>
-        {% if request.GET.q %}
-            <a href="{% url 'lista_produtos' %}" class="btn btn-outline-secondary">Limpar</a>
-        {% endif %}
-    </div>
-</form>
+<div class="card mb-4 shadow-sm">
+    <div class="card-body">
+        <form method="get" class="row g-2 align-items-center">
+            
+            <div class="col-md-5">
+                <div class="input-group">
+                    <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                    <input type="text" name="q" class="form-control border-start-0" placeholder="Buscar por nome, SKU ou EAN..." value="{{ query|default:'' }}">
+                </div>
+            </div>
 
-<ul class="nav nav-tabs mb-3" id="meuEstoqueTab" role="tablist">
-  <li class="nav-item" role="presentation">
-    <button class="nav-link active fw-bold" id="pecas-tab" data-bs-toggle="tab" data-bs-target="#pecas" type="button" role="tab">
-        🧩 Peças de Reposição
-        <span class="badge bg-secondary ms-1">{{ pecas.count }}</span>
-    </button>
-  </li>
-  <li class="nav-item" role="presentation">
-    <button class="nav-link fw-bold" id="ferramentas-tab" data-bs-toggle="tab" data-bs-target="#ferramentas" type="button" role="tab">
-        🔧 Ferramentas
-        <span class="badge bg-secondary ms-1">{{ ferramentas.count }}</span>
-    </button>
-  </li>
-</ul>
-
-<div class="tab-content" id="meuEstoqueTabContent">
-
-  <div class="tab-pane fade show active" id="pecas" role="tabpanel">
-    <div class="card shadow-sm border-0">
-        <div class="card-body p-0">
-            <table class="table table-hover mb-0">
-                <thead class="table-light">
-                    <tr>
-                        <th>Nome da Peça</th>
-                        <th>Localização</th> <th>Qtd</th>
-                        <th>Preço Custo</th>
-                        <th class="text-end">Ações</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for produto in pecas %}
-                    <tr>
-                        <td>{{ produto.nome }}</td>
-                        
-                        <td>
-                            {% if produto.locacao %}
-                                <span class="badge bg-light text-dark border">
-                                    <i class="bi bi-geo-alt-fill text-danger"></i> {{ produto.locacao }}
-                                </span>
-                            {% else %}
-                                <span class="text-muted small">-</span>
-                            {% endif %}
-                        </td>
-
-                        <td>
-                            {% if produto.quantidade < 5 %}
-                                <span class="text-danger fw-bold">{{ produto.quantidade }} (Baixo!)</span>
-                            {% else %}
-                                {{ produto.quantidade }}
-                            {% endif %}
-                        </td>
-                        <td>R$ {{ produto.preco_custo|default:"-" }}</td>
-                        <td class="text-end">
-                            <a href="{% url 'editar_produto' produto.id %}" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil"></i></a>
-                            <a href="{% url 'excluir_produto' produto.id %}" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></a>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr><td colspan="5" class="text-center py-4 text-muted">Nenhuma peça encontrada.</td></tr>
+            <div class="col-md-3">
+                <select name="categoria" class="form-select" onchange="this.form.submit()">
+                    <option value="">Todas as Categorias</option>
+                    {% for cat in categorias %}
+                        <option value="{{ cat.id }}" {% if categoria_selecionada == cat.id %}selected{% endif %}>
+                            {{ cat.nome }}
+                        </option>
                     {% endfor %}
-                </tbody>
-            </table>
-        </div>
+                </select>
+            </div>
+
+            <div class="col-md-4 text-end">
+                {% if filtro_critico %}
+                    <a href="{% url 'lista_produtos' %}" class="btn btn-secondary">
+                        <i class="bi bi-list-ul"></i> Ver Todos
+                    </a>
+                {% else %}
+                    <a href="?filtro=critico" class="btn btn-outline-danger">
+                        <i class="bi bi-exclamation-triangle-fill"></i> Estoque Crítico
+                    </a>
+                {% endif %}
+                
+                <button type="submit" class="btn btn-primary">Filtrar</button>
+            </div>
+        </form>
     </div>
-  </div>
+</div>
 
-  <div class="tab-pane fade" id="ferramentas" role="tabpanel">
-    <div class="card shadow-sm border-0">
-        <div class="card-body p-0">
-            <table class="table table-hover mb-0">
-                <thead class="table-light">
-                    <tr>
-                        <th>Ferramenta/Equipamento</th>
-                        <th>Localização</th> <th>Categoria</th>
-                        <th>Disponíveis</th>
-                        <th class="text-end">Ações</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for produto in ferramentas %}
-                    <tr>
-                        <td class="fw-bold text-primary">{{ produto.nome }}</td>
-                        
-                        <td>
-                             {% if produto.locacao %}
-                                <small><i class="bi bi-geo-alt"></i> {{ produto.locacao }}</small>
-                            {% else %}
-                                <span class="text-muted small">-</span>
-                            {% endif %}
-                        </td>
-
-                        <td><span class="badge bg-info text-dark">{{ produto.get_categoria_display }}</span></td>
-                        <td>
-                            {% if produto.quantidade < produto.estoque_minimo %}
-                                <span class="text-danger fw-bold" title="Mínimo esperado: {{ produto.estoque_minimo }}">
-                                    {{ produto.quantidade }} (Baixo!)
-                                </span>
-                            {% else %}
-                                <span class="text-success">
-                                    {{ produto.quantidade }}
-                                </span>
-                            {% endif %}
-                        </td>
-                        <td class="text-end">
-                            <a href="{% url 'editar_produto' produto.id %}" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil"></i></a>
-                            <a href="{% url 'excluir_produto' produto.id %}" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></a>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr><td colspan="5" class="text-center py-4 text-muted">Nenhuma ferramenta encontrada.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Nome do Produto</th>
+                    <th>Categoria</th>
+                    <th>Localização</th>
+                    <th class="text-center">Estoque</th>
+                    <th>Preço Médio</th>
+                    <th class="text-end">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in page_obj %}
+                <tr>
+                    <td>
+                        <div class="fw-bold">{{ item.nome }}</div>
+                        <small class="text-muted" style="font-size: 0.75rem;">
+                            SKU: {{ item.sku|default:"-" }}
+                        </small>
+                    </td>
+                    
+                    <td>
+                        {% if item.categoria %}
+                            <span class="badge bg-light text-dark border">{{ item.categoria.nome }}</span>
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    
+                    <td>
+                        {% if item.localizacao %}
+                            <i class="bi bi-geo-alt text-secondary"></i> {{ item.localizacao.nome }}
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    
+                    <td class="text-center">
+                        {% if item.qtd_real <= item.estoque_minimo %}
+                            <span class="badge bg-danger rounded-pill" title="Abaixo do Mínimo! (Min: {{ item.estoque_minimo }})">
+                                {{ item.qtd_real }} {{ item.get_unidade_display }}
+                            </span>
+                        {% else %}
+                            <span class="badge bg-success rounded-pill">
+                                {{ item.qtd_real }} {{ item.get_unidade_display }}
+                            </span>
+                        {% endif %}
+                    </td>
+                    
+                    <td>
+                        <span class="text-primary fw-bold">R$ {{ item.preco_medio|floatformat:2 }}</span>
+                    </td>
+                    
+                    <td class="text-end">
+                        <div class="btn-group">
+                            <a href="{% url 'historico_produto' item.id %}" class="btn btn-sm btn-info text-white" title="Histórico">
+                                <i class="bi bi-clock-history"></i>
+                            </a>
+                            <a href="{% url 'editar_produto' item.id %}" class="btn btn-sm btn-outline-primary" title="Editar">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <a href="{% url 'excluir_produto' item.id %}" class="btn btn-sm btn-outline-danger" title="Excluir" onclick="return confirm('Tem certeza que deseja excluir este item?');">
+                                <i class="bi bi-trash"></i>
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center py-5 text-muted">
+                        <i class="bi bi-box-seam fs-1 d-block mb-2"></i>
+                        Nenhum produto encontrado.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
-  </div>
+    
+    {% if page_obj.has_other_pages %}
+    <div class="card-footer bg-white d-flex justify-content-center">
+        <nav>
+            <ul class="pagination mb-0">
+                {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}&q={{ query|default:'' }}">&laquo;</a>
+                    </li>
+                {% endif %}
 
+                <li class="page-item active">
+                    <span class="page-link">{{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+                </li>
+
+                {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}&q={{ query|default:'' }}">&raquo;</a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}

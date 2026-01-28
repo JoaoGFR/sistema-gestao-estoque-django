@@ -1,0 +1,109 @@
+{% extends 'estoque/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">
+                    <i class="bi bi-person-plus-fill"></i> Novo Funcionário
+                </h4>
+            </div>
+            <div class="card-body">
+                
+                <div class="alert alert-light border-primary d-flex align-items-center" role="alert">
+                    <i class="bi bi-shield-lock-fill text-primary fs-3 me-3"></i>
+                    <div>
+                        <strong>Como funcionará o login:</strong>
+                        <br>
+                        O acesso será: <span class="badge bg-primary">{{ prefixo }}.nome</span>
+                    </div>
+                </div>
+
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    {% if form.errors %}
+                        <div class="alert alert-danger">
+                            Corrija os erros abaixo.
+                        </div>
+                    {% endif %}
+
+                    <h6 class="text-muted border-bottom pb-2 mb-3">Dados Pessoais</h6>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.first_name|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            {{ form.last_name|as_crispy_field }}
+                        </div>
+                    </div>
+
+                    <h6 class="text-muted border-bottom pb-2 mb-3 mt-2">Dados de Acesso</h6>
+                    
+                    <div class="mb-3">
+                        <label class="form-label requiredField">
+                            Usuário de Acesso <span class="asteriskField">*</span>
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light text-muted fw-bold" id="prefixo-addon">
+                                {{ prefixo }}.
+                            </span>
+                            <input type="text" name="username" id="id_username_input" class="form-control" placeholder="maria" required>
+                        </div>
+                        <div class="form-text text-muted">
+                            Login final será: <strong>{{ prefixo }}.<span id="preview-user">...</span></strong>
+                        </div>
+                        {% for error in form.username.errors %}
+                            <div class="text-danger small mt-1">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.email|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            {{ form.password|as_crispy_field }}
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                        <a href="{% url 'lista_funcionarios' %}" class="btn btn-secondary me-md-2">Cancelar</a>
+                        <button type="submit" class="btn btn-success fw-bold">
+                            <i class="bi bi-check-lg"></i> Criar Acesso
+                        </button>
+                    </div>
+
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const inputUser = document.getElementById('id_username_input');
+    const previewUser = document.getElementById('preview-user');
+
+    if (inputUser) {
+        inputUser.addEventListener('input', function() {
+            // 1. Pega o valor digitado
+            let valor = this.value;
+
+            // 2. Transforma em minúsculo
+            valor = valor.toLowerCase();
+
+            // 3. Remove acentos (Normalização NFD separa o acento da letra, e o Regex remove)
+            valor = valor.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+            // 4. Remove qualquer coisa que NÃO seja letra (a-z) ou número (0-9)
+            valor = valor.replace(/[^a-z0-9]/g, "");
+
+            // 5. Devolve para o campo e atualiza o preview
+            this.value = valor;
+            previewUser.textContent = valor;
+        });
+    }
+</script>
+{% endblock %}

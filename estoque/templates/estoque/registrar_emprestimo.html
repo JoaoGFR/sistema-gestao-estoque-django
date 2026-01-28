@@ -1,0 +1,83 @@
+{% extends 'estoque/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header bg-warning text-dark">
+                <h4 class="mb-0"><i class="bi bi-person-badge"></i> Registrar Empréstimo</h4>
+            </div>
+            <div class="card-body">
+                
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    {% if form.errors %}
+                        <div class="alert alert-danger">Verifique os erros no formulário.</div>
+                    {% endif %}
+
+                    <h6 class="text-muted border-bottom pb-2 mb-3">Quem está levando?</h6>
+                    <div class="mb-3">
+                        {{ form.solicitante|as_crispy_field }}
+                    </div>
+
+                    <h6 class="text-muted border-bottom pb-2 mb-3 mt-4">Qual item?</h6>
+                    
+                    <div class="mb-3">
+                        {{ form.categoria_filtro|as_crispy_field }}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.produto|as_crispy_field }}
+                        <div id="msg-estoque" class="form-text text-danger d-none">
+                            Este produto não possui estoque disponível para empréstimo.
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.observacao|as_crispy_field }}
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                        <a href="{% url 'lista_emprestimos' %}" class="btn btn-secondary me-md-2">Cancelar</a>
+                        <button type="submit" class="btn btn-warning fw-bold">
+                            <i class="bi bi-check-lg"></i> Confirmar Saída
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Recebe os dados do Django (JSON) com segurança
+    const todosProdutos = JSON.parse('{{ produtos_json|escapejs }}');
+    
+    const selectCategoria = document.getElementById('id_categoria_filtro');
+    const selectProduto = document.getElementById('id_produto');
+
+    // Função para filtrar
+    function filtrarProdutos() {
+        const catId = selectCategoria.value;
+        
+        // Limpa o select de produtos, mantendo a opção vazia inicial
+        selectProduto.innerHTML = '<option value="">---------</option>';
+        
+        todosProdutos.forEach(prod => {
+            // Se não tiver categoria selecionada, mostra tudo.
+            // Se tiver, mostra só os que batem o ID da categoria.
+            if (!catId || prod.categoria_id == catId) {
+                const option = new Option(prod.nome, prod.id);
+                selectProduto.add(option);
+            }
+        });
+    }
+
+    // Escuta a mudança na categoria
+    if (selectCategoria) {
+        selectCategoria.addEventListener('change', filtrarProdutos);
+    }
+</script>
+{% endblock %}

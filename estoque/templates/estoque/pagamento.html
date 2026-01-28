@@ -1,0 +1,49 @@
+{% extends 'estoque/base.html' %}
+
+{% block content %}
+<div class="row justify-content-center align-items-center" style="min-height: 80vh;">
+    <div class="col-md-6 text-center">
+        
+        <div class="card shadow-lg border-success">
+            <div class="card-header bg-success text-white py-3">
+                <h4 class="mb-0"><i class="bi bi-check-circle"></i> Quase lá!</h4>
+            </div>
+            <div class="card-body p-5">
+                <h2 class="card-title text-success mb-3">Bem-vindo, {{ user.first_name }}!</h2>
+                <p class="lead text-muted mb-4">
+                    A empresa <strong>{{ empresa.nome }}</strong> foi criada com sucesso.
+                </p>
+                
+                <div class="alert alert-light border my-4">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="fw-bold text-muted">Plano Selecionado:</span>
+                        <span class="badge bg-primary fs-6">Plano Empreendedor</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mt-2">
+                        <span class="fw-bold text-muted">Valor:</span>
+                        <span class="fs-4 fw-bold text-dark">R$ 10,00<small class="fs-6 text-muted">/mês</small></span>
+                    </div>
+                </div>
+
+                <p class="text-muted mb-4">Para liberar seu acesso ao dashboard, conclua a ativação abaixo.</p>
+
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-success btn-lg py-3 shadow">
+                            <i class="bi bi-credit-card-2-front"></i> Realizar Pagamento e Liberar Acesso
+                        </button>
+                    </div>
+                </form>
+                
+                <p class="mt-3 small text-muted fst-italic">Ambiente de Teste: Nenhuma cobrança real será feita.</p>
+            </div>
+        </div>
+        
+        <div class="mt-4">
+            <a href="{% url 'logout' %}" class="text-muted text-decoration-none small">Cancelar e Sair</a>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

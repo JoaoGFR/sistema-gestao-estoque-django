@@ -1,0 +1,56 @@
+{% extends 'estoque/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">Cadastrar Acesso</h4>
+            </div>
+            <div class="card-body">
+
+                {% if atingiu_limite %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-person-fill-lock text-danger" style="font-size: 4rem;"></i>
+                        <h4 class="mt-3 text-danger">Limite do Plano Atingido</h4>
+                        <p class="lead">Sua empresa já possui {{ atual }} de {{ limite }} usuários cadastrados.</p>
+                        <p class="text-muted small">Para adicionar mais pessoas, entre em contato para mudar de plano.</p>
+                        
+                        <a href="{% url 'lista_funcionarios' %}" class="btn btn-secondary mt-3">
+                            <i class="bi bi-arrow-left"></i> Voltar para Equipe
+                        </a>
+                    </div>
+                {% else %}
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> Você está usando <strong>{{ atual }}</strong> de <strong>{{ limite }}</strong> licenças disponíveis.
+                    </div>
+
+                    <form method="post">
+                        {% csrf_token %}
+                        {{ form|crispy }}
+                        
+                        <div class="d-grid gap-2 mt-4">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="bi bi-check-lg"></i> Confirmar Cadastro
+                            </button>
+                            <a href="{% url 'lista_funcionarios' %}" class="btn btn-outline-secondary">Cancelar</a>
+                        </div>
+                    </form>
+                {% endif %}
+
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -19,6 +19,20 @@ staticfiles/
 media/
 assets/
 
+# --- Testes e Cobertura de Código (Importante para o futuro) ---
+.coverage
+htmlcov/
+.pytest_cache/
+nosetests.xml
+coverage.xml
+
+# --- Traduções (Caso seu SaaS tenha múltiplos idiomas) ---
+*.mo
+*.pot
+
+# --- Jupyter Notebooks (Caso faça análise de dados do estoque) ---
+.ipynb_checkpoints
+
 # --- Ambientes Virtuais ---
 venv/
 env/

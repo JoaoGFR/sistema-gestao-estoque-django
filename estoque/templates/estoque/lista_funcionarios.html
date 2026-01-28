@@ -1,0 +1,74 @@
+{% extends 'estoque/base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <div>
+        <h2 class="h2"><i class="bi bi-people-fill"></i> Minha Equipe</h2>
+        <p class="text-muted">Gerencie quem tem acesso ao sistema da <strong>{{ user.userprofile.empresa.nome }}</strong>.</p>
+    </div>
+    
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{% url 'criar_funcionario' %}" class="btn btn-primary shadow-sm">
+            <i class="bi bi-person-plus-fill"></i> Novo Funcionário
+        </a>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Nome Completo</th>
+                        <th>Usuário (Login)</th>
+                        <th>E-mail</th>
+                        <th>Função</th>
+                        <th class="text-center">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for funcionario in funcionarios %}
+                    <tr>
+                        <td class="fw-bold">
+                            <div class="d-flex align-items-center">
+                                <div class="bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 35px; height: 35px;">
+                                    {{ funcionario.user.first_name|slice:":1" }}{{ funcionario.user.last_name|slice:":1" }}
+                                </div>
+                                {{ funcionario.user.get_full_name|default:funcionario.user.username }}
+                            </div>
+                        </td>
+                        
+                        <td class="text-muted">{{ funcionario.user.username }}</td>
+                        
+                        <td>{{ funcionario.user.email }}</td>
+                        
+                        <td>
+                            {% if funcionario.e_dono %}
+                                <span class="badge bg-primary">Administrador / Dono</span>
+                            {% else %}
+                                <span class="badge bg-info text-dark">Colaborador</span>
+                            {% endif %}
+                        </td>
+
+                        <td class="text-center">
+                            {% if funcionario.user.is_active %}
+                                <i class="bi bi-check-circle-fill text-success" title="Ativo"></i>
+                            {% else %}
+                                <i class="bi bi-dash-circle-fill text-muted" title="Inativo"></i>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center py-4 text-muted">
+                            Nenhum funcionário encontrado.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
