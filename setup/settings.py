@@ -13,8 +13,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Se não achar a SECRET_KEY no .env, usa uma temporária (só para não crashar em dev)
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-chave-temporaria-dev')
 
-# O DEBUG deve ser False em produção. Lê do .env (padrão é True se não achar)
-# IMPORTANTE: No Vercel, defina a variável de ambiente DEBUG = False nas configurações do projeto
+# O DEBUG deve ser False em produção.
+# No Vercel, você pode definir a variável de ambiente DEBUG como "False" nas configurações.
 DEBUG = os.getenv('DEBUG', 'True') == 'True'
 
 # --- CORREÇÃO ALLOWED_HOSTS ---
@@ -86,25 +86,31 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'setup.wsgi.application'
 
-# --- BANCO DE DADOS ---
-# Configuração híbrida: Postgres (Prod/Docker) ou SQLite (Local simples)
+# --- BANCO DE DADOS (CONFIGURAÇÃO VERCEL/NEON) ---
 
+# 1. Primeiro tenta pegar a URL do banco que o Vercel cria (POSTGRES_URL)
+#    ou uma genérica (DATABASE_URL)
+database_url = os.getenv('POSTGRES_URL', os.getenv('DATABASE_URL'))
+
+# Variáveis manuais (caso esteja usando Docker localmente)
 db_user = os.getenv('POSTGRES_USER')
 db_password = os.getenv('POSTGRES_PASSWORD')
 db_name = os.getenv('POSTGRES_DB')
 db_host = os.getenv('DB_HOST')
 db_port = os.getenv('DB_PORT')
 
-# Verifica se existe uma URL de banco completa (comum em serviços de nuvem como Neon/Supabase/Render)
-database_url = os.getenv('DATABASE_URL')
+# CORREÇÃO IMPORTANTE PARA O VERCEL:
+# O Vercel/Neon fornece a URL começando com 'postgres://', mas o Django exige 'postgresql://'
+if database_url and database_url.startswith("postgres://"):
+    database_url = database_url.replace("postgres://", "postgresql://", 1)
 
 if database_url:
-    # Se tiver URL completa, usa ela (padrão Cloud)
+    # SE TIVER URL (Vercel ou Nuvem): Usa dj_database_url para configurar tudo sozinho
     DATABASES = {
-        'default': dj_database_url.parse(database_url, conn_max_age=600)
+        'default': dj_database_url.parse(database_url, conn_max_age=600, ssl_require=True)
     }
 elif db_host:
-    # Se tiver host definido (Docker), usa configuração manual do Postgres
+    # SE TIVER HOST (Docker Local): Configuração manual do Postgres
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
@@ -116,7 +122,8 @@ elif db_host:
         }
     }
 else:
-    # Fallback: SQLite local (dentro do container ou pasta local)
+    # FALLBACK (Desenvolvimento Local sem Docker): SQLite
+    # Apenas para testes locais, pois no Vercel isso dá erro de leitura/escrita.
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
