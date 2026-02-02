@@ -19,7 +19,7 @@ DEBUG = os.getenv('DEBUG', 'True') == 'True'
 # Lê os hosts permitidos do .env e transforma em lista
 # Ex no .env: ALLOWED_HOSTS=localhost,127.0.0.1
 allowed_hosts_env = os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost')
-ALLOWED_HOSTS = allowed_hosts_env.split(',')
+ALLOWED_HOSTS = ['.vercel.app', 'localhost', '127.0.0.1']
 
 # --- CORREÇÃO DE SEGURANÇA (CSRF) ---
 # Lista de endereços autorizados a enviar formulários (Login/Post)
