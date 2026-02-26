@@ -1,0 +1,9 @@
+Django>=5.0,<6.0
+asgiref
+sqlparse
+gunicorn
+whitenoise
+psycopg2-binary
+dj-database-url
+crispy-bootstrap5
+django-crispy-forms
