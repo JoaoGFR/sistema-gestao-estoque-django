@@ -1,0 +1,28 @@
+{% extends 'estoque/base.html' %}
+
+{% block content %}
+<h2 class="mb-4"><i class="bi bi-file-earmark-bar-graph"></i> Central de Relatórios</h2>
+
+<div class="row">
+    <div class="col-md-4 mb-3">
+        <div class="card shadow-sm h-100 border-primary">
+            <div class="card-body text-center">
+                <i class="bi bi-box-seam fs-1 text-primary mb-3"></i>
+                <h5 class="card-title">Saldo de Estoque</h5>
+                <p class="card-text text-muted">Visualize a quantidade atual e o valor financeiro investido em produtos.</p>
+                <a href="{% url 'relatorio_estoque_saldo' %}" class="btn btn-primary w-100">Gerar Relatório</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4 mb-3">
+        <div class="card shadow-sm h-100 border-success">
+            <div class="card-body text-center">
+                <i class="bi bi-arrow-left-right fs-1 text-success mb-3"></i>
+                <h5 class="card-title">Movimentações</h5>
+                <p class="card-text text-muted">Histórico completo de entradas, saídas e empréstimos por período.</p>
+                <a href="{% url 'relatorio_movimentacoes' %}" class="btn btn-success w-100">Gerar Relatório</a>
+            </div>
+        </div>
+    </div>
+{% endblock %}

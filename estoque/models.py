@@ -3,7 +3,7 @@ from django.contrib.auth.models import User
 from django.db.models import Sum, F
 from django.utils import timezone
 
-# 1. EMPRESA (Base de tudo)
+# 1. EMPRESA 
 class Empresa(models.Model):
     nome = models.CharField(max_length=100)
     cnpj = models.CharField(max_length=20, blank=True, null=True)
@@ -33,7 +33,6 @@ class Categoria(models.Model):
 class Localizacao(models.Model):
     empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE)
     nome = models.CharField(max_length=100, verbose_name="Endereço/Local")
-    # Ex: "Corredor A", "Prateleira 2", "Gaveta B"
     
     def __str__(self):
         return self.nome
@@ -48,7 +47,7 @@ class UnidadeMedida(models.TextChoices):
     ROLO = 'RL', 'Rolo'
     PACOTE = 'PCT', 'Pacote'
 
-# 6. PRODUTO (Atualizado com Categoria e Localização)
+# 6. PRODUTO 
 class Produto(models.Model):
     empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE)
     
@@ -128,6 +127,7 @@ class SaidaEstoque(models.Model):
     motivo = models.CharField(max_length=200)
     data = models.DateTimeField(auto_now_add=True)
     usuario = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    valor_venda = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, null=True, blank=True, verbose_name="Valor de Venda (Unitário)")
 
     def __str__(self):
         return f"{self.produto.nome} - {self.quantidade}"
@@ -135,13 +135,14 @@ class SaidaEstoque(models.Model):
 # 9. EMPRÉSTIMO
 class Emprestimo(models.Model):
     lote = models.ForeignKey(Lote, on_delete=models.CASCADE, null=True, blank=True)
+    quantidade = models.DecimalField(max_digits=10, decimal_places=2, default=1)
     produto = models.ForeignKey(Produto, on_delete=models.CASCADE)
     responsavel_saida = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='emprestimos_realizados')
     solicitante = models.CharField(max_length=100, verbose_name="Nome do Solicitante")  
-    data_saida = models.DateTimeField(auto_now_add=True)
+    data_saida = models.DateTimeField(default=timezone.now, verbose_name="Data de Saída")
     data_devolucao = models.DateTimeField(null=True, blank=True)
     devolvido = models.BooleanField(default=False)
     observacao = models.TextField(blank=True, null=True)
 
     def __str__(self):
-        return f"{self.produto.nome} - {self.solicitante}"
+        return f"{self.produto.nome} - {self.solicitante} ({self.quantidade})"

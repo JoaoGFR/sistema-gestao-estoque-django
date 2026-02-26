@@ -22,16 +22,21 @@
                         {{ form.solicitante|as_crispy_field }}
                     </div>
 
-                    <h6 class="text-muted border-bottom pb-2 mb-3 mt-4">Qual item?</h6>
+                    <h6 class="text-muted border-bottom pb-2 mb-3 mt-4">Qual item e quantidade?</h6>
                     
                     <div class="mb-3">
                         {{ form.categoria_filtro|as_crispy_field }}
                     </div>
 
-                    <div class="mb-3">
-                        {{ form.produto|as_crispy_field }}
-                        <div id="msg-estoque" class="form-text text-danger d-none">
-                            Este produto não possui estoque disponível para empréstimo.
+                    <div class="row">
+                        <div class="col-md-9">
+                            {{ form.produto|as_crispy_field }}
+                            <div id="msg-estoque" class="form-text text-danger d-none">
+                                Este produto não possui estoque disponível para empréstimo.
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            {{ form.quantidade|as_crispy_field }}
                         </div>
                     </div>
 
@@ -52,22 +57,21 @@
 </div>
 
 <script>
-    // Recebe os dados do Django (JSON) com segurança
+    
     const todosProdutos = JSON.parse('{{ produtos_json|escapejs }}');
     
     const selectCategoria = document.getElementById('id_categoria_filtro');
     const selectProduto = document.getElementById('id_produto');
 
-    // Função para filtrar
+   
     function filtrarProdutos() {
         const catId = selectCategoria.value;
         
-        // Limpa o select de produtos, mantendo a opção vazia inicial
+       
         selectProduto.innerHTML = '<option value="">---------</option>';
         
         todosProdutos.forEach(prod => {
-            // Se não tiver categoria selecionada, mostra tudo.
-            // Se tiver, mostra só os que batem o ID da categoria.
+           
             if (!catId || prod.categoria_id == catId) {
                 const option = new Option(prod.nome, prod.id);
                 selectProduto.add(option);

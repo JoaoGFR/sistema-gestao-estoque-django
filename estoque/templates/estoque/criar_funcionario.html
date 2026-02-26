@@ -88,19 +88,19 @@
 
     if (inputUser) {
         inputUser.addEventListener('input', function() {
-            // 1. Pega o valor digitado
+           
             let valor = this.value;
 
-            // 2. Transforma em minúsculo
+            
             valor = valor.toLowerCase();
 
-            // 3. Remove acentos (Normalização NFD separa o acento da letra, e o Regex remove)
+            
             valor = valor.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
-            // 4. Remove qualquer coisa que NÃO seja letra (a-z) ou número (0-9)
+            
             valor = valor.replace(/[^a-z0-9]/g, "");
 
-            // 5. Devolve para o campo e atualiza o preview
+           
             this.value = valor;
             previewUser.textContent = valor;
         });

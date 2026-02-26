@@ -35,13 +35,16 @@ urlpatterns = [
     path('equipe/', views.lista_funcionarios, name='lista_funcionarios'),
     path('equipe/novo/', views.criar_funcionario, name='criar_funcionario'),
     path('api/criar_localizacao/', views.criar_localizacao_api, name='criar_localizacao_api'),
-    # --- APIS (JSON para o Javascript) ---
-    # 1. Verifica se produto controla lote (usado na Entrada)
+ 
     path('api/produto/<int:pk>/', views.api_detalhes_produto, name='api_detalhes_produto'),
     
-    # 2. Busca lotes disponíveis (usado na Baixa)
+ 
     path('api/lotes/<int:pk>/', views.api_lotes_produto, name='api_lotes_produto'),
     path('estoque/editar/<int:pk>/', views.editar_lote, name='editar_lote'),
-    # 3. Cria categoria via Modal (usado no Cadastro de Produto) <-- ESTAVA FALTANDO ESTA
+   
     path('api/criar_categoria/', views.criar_categoria_api, name='criar_categoria_api'),
+
+    path('relatorios/', views.relatorios_gerais, name='relatorios_gerais'),
+    path('relatorios/estoque/', views.relatorio_estoque_saldo, name='relatorio_estoque_saldo'),
+    path('relatorios/movimentacoes/', views.relatorio_movimentacoes, name='relatorio_movimentacoes'),
 ]

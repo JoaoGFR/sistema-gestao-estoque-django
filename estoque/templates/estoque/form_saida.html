@@ -31,7 +31,11 @@
                             {{ form.motivo|as_crispy_field }}
                         </div>
                     </div>
-
+                    <div class="mb-3">
+                        <label for="id_valor_venda" class="form-label">Valor da Venda (R$)</label>
+                             {{ form.valor_venda }} 
+                         <div class="form-text text-muted">Deixe em branco se for consumo interno ou perda.</div>
+                    </div>
                     <div class="d-grid gap-2 mt-3">
                         <button type="submit" class="btn btn-dark">Confirmar Baixa</button>
                         <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">Cancelar</a>
@@ -49,7 +53,7 @@
         const inputQtd = document.getElementById('id_quantidade');
         const textoAjuda = document.getElementById('ajudaSaldo');
         
-        let saldoTotalProduto = 0; // Guardaremos o saldo total aqui
+        let saldoTotalProduto = 0; 
 
         function carregarLotes() {
             const produtoId = selectProduto.value;
@@ -78,7 +82,7 @@
                         option.value = lote.id;
                         option.text = lote.texto; 
                         
-                        // O "PULO DO GATO": Guardamos a quantidade DENTRO da opção HTML
+                        
                         option.setAttribute('data-qtd', lote.qtd_disponivel);
                         
                         selectLote.appendChild(option);
@@ -86,7 +90,7 @@
                     });
                     
                     saldoTotalProduto = somaTotal;
-                    atualizarLimiteQuantidade(); // Chama a função para definir o limite inicial
+                    atualizarLimiteQuantidade();
                 })
                 .catch(error => {
                     console.error('Erro:', error);
@@ -100,7 +104,7 @@
             const loteSelecionado = selectLote.options[selectLote.selectedIndex];
             
             if (loteSelecionado && loteSelecionado.value) {
-                // MODO MANUAL: Tem um lote específico selecionado
+                
                 const maximoLote = loteSelecionado.getAttribute('data-qtd');
                 
                 inputQtd.max = maximoLote;

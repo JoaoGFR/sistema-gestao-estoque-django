@@ -2,97 +2,111 @@
 
 {% block content %}
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-    <h1 class="h2"><i class="bi bi-person-badge"></i> Controle de Empréstimos</h1>
+    <h1 class="h2"><i class="bi bi-clock-history"></i> Histórico de Empréstimos</h1>
+    
     <div class="btn-toolbar mb-2 mb-md-0">
-        <a href="{% url 'registrar_emprestimo' %}" class="btn btn-warning fw-bold text-dark shadow-sm">
+        <a href="{% url 'registrar_emprestimo' %}" class="btn btn-primary shadow-sm">
             <i class="bi bi-plus-lg"></i> Novo Empréstimo
         </a>
     </div>
 </div>
 
-<div class="card shadow-sm border-warning">
+<form method="get" class="mb-4">
+    <div class="input-group">
+        <input type="text" name="busca" class="form-control" placeholder="Buscar por nome do solicitante..." value="{{ request.GET.busca }}">
+        <button class="btn btn-outline-secondary" type="submit">Buscar</button>
+    </div>
+</form>
+
+<div class="card shadow-sm">
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
-            <thead class="table-light">
-                <tr>
-                    <th>Produto</th>
-                    <th>Solicitante</th>
-                    <th>Data Saída</th>
-                    <th>Status</th>
-                    <th class="text-end">Ações</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for emp in emprestimos %}
-                <tr>
-                    <td>
-                        <div class="fw-bold">{{ emp.produto.nome }}</div>
-                        {% if emp.lote %}
-                            <small class="text-muted" style="font-size: 0.75rem;">
-                                Lote: {{ emp.lote.numero_lote }}
-                            </small>
-                        {% endif %}
-                    </td>
-                    
-                    <td>
-                        <div class="d-flex align-items-center">
-                            <div class="bg-light rounded-circle p-2 me-2">
-                                <i class="bi bi-person text-secondary"></i>
-                            </div>
-                            <div>
-                                <span class="fw-bold">{{ emp.solicitante }}</span>
-                                <br>
-                                <small class="text-muted">Resp: {{ emp.responsavel_saida.first_name }}</small>
-                            </div>
-                        </div>
-                    </td>
-                    
-                    <td>
-                        {{ emp.data_saida|date:"d/m/Y" }}
-                        <br>
-                        <small class="text-muted">{{ emp.data_saida|date:"H:i" }}</small>
-                    </td>
-                    
-                    <td>
-                        {% if emp.devolvido %}
-                            <span class="badge bg-success">
-                                <i class="bi bi-check-circle"></i> Devolvido
-                            </span>
-                            <div class="small text-muted mt-1">
-                                em {{ emp.data_devolucao|date:"d/m/Y" }}
-                            </div>
-                        {% else %}
-                            <span class="badge bg-warning text-dark">
-                                <i class="bi bi-clock-history"></i> Em Aberto
-                            </span>
-                        {% endif %}
-                    </td>
-                    
-                    <td class="text-end">
-                        {% if not emp.devolvido %}
-                            <form action="{% url 'devolver_item' emp.id %}" method="post" class="d-inline" onsubmit="return confirm('Confirmar a devolução deste item ao estoque?');">
-                                {% csrf_token %}
-                                <button type="submit" class="btn btn-sm btn-outline-success" title="Registrar Devolução">
-                                    <i class="bi bi-box-arrow-in-left"></i> Devolver
-                                </button>
-                            </form>
-                        {% else %}
-                            <button class="btn btn-sm btn-light disabled text-muted">
-                                <i class="bi bi-check-all"></i> Concluído
-                            </button>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="5" class="text-center py-5 text-muted">
-                        <i class="bi bi-inbox fs-1 d-block mb-3 text-secondary"></i>
-                        Nenhum empréstimo ativo no momento.
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    <thead class="table-light">
+        <tr>
+            <th>Status</th>
+            <th>Produto</th>
+            <th>Qtd.</th>
+            <th>Solicitante</th>
+            <th>Data Saída</th>
+            <th>Data Devolução</th>
+            
+            <th>Observação</th>
+            
+            <th class="text-end">Ações</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for emp in emprestimos %}
+        <tr class="{% if emp.devolvido %}table-light text-muted{% endif %}">
+            
+            <td>
+                {% if emp.devolvido %}
+                    <span class="badge bg-success rounded-pill">
+                        <i class="bi bi-check-all"></i> Finalizado
+                    </span>
+                {% else %}
+                    <span class="badge bg-warning text-dark rounded-pill">
+                        <i class="bi bi-hourglass-split"></i> Em Aberto
+                    </span>
+                {% endif %}
+            </td>
+
+            <td>
+                <strong class="text-dark">{{ emp.produto.nome }}</strong>
+                {% if emp.lote %}
+                    <br><small style="font-size: 0.75rem;">Lote: {{ emp.lote.numero_lote }}</small>
+                {% endif %}
+            </td>
+
+            <td class="fw-bold">{{ emp.quantidade|floatformat:0 }}</td>
+
+            <td>{{ emp.solicitante }}</td>
+
+            <td>{{ emp.data_saida|date:"d/m/Y H:i" }}</td>
+
+            <td>
+                {% if emp.devolvido %}
+                    <span class="text-success fw-bold">{{ emp.data_devolucao|date:"d/m/Y H:i" }}</span>
+                {% else %}
+                    -
+                {% endif %}
+            </td>
+
+            <td>
+                {% if emp.observacao %}
+                    <span title="{{ emp.observacao }}" data-bs-toggle="tooltip">
+                        {{ emp.observacao|truncatechars:20 }}
+                    </span>
+                {% else %}
+                    <span class="text-muted small">-</span>
+                {% endif %}
+            </td>
+
+            <td class="text-end">
+                {% if not emp.devolvido %}
+                    <form action="{% url 'devolver_item' emp.id %}" method="post" class="d-inline" onsubmit="return confirm('Confirmar a devolução deste item?');">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-outline-success" title="Registrar Devolução">
+                            <i class="bi bi-box-arrow-in-left"></i> Devolver
+                        </button>
+                    </form>
+                {% else %}
+                    <button class="btn btn-sm btn-light disabled border-0">
+                        <i class="bi bi-archive"></i> Arquivado
+                    </button>
+                {% endif %}
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="8" class="text-center py-5 text-muted">
+                <i class="bi bi-clipboard-x fs-1 d-block mb-3"></i>
+                Nenhum histórico encontrado.
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+    </table>
     </div>
 </div>
 {% endblock %}

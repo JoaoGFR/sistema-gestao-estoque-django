@@ -17,20 +17,21 @@ from django.db.models.functions import Coalesce
 from django.db import transaction
 import json
 from django.core.serializers.json import DjangoJSONEncoder
-
-# Seus models e forms
+from datetime import timedelta, datetime
+from itertools import chain
+from operator import attrgetter
 from .models import Produto, Emprestimo, SaidaEstoque, Empresa, UserProfile, Lote
 from .forms import ProdutoForm, EmprestimoForm, SaidaEstoqueForm, CadastroSaaSForm, FuncionarioForm, LoteForm
 
-# ... (o resto do arquivo continua igual) ...
-# --- FUNÇÕES AUXILIARES ---
+
+
 def get_empresa_usuario(user):
     try:
         return user.userprofile.empresa
     except ObjectDoesNotExist:
         return None
 
-# --- VIEWS PÚBLICAS ---
+
 def landing_page(request):
     return render(request, 'estoque/landing.html')
 
@@ -61,12 +62,11 @@ def cadastro_saas(request):
         form = CadastroSaaSForm()
     return render(request, 'estoque/cadastro_saas.html', {'form': form})
 
-# --- DASHBOARD (CORRIGIDA) ---
+# --- DASHBOARD 
 @login_required
 def dashboard(request):
     empresa = get_empresa_usuario(request.user)
     if not empresa:
-        # Se não tiver empresa, renderiza zerado para não dar erro
         return render(request, 'estoque/dashboard.html', {
             'total_produtos': 0, 
             'total_categorias': 0, 
@@ -77,31 +77,23 @@ def dashboard(request):
             'lotes_vencendo': [] 
         })
     
-    # 1. TOTAIS GERAIS (Correção do erro 'PECA' aqui)
-    # Não filtramos mais por nome fixo, pegamos o total da empresa
+    # 1. TOTAIS
     total_produtos = Produto.objects.filter(empresa=empresa).count()
-    
-    # Contamos quantas categorias diferentes você criou
     total_categorias = Categoria.objects.filter(empresa=empresa).count()
     
     # 2. FINANCEIRO
-    # Soma (Quantidade Atual * Preço de Compra) direto na tabela de Lotes
     soma_valor = Lote.objects.filter(
         produto__empresa=empresa, 
         status='ATIVO'
     ).aggregate(
         total=Sum(F('quantidade_atual') * F('preco_compra'))
     )['total']
-    
     valor_total_estoque = soma_valor if soma_valor else 0
 
     # 3. ALERTAS DE ESTOQUE BAIXO
-    # Anota a quantidade real e compara com o mínimo
     produtos_anotados = Produto.objects.filter(empresa=empresa).annotate(
         qtd_real=Coalesce(Sum('lotes__quantidade_atual', filter=Q(lotes__status='ATIVO')), 0)
     )
-    
-    # Removemos o filtro categoria='PECA' para pegar QUALQUER item baixo
     estoque_baixo = produtos_anotados.filter(
         qtd_real__lt=F('estoque_minimo')
     ).count()
@@ -115,9 +107,9 @@ def dashboard(request):
     # 5. ÚLTIMAS MOVIMENTAÇÕES
     ultimas_saidas = SaidaEstoque.objects.filter(
         produto__empresa=empresa
-    ).order_by('-data')[:5]
+    ).select_related('produto').order_by('-data')[:5] 
 
-    # 6. VENCIMENTOS PRÓXIMOS (30 DIAS)
+    # 6. VENCIMENTOS PRÓXIMOS
     hoje = timezone.now().date()
     daqui_30_dias = hoje + timedelta(days=30)
     lotes_vencendo = Lote.objects.filter(
@@ -125,11 +117,11 @@ def dashboard(request):
         status='ATIVO',
         quantidade_atual__gt=0,
         data_validade__range=[hoje, daqui_30_dias] 
-    ).order_by('data_validade')
+    ).select_related('produto').order_by('data_validade')
 
     contexto = {
-        'total_produtos': total_produtos,     # Mudamos de 'total_pecas' para 'total_produtos'
-        'total_categorias': total_categorias, # Nova métrica
+        'total_produtos': total_produtos,
+        'total_categorias': total_categorias,
         'estoque_baixo': estoque_baixo,
         'emprestimos_pendentes': emprestimos_pendentes,
         'ultimas_saidas': ultimas_saidas,
@@ -143,16 +135,16 @@ def dashboard(request):
 def lista_produtos(request):
     empresa = get_empresa_usuario(request.user)
     
-    # Parâmetros da URL (Busca e Filtros)
+    # Parâmetros da URL 
     query = request.GET.get('q')
     filtro_critico = request.GET.get('filtro')
-    categoria_id = request.GET.get('categoria') # Novo filtro por categoria
+    categoria_id = request.GET.get('categoria')
 
-    # 1. Query Base (Traz todos os produtos da empresa)
+    # 1. Query Base 
     produtos = Produto.objects.filter(empresa=empresa)
 
     # 2. Anota a Quantidade Real (Soma dos Lotes Ativos)
-    # Isso é necessário para saber o saldo antes de filtrar
+   
     produtos = produtos.annotate(
         qtd_real=Coalesce(Sum('lotes__quantidade_atual', filter=Q(lotes__status='ATIVO')), 0)
     )
@@ -179,7 +171,7 @@ def lista_produtos(request):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     
-    # Busca todas categorias para montar o filtro no HTML
+   
     categorias = Categoria.objects.filter(empresa=empresa)
 
     return render(request, 'estoque/lista_produtos.html', {
@@ -195,7 +187,6 @@ def criar_produto(request):
     empresa = get_empresa_usuario(request.user)
     
     if request.method == 'POST':
-        # MUDANÇA AQUI: Passamos 'request.user' antes do 'request.POST'
         form = ProdutoForm(request.user, request.POST)
         if form.is_valid():
             produto = form.save(commit=False)
@@ -204,7 +195,6 @@ def criar_produto(request):
             messages.success(request, 'Produto cadastrado! Agora adicione um Lote para incluir estoque.')
             return redirect('lista_produtos')
     else:
-        # MUDANÇA AQUI: Passamos 'request.user' aqui também
         form = ProdutoForm(request.user)
         
     return render(request, 'estoque/criar_produto.html', {'form': form})
@@ -215,14 +205,13 @@ def editar_produto(request, pk):
     produto = get_object_or_404(Produto, pk=pk, empresa=empresa)
     
     if request.method == 'POST':
-        # MUDANÇA AQUI: Passamos 'request.user' + POST + instance
+        
         form = ProdutoForm(request.user, request.POST, instance=produto)
         if form.is_valid():
             form.save()
             messages.success(request, 'Produto atualizado!')
             return redirect('lista_produtos')
     else:
-        # MUDANÇA AQUI: Passamos 'request.user' + instance
         form = ProdutoForm(request.user, instance=produto)
         
     return render(request, 'estoque/criar_produto.html', {'form': form})
@@ -253,7 +242,7 @@ def entrada_estoque(request):
             lote = form.save(commit=False)
             if lote.produto.empresa != empresa:
                 return redirect('lista_produtos')
-            # Qtd atual nasce igual a inicial
+            
             lote.quantidade_atual = lote.quantidade_inicial
             lote.save()
             messages.success(request, 'Lote registrado com sucesso!')
@@ -270,44 +259,48 @@ def registrar_saida(request):
     error_message = None
 
     if request.method == 'POST':
-        # Passamos 'user' para o form filtrar os querysets corretamente
+        
         form = SaidaEstoqueForm(user=request.user, data=request.POST)
         
         if form.is_valid():
             produto = form.cleaned_data['produto']
             qtd_solicitada = form.cleaned_data['quantidade']
             motivo = form.cleaned_data['motivo']
-            lote_escolhido = form.cleaned_data['lote_especifico'] # Campo novo
+            lote_escolhido = form.cleaned_data['lote_especifico']
             
-            # Verificação de Segurança básica
+            
+            valor_venda = form.cleaned_data.get('valor_venda')
+            
+           
             if produto.empresa != empresa:
                 return redirect('lista_produtos')
 
-            # --- CENÁRIO 1: BAIXA MANUAL (Lote Específico) ---
+            
             if lote_escolhido:
                 if lote_escolhido.quantidade_atual < qtd_solicitada:
                     error_message = f"O Lote {lote_escolhido.numero_lote} só tem {lote_escolhido.quantidade_atual} unidades. Você pediu {qtd_solicitada}."
                 else:
                     lote_escolhido.quantidade_atual -= qtd_solicitada
-                    lote_escolhido.save() # O save() já atualiza status se zerar
+                    lote_escolhido.save() 
                     
                     # Registra Saída
                     SaidaEstoque.objects.create(
                         produto=produto,
                         quantidade=qtd_solicitada,
                         motivo=f"{motivo} (Lote Manual: {lote_escolhido.numero_lote})",
-                        usuario=request.user
+                        usuario=request.user,
+                        
+                       
+                        valor_venda=valor_venda 
                     )
                     messages.success(request, f"Saída manual do lote {lote_escolhido.numero_lote} realizada!")
                     return redirect('lista_saidas')
 
-            # --- CENÁRIO 2: BAIXA AUTOMÁTICA (FEFO/FIFO) ---
-            else:
-                # Verifica saldo total antes de tentar baixar
+            
+            else: 
                 if produto.saldo_total < qtd_solicitada:
                     error_message = f"Saldo Insuficiente! Total disponível: {produto.saldo_total}"
                 else:
-                    # Busca lotes ativos, ordenados por Validade (FEFO) e depois Data Entrada (FIFO)
                     lotes = Lote.objects.filter(
                         produto=produto, 
                         status='ATIVO', 
@@ -331,7 +324,10 @@ def registrar_saida(request):
                         produto=produto,
                         quantidade=qtd_solicitada,
                         motivo=f"{motivo} (Auto: {', '.join(lotes_afetados)})",
-                        usuario=request.user
+                        usuario=request.user,
+                        
+                        
+                        valor_venda=valor_venda
                     )
                     messages.success(request, f"Saída automática realizada com sucesso (Lotes: {', '.join(lotes_afetados)}).")
                     return redirect('lista_saidas')
@@ -355,38 +351,59 @@ def registrar_emprestimo(request):
     if request.method == 'POST':
         form = EmprestimoForm(request.user, request.POST)
         if form.is_valid():
-            emprestimo = form.save(commit=False)
-            produto = emprestimo.produto
+            dados_emprestimo = form.save(commit=False)
+            produto = dados_emprestimo.produto
+            qtd_solicitada = dados_emprestimo.quantidade 
             
-            # 1. VALIDAÇÃO DE ESTOQUE
-            # Busca lotes ativos com saldo > 0, do mais antigo para o mais novo (FIFO)
-            lote_disponivel = Lote.objects.filter(
+            # 1. VALIDAÇÃO TOTAL
+            estoque_total = Lote.objects.filter(
                 produto=produto, 
                 status='ATIVO', 
-                quantidade_atual__gt=0
-            ).order_by('data_entrada').first()
-
-            if not lote_disponivel:
-                messages.error(request, f"Erro: O produto '{produto.nome}' não tem estoque disponível para empréstimo.")
+                produto__empresa=empresa 
+            ).aggregate(total=Sum('quantidade_atual'))['total'] or 0
+            
+            if estoque_total < qtd_solicitada:
+                messages.error(request, f"Estoque insuficiente! Disponível: {estoque_total}. Solicitado: {qtd_solicitada}.")
             else:
-                # 2. BAIXA NO ESTOQUE
-                lote_disponivel.quantidade_atual -= 1
-                lote_disponivel.save()
-                
-                # 3. SALVA O EMPRÉSTIMO VINCULADO AO LOTE
-                emprestimo.lote = lote_disponivel
-                emprestimo.responsavel_saida = request.user
-                emprestimo.save()
-                
-                messages.success(request, f"Empréstimo registrado para {emprestimo.solicitante}!")
+                # 2. ALGORITMO FIFO
+                lotes_disponiveis = Lote.objects.filter(
+                    produto=produto, 
+                    status='ATIVO', 
+                    quantidade_atual__gt=0,
+                    produto__empresa=empresa 
+                ).order_by('data_entrada')
+
+                qtd_restante_para_emprestar = qtd_solicitada
+
+                for lote in lotes_disponiveis:
+                    if qtd_restante_para_emprestar <= 0:
+                        break
+
+                    quantidade_a_retirar = min(lote.quantidade_atual, qtd_restante_para_emprestar)
+                    
+                    lote.quantidade_atual -= quantidade_a_retirar
+                    lote.save()
+
+                    Emprestimo.objects.create(
+                        produto=produto,
+                        lote=lote,
+                        quantidade=quantidade_a_retirar,
+                        solicitante=dados_emprestimo.solicitante,
+                        observacao=dados_emprestimo.observacao,
+                        responsavel_saida=request.user,
+                        data_saida=timezone.now() 
+                    )
+
+                    qtd_restante_para_emprestar -= quantidade_a_retirar
+
+                messages.success(request, f"Empréstimo de {qtd_solicitada} itens registrado com sucesso!")
                 return redirect('lista_emprestimos')
     else:
         form = EmprestimoForm(request.user)
 
-    # Passamos produtos com ID da categoria para o template fazer a mágica do JS
     produtos_data = list(Produto.objects.filter(empresa=empresa).values('id', 'nome', 'categoria_id'))
     import json
-    produtos_json = json.dumps(produtos_data)
+    produtos_json = json.dumps(produtos_data, default=str)
 
     return render(request, 'estoque/registrar_emprestimo.html', {
         'form': form, 
@@ -396,7 +413,9 @@ def registrar_emprestimo(request):
 @login_required
 def lista_emprestimos(request):
     empresa = get_empresa_usuario(request.user)
-    emprestimos = Emprestimo.objects.filter(produto__empresa=empresa, devolvido=False)
+    emprestimos = Emprestimo.objects.filter(
+        produto__empresa=empresa
+    ).select_related('produto', 'lote', 'responsavel_saida').order_by('-data_saida')
     return render(request, 'estoque/lista_emprestimos.html', {'emprestimos': emprestimos})
 
 @login_required
@@ -406,22 +425,20 @@ def devolver_item(request, pk):
     
     if request.method == 'POST':
         if not emprestimo.devolvido:
-            # 1. DEVOLVE AO ESTOQUE (No lote original que saiu)
             if emprestimo.lote:
                 lote = emprestimo.lote
-                lote.quantidade_atual += 1
-                # Se o lote estava esgotado, reativa ele
-                if lote.status == 'ESGOTADO':
+                lote.quantidade_atual += emprestimo.quantidade
+                if lote.status == 'ESGOTADO' and lote.quantidade_atual > 0:
                     lote.status = 'ATIVO'
+                
                 lote.save()
             
-            # 2. MARCA COMO DEVOLVIDO
             emprestimo.devolvido = True
             emprestimo.data_devolucao = timezone.now()
             emprestimo.responsavel_devolucao = request.user
             emprestimo.save()
             
-            messages.success(request, "Item devolvido com sucesso!")
+            messages.success(request, f"Devolução de {emprestimo.quantidade} itens confirmada com sucesso!")
         else:
             messages.warning(request, "Este item já foi devolvido.")
             
@@ -444,32 +461,27 @@ def criar_funcionario(request):
     if not request.user.userprofile.e_dono:
         return redirect('dashboard')
 
-    # Cria o "Slug" da empresa (ex: "Oficina do Zé" -> "oficinadoze")
-    # Removemos hífens para ficar mais curto: "oficinadoze"
+
     prefixo_empresa = slugify(empresa.nome).replace('-', '')
 
     if request.method == 'POST':
         form = FuncionarioForm(request.POST)
         if form.is_valid():
-            # 1. Pega os dados sem salvar ainda
+          
             user = form.save(commit=False)
             
-            # 2. Captura o sufixo que o usuário digitou (ex: "maria")
             sufixo = form.cleaned_data['username'].lower()
             
-            # 3. Gera o Login Final (ex: "oficinadoze.maria")
+            
             login_final = f"{prefixo_empresa}.{sufixo}"
             
-            # 4. Verifica se esse login COMBINADO já existe
+            
             if User.objects.filter(username=login_final).exists():
                 form.add_error('username', f"O usuário '{login_final}' já existe nesta empresa.")
             else:
-                # 5. Salva o usuário com o novo login
                 user.username = login_final
                 user.set_password(form.cleaned_data['password'])
                 user.save()
-                
-                # 6. Cria o perfil vinculado
                 UserProfile.objects.create(user=user, empresa=empresa, e_dono=False)
                 
                 messages.success(request, f"Funcionário criado! Login de acesso: {login_final}")
@@ -479,34 +491,45 @@ def criar_funcionario(request):
 
     return render(request, 'estoque/criar_funcionario.html', {
         'form': form,
-        'prefixo': prefixo_empresa # Passamos o prefixo para mostrar na tela
+        'prefixo': prefixo_empresa 
     })
 
 @login_required
 def historico_produto(request, pk):
     empresa = get_empresa_usuario(request.user)
     produto = get_object_or_404(Produto, pk=pk, empresa=empresa)
-    
-    # Busca todas as entradas (Lotes) desse produto, do mais antigo para o novo
     lotes = Lote.objects.filter(produto=produto).order_by('data_entrada')
+    dados_compra = [
+        {
+            'x': lote.data_entrada.strftime("%Y-%m-%d"), 
+            'x_display': lote.data_entrada.strftime("%d/%m/%Y"), 
+            'y': float(lote.preco_compra)
+        } 
+        for lote in lotes
+    ]
     
-    # Prepara dados para o Gráfico (Eixo X = Data, Eixo Y = Preço)
-    datas = [lote.data_entrada.strftime("%d/%m/%Y") for lote in lotes]
-    precos = [float(lote.preco_compra) for lote in lotes]
+    saidas_com_valor = SaidaEstoque.objects.filter(
+        produto=produto, 
+        valor_venda__isnull=False
+    ).order_by('data')
     
-    # Converte para JSON para o Javascript ler
-    datas_json = json.dumps(datas, cls=DjangoJSONEncoder)
-    precos_json = json.dumps(precos, cls=DjangoJSONEncoder)
-    
-    # Pega também as saídas para mostrar movimentação completa
+    dados_venda = [
+        {
+            'x': s.data.strftime("%Y-%m-%d"), 
+            'x_display': s.data.strftime("%d/%m/%Y"),
+            'y': float(s.valor_venda)
+        } 
+        for s in saidas_com_valor
+    ]
     saidas = SaidaEstoque.objects.filter(produto=produto).order_by('-data')
-
     context = {
         'produto': produto,
-        'lotes': lotes.order_by('-data_entrada'), # Na tabela mostramos o mais recente primeiro
+        'lotes': lotes.order_by('-data_entrada'),
         'saidas': saidas,
-        'datas_json': datas_json,
-        'precos_json': precos_json,
+        
+        # Enviamos os objetos completos agora
+        'dados_compra_json': json.dumps(dados_compra, cls=DjangoJSONEncoder),
+        'dados_venda_json': json.dumps(dados_venda, cls=DjangoJSONEncoder),
     }
     
     return render(request, 'estoque/historico_produto.html', context)
@@ -524,7 +547,6 @@ def api_detalhes_produto(request, pk):
     except Produto.DoesNotExist:
         return JsonResponse({'error': 'Produto não encontrado'}, status=404)
     
-# ... (outros imports) ...
 
 @login_required
 def api_lotes_produto(request, pk):
@@ -535,7 +557,7 @@ def api_lotes_produto(request, pk):
         produto__empresa=empresa, 
         status='ATIVO', 
         quantidade_atual__gt=0
-    ).order_by('data_validade', 'data_entrada') # Ordena pelo que deve sair primeiro
+    ).order_by('data_validade', 'data_entrada') 
     
     data = []
     for l in lotes:
@@ -558,7 +580,6 @@ def criar_categoria_api(request):
         nome = request.POST.get('nome')
         
         if nome:
-            # Cria a categoria vinculada à empresa
             nova_cat = Categoria.objects.create(empresa=empresa, nome=nome)
             return JsonResponse({
                 'id': nova_cat.id, 
@@ -596,20 +617,16 @@ def criar_localizacao_api(request):
 @login_required
 @transaction.atomic
 def editar_lote(request, pk):
-    # 1. Segurança: Só o Dono pode editar
     if not request.user.userprofile.e_dono:
         messages.error(request, "Apenas administradores podem editar lançamentos passados.")
         return redirect('lista_lotes')
-
-    # 2. Busca o Lote
     lote = get_object_or_404(Lote, pk=pk)
     empresa = get_empresa_usuario(request.user)
-    
-    # Garante que o lote é da empresa dele
+
     if lote.produto.empresa != empresa:
         return redirect('lista_lotes')
 
-    # Guardamos a quantidade inicial "velha" para calcular a diferença depois
+
     qtd_inicial_antiga = lote.quantidade_inicial
 
     if request.method == 'POST':
@@ -618,15 +635,13 @@ def editar_lote(request, pk):
         if form.is_valid():
             lote_editado = form.save(commit=False)
             
-            # 3. CÁLCULO DE AJUSTE DE ESTOQUE
-            # Se ele mudou a quantidade inicial (ex: de 10 para 12), a diferença é +2
+            
             diferenca = lote_editado.quantidade_inicial - qtd_inicial_antiga
             
-            # Aplica a diferença no saldo atual
+            
             nova_qtd_atual = lote_editado.quantidade_atual + diferenca
             
-            # 4. Validação: Não permitir que o estoque fique negativo
-            # (Ex: Comprou 10, vendeu 8, sobram 2. Se tentar editar inicial para 5, sobra -3. Isso não pode.)
+        
             if nova_qtd_atual < 0:
                 messages.error(request, f"Não é possível reduzir tanto a quantidade. Já foram vendidos itens deste lote. O mínimo aceitável seria {qtd_inicial_antiga - lote_editado.quantidade_atual}.")
             else:
@@ -638,8 +653,100 @@ def editar_lote(request, pk):
     else:
         form = LoteForm(request.user, instance=lote)
         
-        # Bloqueia a edição do Produto para não quebrar o histórico
-        # (Não faz sentido transformar um lote de Leite em um lote de Parafuso depois de criado)
+       
         form.fields['produto'].disabled = True 
 
     return render(request, 'estoque/editar_lote.html', {'form': form, 'lote': lote})
+
+@login_required
+def relatorios_gerais(request):
+    
+    return render(request, 'estoque/relatorios_index.html')
+
+@login_required
+def relatorio_estoque_saldo(request):
+    empresa = get_empresa_usuario(request.user)
+    lotes = Lote.objects.filter(
+        quantidade_atual__gt=0, 
+        produto__empresa=empresa
+    ).select_related('produto').order_by('produto__nome')
+
+    
+    total_itens = lotes.aggregate(soma=Sum('quantidade_atual'))['soma'] or 0
+    
+    valor_total_estoque = lotes.annotate(
+        valor_lote=F('quantidade_atual') * F('preco_compra')
+    ).aggregate(soma=Sum('valor_lote'))['soma'] or 0
+
+    return render(request, 'estoque/relatorio_saldo.html', {
+        'lotes': lotes,
+        'total_itens': total_itens,
+        'valor_total_estoque': valor_total_estoque,
+        'data_atual': timezone.now(),
+        'empresa': empresa 
+    })
+
+@login_required
+def relatorio_movimentacoes(request):
+    empresa = get_empresa_usuario(request.user)
+    
+   
+    data_inicio = request.GET.get('data_inicio')
+    data_fim = request.GET.get('data_fim')
+    
+    if not data_inicio:
+        data_inicio = (timezone.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+    if not data_fim:
+        data_fim = timezone.now().strftime('%Y-%m-%d')
+
+    dt_ini = datetime.strptime(data_inicio, '%Y-%m-%d')
+    dt_fim = datetime.strptime(data_fim, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
+
+    
+    entradas = Lote.objects.filter(
+        produto__empresa=empresa,
+        data_entrada__range=(dt_ini, dt_fim)
+    )
+    
+    saidas = SaidaEstoque.objects.filter(
+        produto__empresa=empresa,
+        data__range=(dt_ini, dt_fim) 
+    )
+    
+    emprestimos = Emprestimo.objects.filter(
+        produto__empresa=empresa,
+        data_saida__range=(dt_ini, dt_fim)
+    )
+
+    
+    lista_movimentacoes = []
+
+    for item in entradas:
+        item.tipo_movimento = 'ENTRADA'
+        item.data_evento = item.data_entrada
+        if hasattr(item, 'usuario_criacao') and item.usuario_criacao:
+            item.responsavel = item.usuario_criacao.username
+        else:
+            item.responsavel = 'Sistema'
+        lista_movimentacoes.append(item)
+
+    for item in saidas:
+        item.tipo_movimento = 'SAIDA'
+        item.data_evento = item.data 
+        item.responsavel = item.usuario.username
+        lista_movimentacoes.append(item)
+
+    for item in emprestimos:
+        item.tipo_movimento = 'EMPRESTIMO'
+        item.data_evento = item.data_saida
+        item.responsavel = item.responsavel_saida.username
+        lista_movimentacoes.append(item)
+
+    lista_movimentacoes.sort(key=lambda x: x.data_evento, reverse=True)
+
+    return render(request, 'estoque/relatorio_movimentacoes.html', {
+        'movimentacoes': lista_movimentacoes,
+        'data_inicio': data_inicio,
+        'data_fim': data_fim,
+        'empresa': empresa  
+    })

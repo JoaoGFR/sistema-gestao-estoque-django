@@ -82,7 +82,6 @@
             const produtoId = selectProduto.value;
             if (!produtoId) return;
 
-            // Chama nossa API criada no passo 3
             fetch(`/api/produto/${produtoId}/`)
                 .then(response => response.json())
                 .then(data => {
@@ -108,7 +107,7 @@
         // Executa quando muda o produto
         selectProduto.addEventListener('change', verificarProduto);
         
-        // Executa ao carregar a página (caso tenha voltado de um erro de validação)
+        // Executa ao carregar a página 
         if (selectProduto.value) {
             verificarProduto();
         }

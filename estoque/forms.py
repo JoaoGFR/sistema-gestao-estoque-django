@@ -2,7 +2,7 @@ from django import forms
 from django.contrib.auth.models import User
 from .models import Produto, Emprestimo, SaidaEstoque, Lote, UserProfile, Categoria, Localizacao
 from django.utils.text import slugify
-import re # Import para Expressões Regulares
+import re
 
 # --- FORMULÁRIOS AUXILIARES (Para os Modais) ---
 
@@ -32,11 +32,8 @@ class ProdutoForm(forms.ModelForm):
             'nome': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nome do item'}),
             'sku': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Código interno'}),
             'ean': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Código de barras'}),
-            
-            # IDs 'id_categoria' e 'id_localizacao' são essenciais para o Javascript atualizar o select
             'categoria': forms.Select(attrs={'class': 'form-select', 'id': 'id_categoria'}),
             'localizacao': forms.Select(attrs={'class': 'form-select', 'id': 'id_localizacao'}),
-            
             'unidade': forms.Select(attrs={'class': 'form-select'}),
             'estoque_minimo': forms.NumberInput(attrs={'class': 'form-control'}),
             'controla_lote': forms.CheckboxInput(attrs={'class': 'form-check-input', 'style': 'width: 20px; height: 20px;'}),
@@ -44,14 +41,11 @@ class ProdutoForm(forms.ModelForm):
 
     def __init__(self, user, *args, **kwargs):
         super(ProdutoForm, self).__init__(*args, **kwargs)
-        
-        # Filtra as opções para mostrar apenas dados da empresa do usuário
         if user and hasattr(user, 'userprofile'):
             empresa = user.userprofile.empresa
             self.fields['categoria'].queryset = Categoria.objects.filter(empresa=empresa)
             self.fields['localizacao'].queryset = Localizacao.objects.filter(empresa=empresa)
         else:
-            # Segurança: se não tiver usuário, não mostra nada
             self.fields['categoria'].queryset = Categoria.objects.none()
             self.fields['localizacao'].queryset = Localizacao.objects.none()
 
@@ -68,12 +62,20 @@ class LoteForm(forms.ModelForm):
             'nota_fiscal': forms.FileInput(attrs={'class': 'form-control'}),
         }
 
+        labels = {
+            'quantidade_inicial': 'Quantidade',
+            'preco_compra': 'Preço de Custo (Unitário)',
+            'numero_lote': 'Número do Lote',
+            'fornecedor': 'Fornecedor',
+            'numero_nota_fiscal': 'Número da Nota Fiscal',
+        }
+
     def __init__(self, user, *args, **kwargs):
         super(LoteForm, self).__init__(*args, **kwargs)
         if user and hasattr(user, 'userprofile'):
              self.fields['produto'].queryset = Produto.objects.filter(empresa=user.userprofile.empresa)
         
-        # Campos opcionais no HTML (validamos no clean)
+        # Campos opcionais no HTML
         self.fields['numero_lote'].required = False
         self.fields['data_validade'].required = False
         
@@ -103,10 +105,7 @@ class LoteForm(forms.ModelForm):
 
 # --- OUTROS FORMULÁRIOS (Empréstimo, Saída, Funcionário) ---
 
-# ... imports
-
 class EmprestimoForm(forms.ModelForm):
-    # Campo auxiliar para filtrar (não salva no banco)
     categoria_filtro = forms.ModelChoiceField(
         queryset=Categoria.objects.none(),
         label="Filtrar por Categoria",
@@ -116,25 +115,19 @@ class EmprestimoForm(forms.ModelForm):
 
     class Meta:
         model = Emprestimo
-        fields = ['categoria_filtro', 'produto', 'solicitante', 'observacao']
+        fields = ['categoria_filtro', 'produto', 'quantidade', 'solicitante', 'observacao'] # <--- Adicione 'quantidade'
         widgets = {
             'produto': forms.Select(attrs={'class': 'form-select', 'id': 'id_produto'}),
+            'quantidade': forms.NumberInput(attrs={'class': 'form-control', 'min': '1', 'step': '1'}), 
             'solicitante': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nome de quem está retirando'}),
             'observacao': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
 
-    # A CORREÇÃO ESTÁ AQUI EMBAIXO:
     def __init__(self, user, *args, **kwargs):
-        # O 'user' entra como primeiro argumento, nós pegamos ele...
-        # ...e passamos o RESTO (*args, **kwargs) para o Django montar o form normal
         super(EmprestimoForm, self).__init__(*args, **kwargs)
-        
         if user and hasattr(user, 'userprofile'):
             empresa = user.userprofile.empresa
-            # Carrega as categorias da empresa para o filtro
             self.fields['categoria_filtro'].queryset = Categoria.objects.filter(empresa=empresa)
-            
-            # Carrega os produtos da empresa
             self.fields['produto'].queryset = Produto.objects.filter(empresa=empresa).order_by('nome')
             
 
@@ -148,11 +141,15 @@ class SaidaEstoqueForm(forms.ModelForm):
 
     class Meta:
         model = SaidaEstoque
-        fields = ['produto', 'lote_especifico', 'quantidade', 'motivo']
+        fields = ['produto', 'lote_especifico', 'quantidade', 'valor_venda', 'motivo']
         widgets = {
             'produto': forms.Select(attrs={'class': 'form-select'}),
             'quantidade': forms.NumberInput(attrs={'class': 'form-control'}),
             'motivo': forms.TextInput(attrs={'class': 'form-control'}),
+            'valor_venda': forms.NumberInput(attrs={
+                'class': 'form-control',
+                  'step': '0.01',
+                    'placeholder': '0.00'}),
         }
 
     def __init__(self, user=None, *args, **kwargs):

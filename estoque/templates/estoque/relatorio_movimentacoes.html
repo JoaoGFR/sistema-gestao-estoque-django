@@ -1,0 +1,123 @@
+{% extends 'estoque/base.html' %}
+
+{% block content %}
+
+<div class="row mb-4 align-items-center">
+    <div class="col-md-6">
+        <h2 class="fw-bold text-primary"><i class="bi bi-arrow-left-right"></i> Relatório de Movimentações</h2>
+        <h5 class="text-muted">{{ empresa.nome|default:"JGTECH" }}</h5>
+    </div>
+    <div class="col-md-6 text-md-end">
+        <small class="text-muted">Período: {{ data_inicio|date:"d/m/Y" }} até {{ data_fim|date:"d/m/Y" }}</small>
+    </div>
+</div>
+<div class="d-print-none mb-4">
+    <div class="card bg-light mt-3">
+        <div class="card-body py-3">
+            <form method="get" class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">Data Inicial</label>
+                    <input type="date" name="data_inicio" class="form-control" value="{{ data_inicio }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">Data Final</label>
+                    <input type="date" name="data_fim" class="form-control" value="{{ data_fim }}">
+                </div>
+                <div class="col-md-3">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-filter"></i> Filtrar
+                    </button>
+                </div>
+                <div class="col-md-3 text-end">
+                    <button type="button" onclick="window.print()" class="btn btn-outline-dark w-100">
+                        <i class="bi bi-printer"></i> Imprimir
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Data/Hora</th>
+                        <th>Tipo</th>
+                        <th>Produto</th>
+                        <th>Responsável</th>
+                        <th class="text-center">Qtd.</th>
+                        <th>Detalhe/Motivo</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for mov in movimentacoes %}
+                    <tr>
+                        <td>
+                            {{ mov.data_evento|date:"d/m/Y" }}
+                            <small class="text-muted d-block">{{ mov.data_evento|date:"H:i" }}</small>
+                        </td>
+                        
+                        <td>
+                            {% if mov.tipo_movimento == 'ENTRADA' %}
+                                <span class="badge bg-success bg-opacity-10 text-success border border-success rounded-pill">
+                                    <i class="bi bi-arrow-down"></i> Entrada
+                                </span>
+                            {% elif mov.tipo_movimento == 'SAIDA' %}
+                                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger rounded-pill">
+                                    <i class="bi bi-arrow-up"></i> Saída
+                                </span>
+                            {% else %}
+                                <span class="badge bg-warning bg-opacity-10 text-dark border border-warning rounded-pill">
+                                    <i class="bi bi-person-badge"></i> Empréstimo
+                                </span>
+                            {% endif %}
+                        </td>
+
+                        <td class="fw-bold">{{ mov.produto.nome }}</td>
+                        
+                        <td><small>{{ mov.responsavel }}</small></td>
+
+                        <td class="text-center fs-5">
+                            {% if mov.tipo_movimento == 'ENTRADA' %}
+                                <span class="text-success">+{{ mov.quantidade_inicial|floatformat:0 }}</span>
+                            {% else %}
+                                <span class="text-danger">-{{ mov.quantidade|floatformat:0 }}</span>
+                            {% endif %}
+                        </td>
+
+                        <td>
+                            {% if mov.tipo_movimento == 'ENTRADA' %}
+                                <small class="text-muted">Lote: {{ mov.numero_lote }}</small>
+                            {% elif mov.tipo_movimento == 'SAIDA' %}
+                                <small>{{ mov.motivo }}</small>
+                                {% if mov.valor_venda %}
+                                    <br><span class="text-success small fw-bold">Venda: R$ {{ mov.valor_venda }}</span>
+                                {% endif %}
+                            {% else %}
+                                <small>Solicitante: {{ mov.solicitante }}</small>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center py-5 text-muted">
+                            Nenhuma movimentação encontrada neste período.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<style>
+    @media print {
+        .d-print-none { display: none !important; }
+        .card { border: none !important; box-shadow: none !important; }
+    }
+</style>
+{% endblock %}
