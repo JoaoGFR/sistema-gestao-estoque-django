@@ -1,6 +1,9 @@
 <!doctype html>
 <html lang="pt-br">
   <head>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet">
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Sistema JGTECH</title>
@@ -112,6 +115,16 @@
                 {% endif %}
             </ul>
 
+             {% if user.is_superuser %}
+                 <li class="nav-item ms-lg-2">
+                     <a class="nav-link text-warning fw-bold" href="{% url 'painel_backups' %}">
+                         <div class="nav-item-content">
+                <i class="bi bi-shield-lock-fill"></i> Painel Admin
+            </div>
+        </a>
+    </li>
+                {% endif %}
+
             <ul class="navbar-nav ms-auto align-items-center gap-3">
                 {% if user.is_authenticated %}
                     <li class="nav-item d-flex align-items-center text-light">
@@ -154,12 +167,29 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
+    
     <script>
-        
-        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+        // 1. Ativando Tooltips do Bootstrap
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
         var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-          return new bootstrap.Tooltip(tooltipTriggerEl)
-        })
+          return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+
+        // 2. Ativando a Pesquisa de Produtos (Tom Select)
+        document.addEventListener("DOMContentLoaded", function() {
+            var selectProduto = document.getElementById('id_produto');
+            if (selectProduto) {
+                new TomSelect(selectProduto, {
+                    create: false,
+                    sortField: {
+                        field: "text",
+                        direction: "asc"
+                    },
+                    placeholder: "Digite para pesquisar um produto..."
+                });
+            }
+        });
     </script>
   </body>
 </html>

@@ -46,7 +46,8 @@ class UnidadeMedida(models.TextChoices):
     CAIXA = 'CX', 'Caixa'
     ROLO = 'RL', 'Rolo'
     PACOTE = 'PCT', 'Pacote'
-
+    GALAO = 'GL', 'Galão'
+    BAG = 'BG', 'Bag'
 # 6. PRODUTO 
 class Produto(models.Model):
     empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE)
@@ -61,7 +62,6 @@ class Produto(models.Model):
     unidade = models.CharField(max_length=5, choices=UnidadeMedida.choices, default=UnidadeMedida.UNIDADE)
     estoque_minimo = models.IntegerField(default=5)
     
-    # Define se exige validade e lote na entrada
     controla_lote = models.BooleanField(default=True, verbose_name="Controla Lote e Validade?")
 
     def __str__(self):
@@ -128,6 +128,7 @@ class SaidaEstoque(models.Model):
     data = models.DateTimeField(auto_now_add=True)
     usuario = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     valor_venda = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, null=True, blank=True, verbose_name="Valor de Venda (Unitário)")
+    lote = models.ForeignKey(Lote, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Lote de Origem")
 
     def __str__(self):
         return f"{self.produto.nome} - {self.quantidade}"

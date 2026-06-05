@@ -13,7 +13,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-chave-temporaria-dev')
 
 
-DEBUG = os.getenv('DEBUG', 'False') == 'False'
+DEBUG = os.getenv('DEBUG', 'True') == 'True'
 
 
 allowed_hosts_env = os.getenv('ALLOWED_HOSTS', '')

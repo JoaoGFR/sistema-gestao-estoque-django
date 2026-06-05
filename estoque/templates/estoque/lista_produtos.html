@@ -136,7 +136,7 @@
             <ul class="pagination mb-0">
                 {% if page_obj.has_previous %}
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}&q={{ query|default:'' }}">&laquo;</a>
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}&q={{ query|default:'' }}&filtro={{ filtro_critico|default:'' }}&categoria={{ categoria_selecionada|default:'' }}">&laquo;</a>
                     </li>
                 {% endif %}
 
@@ -146,7 +146,7 @@
 
                 {% if page_obj.has_next %}
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.next_page_number }}&q={{ query|default:'' }}">&raquo;</a>
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}&q={{ query|default:'' }}&filtro={{ filtro_critico|default:'' }}&categoria={{ categoria_selecionada|default:'' }}">&raquo;</a>
                     </li>
                 {% endif %}
             </ul>

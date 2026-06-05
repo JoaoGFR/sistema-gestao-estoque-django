@@ -20,9 +20,16 @@ from django.core.serializers.json import DjangoJSONEncoder
 from datetime import timedelta, datetime
 from itertools import chain
 from operator import attrgetter
+from django.db.models import ProtectedError
 from .models import Produto, Emprestimo, SaidaEstoque, Empresa, UserProfile, Lote
 from .forms import ProdutoForm, EmprestimoForm, SaidaEstoqueForm, CadastroSaaSForm, FuncionarioForm, LoteForm
-
+import os
+from django.conf import settings
+from django.core.management import call_command
+from django.http import FileResponse, Http404
+from django.contrib import messages
+from django.shortcuts import render, redirect
+from django.contrib.auth.decorators import login_required
 
 
 def get_empresa_usuario(user):
@@ -111,12 +118,12 @@ def dashboard(request):
 
     # 6. VENCIMENTOS PRÓXIMOS
     hoje = timezone.now().date()
-    daqui_30_dias = hoje + timedelta(days=30)
+    daqui_180_dias = hoje + timedelta(days=180)
     lotes_vencendo = Lote.objects.filter(
         produto__empresa=empresa,
         status='ATIVO',
         quantidade_atual__gt=0,
-        data_validade__range=[hoje, daqui_30_dias] 
+        data_validade__range=[hoje, daqui_180_dias] 
     ).select_related('produto').order_by('data_validade')
 
     contexto = {
@@ -140,10 +147,9 @@ def lista_produtos(request):
     filtro_critico = request.GET.get('filtro')
     categoria_id = request.GET.get('categoria')
 
-    # 1. Query Base 
+   
     produtos = Produto.objects.filter(empresa=empresa)
 
-    # 2. Anota a Quantidade Real (Soma dos Lotes Ativos)
    
     produtos = produtos.annotate(
         qtd_real=Coalesce(Sum('lotes__quantidade_atual', filter=Q(lotes__status='ATIVO')), 0)
@@ -259,7 +265,6 @@ def registrar_saida(request):
     error_message = None
 
     if request.method == 'POST':
-        
         form = SaidaEstoqueForm(user=request.user, data=request.POST)
         
         if form.is_valid():
@@ -267,15 +272,14 @@ def registrar_saida(request):
             qtd_solicitada = form.cleaned_data['quantidade']
             motivo = form.cleaned_data['motivo']
             lote_escolhido = form.cleaned_data['lote_especifico']
-            
-            
             valor_venda = form.cleaned_data.get('valor_venda')
             
-           
             if produto.empresa != empresa:
                 return redirect('lista_produtos')
 
-            
+            # -----------------------------------------------------------------
+            # FLUXO 1: SAÍDA MANUAL (LOTE ESPECÍFICO)
+            # -----------------------------------------------------------------
             if lote_escolhido:
                 if lote_escolhido.quantidade_atual < qtd_solicitada:
                     error_message = f"O Lote {lote_escolhido.numero_lote} só tem {lote_escolhido.quantidade_atual} unidades. Você pediu {qtd_solicitada}."
@@ -283,20 +287,21 @@ def registrar_saida(request):
                     lote_escolhido.quantidade_atual -= qtd_solicitada
                     lote_escolhido.save() 
                     
-                    # Registra Saída
+                    # Registra a Saída vinculando o lote escolhido
                     SaidaEstoque.objects.create(
                         produto=produto,
+                        lote=lote_escolhido,  # Vínculo direto gravado com sucesso
                         quantidade=qtd_solicitada,
                         motivo=f"{motivo} (Lote Manual: {lote_escolhido.numero_lote})",
                         usuario=request.user,
-                        
-                       
                         valor_venda=valor_venda 
                     )
                     messages.success(request, f"Saída manual do lote {lote_escolhido.numero_lote} realizada!")
                     return redirect('lista_saidas')
 
-            
+            # -----------------------------------------------------------------
+            # FLUXO 2: SAÍDA AUTOMÁTICA (FIFO/FEFO)
+            # -----------------------------------------------------------------
             else: 
                 if produto.saldo_total < qtd_solicitada:
                     error_message = f"Saldo Insuficiente! Total disponível: {produto.saldo_total}"
@@ -311,24 +316,28 @@ def registrar_saida(request):
                     lotes_afetados = []
 
                     for lote in lotes:
-                        if qtd_restante <= 0: break
+                        if qtd_restante <= 0: 
+                            break
                         
+                        # Calcula quanto vai retirar deste lote específico
                         qtd_retirar = min(qtd_restante, lote.quantidade_atual)
+                        
                         lote.quantidade_atual -= qtd_retirar
                         lote.save()
+                        
+                        # CRUCIAL: Cria um registro de SaidaEstoque exclusivo para ESTE lote
+                        SaidaEstoque.objects.create(
+                            produto=produto,
+                            lote=lote,  # Grava o lote específico da iteração atual
+                            quantidade=qtd_retirar,  # Grava apenas a parte retirada deste lote
+                            motivo=f"{motivo} (Auto: Lote {lote.numero_lote})",
+                            usuario=request.user,
+                            valor_venda=valor_venda
+                        )
                         
                         qtd_restante -= qtd_retirar
                         lotes_afetados.append(lote.numero_lote)
 
-                    SaidaEstoque.objects.create(
-                        produto=produto,
-                        quantidade=qtd_solicitada,
-                        motivo=f"{motivo} (Auto: {', '.join(lotes_afetados)})",
-                        usuario=request.user,
-                        
-                        
-                        valor_venda=valor_venda
-                    )
                     messages.success(request, f"Saída automática realizada com sucesso (Lotes: {', '.join(lotes_afetados)}).")
                     return redirect('lista_saidas')
     else:
@@ -687,66 +696,238 @@ def relatorio_estoque_saldo(request):
     })
 
 @login_required
+def excluir_entrada(request, pk):
+    try:
+        # 1. Trava de Segurança
+        if not hasattr(request.user, 'userprofile') or not request.user.userprofile.e_dono:
+            messages.error(request, "Acesso negado. Apenas o administrador pode excluir registros.")
+            return redirect('dashboard')
+
+        empresa = get_empresa_usuario(request.user)
+        
+        # 2. A CORREÇÃO ESTÁ AQUI: produto__empresa em vez de empresa
+        lote = get_object_or_404(Lote, pk=pk, produto__empresa=empresa)
+        
+        if request.method == 'POST':
+            nome_produto = lote.produto.nome
+            lote.delete()
+            
+            messages.success(request, f"A entrada do produto '{nome_produto}' foi excluída permanentemente.")
+            url_anterior = request.META.get('HTTP_REFERER', 'dashboard')
+            return redirect(url_anterior)
+
+    except ProtectedError:
+        url_anterior = request.META.get('HTTP_REFERER', 'dashboard')
+        messages.error(request, "Bloqueado: Você não pode excluir este lote porque existem saídas ou empréstimos vinculados a ele.")
+        return redirect(url_anterior)
+        
+    except Exception as e:
+        url_anterior = request.META.get('HTTP_REFERER', 'dashboard')
+        messages.error(request, f"Erro técnico ao excluir: {str(e)}")
+        return redirect(url_anterior)
+        
+    return redirect('dashboard')
+
+@login_required
+@transaction.atomic
+def excluir_saida(request, pk):
+    try:
+        if not request.user.is_superuser:
+            messages.error(request, "Acesso restrito ao administrador do sistema.")
+            return redirect('dashboard')
+
+        empresa = get_empresa_usuario(request.user)
+        saida = get_object_or_404(SaidaEstoque, pk=pk, produto__empresa=empresa)
+        
+        if request.method == 'POST':
+            nome_produto = saida.produto.nome
+            qtd_devolver = saida.quantidade
+            
+            # --- DEVOLUÇÃO EXATA PARA O LOTE DE ORIGEM ---
+            if saida.lote:
+                saida.lote.quantidade_atual += qtd_devolver
+                saida.lote.save()
+                mensagem_lote = f"ao Lote {saida.lote.numero_lote}"
+            else:
+                # Fallback de segurança: Caso seja uma saída antiga (antes dessa atualização),
+                # devolve para o lote mais recente para não perder o produto.
+                lote_recente = Lote.objects.filter(produto=saida.produto).order_by('-data_entrada').first()
+                if lote_recente:
+                    lote_recente.quantidade_atual += qtd_devolver
+                    lote_recente.save()
+                    mensagem_lote = f"ao Lote {lote_recente.numero_lote} (Saída antiga sem vínculo)"
+                else:
+                    mensagem_lote = "(O produto ficou sem lote associado)"
+            
+            saida.delete()
+            messages.success(request, f"A saída foi cancelada! {qtd_devolver}x '{nome_produto}' retornaram {mensagem_lote}.")
+            
+            url_anterior = request.META.get('HTTP_REFERER', 'dashboard')
+            return redirect(url_anterior)
+
+    except Exception as e:
+        messages.error(request, f"Erro técnico ao excluir saída: {str(e)}")
+        return redirect(request.META.get('HTTP_REFERER', 'dashboard'))
+
+@login_required
 def relatorio_movimentacoes(request):
     empresa = get_empresa_usuario(request.user)
     
-   
-    data_inicio = request.GET.get('data_inicio')
-    data_fim = request.GET.get('data_fim')
+    # 1. Captura os parâmetros do filtro
+    data_inicio = request.GET.get('data_inicio', '')
+    data_fim = request.GET.get('data_fim', '')
+    tipo_filtro = request.GET.get('tipo', '')  # NOVO: Filtro de Tipo
     
-    if not data_inicio:
-        data_inicio = (timezone.now() - timedelta(days=30)).strftime('%Y-%m-%d')
-    if not data_fim:
-        data_fim = timezone.now().strftime('%Y-%m-%d')
+    movimentacoes = []
 
-    dt_ini = datetime.strptime(data_inicio, '%Y-%m-%d')
-    dt_fim = datetime.strptime(data_fim, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
+    # 2. Busca ENTRADAS (Se o filtro for vazio ou 'ENTRADA')
+    if tipo_filtro in ['', 'ENTRADA']:
+        lotes = Lote.objects.filter(produto__empresa=empresa)
+        if data_inicio: lotes = lotes.filter(data_entrada__date__gte=data_inicio)
+        if data_fim: lotes = lotes.filter(data_entrada__date__lte=data_fim)
+        
+        for lote in lotes:
+            movimentacoes.append({
+                'data_evento': lote.data_entrada,
+                'tipo_movimento': 'ENTRADA',
+                'produto': lote.produto,
+                'responsavel': lote.fornecedor or 'Sistema',
+                'quantidade_inicial': lote.quantidade_inicial,
+                'numero_lote': lote.numero_lote,
+            })
 
-    
-    entradas = Lote.objects.filter(
-        produto__empresa=empresa,
-        data_entrada__range=(dt_ini, dt_fim)
-    )
-    
-    saidas = SaidaEstoque.objects.filter(
-        produto__empresa=empresa,
-        data__range=(dt_ini, dt_fim) 
-    )
-    
-    emprestimos = Emprestimo.objects.filter(
-        produto__empresa=empresa,
-        data_saida__range=(dt_ini, dt_fim)
-    )
+    # 3. Busca SAÍDAS (Se o filtro for vazio ou 'SAIDA')
+    if tipo_filtro in ['', 'SAIDA']:
+        saidas = SaidaEstoque.objects.filter(produto__empresa=empresa)
+        if data_inicio: saidas = saidas.filter(data__date__gte=data_inicio)
+        if data_fim: saidas = saidas.filter(data__date__lte=data_fim)
+        
+        for saida in saidas:
+            movimentacoes.append({
+                'data_evento': saida.data,
+                'tipo_movimento': 'SAIDA',
+                'produto': saida.produto,
+                'responsavel': saida.usuario.get_full_name() if saida.usuario else 'Sistema',
+                'quantidade': saida.quantidade,
+                'motivo': saida.motivo,
+                'valor_venda': saida.valor_venda,
+            })
 
-    
-    lista_movimentacoes = []
+    # 4. Busca EMPRÉSTIMOS (Se o filtro for vazio ou 'EMPRESTIMO')
+    if tipo_filtro in ['', 'EMPRESTIMO']:
+        emprestimos = Emprestimo.objects.filter(produto__empresa=empresa)
+        if data_inicio: emprestimos = emprestimos.filter(data_saida__date__gte=data_inicio)
+        if data_fim: emprestimos = emprestimos.filter(data_saida__date__lte=data_fim)
+        
+        for emp in emprestimos:
+            movimentacoes.append({
+                'data_evento': emp.data_saida,
+                'tipo_movimento': 'EMPRESTIMO',
+                'produto': emp.produto,
+                'responsavel': emp.responsavel_saida.get_full_name() if emp.responsavel_saida else 'Sistema',
+                'quantidade': emp.quantidade,
+                'solicitante': emp.solicitante,
+            })
 
-    for item in entradas:
-        item.tipo_movimento = 'ENTRADA'
-        item.data_evento = item.data_entrada
-        if hasattr(item, 'usuario_criacao') and item.usuario_criacao:
-            item.responsavel = item.usuario_criacao.username
-        else:
-            item.responsavel = 'Sistema'
-        lista_movimentacoes.append(item)
-
-    for item in saidas:
-        item.tipo_movimento = 'SAIDA'
-        item.data_evento = item.data 
-        item.responsavel = item.usuario.username
-        lista_movimentacoes.append(item)
-
-    for item in emprestimos:
-        item.tipo_movimento = 'EMPRESTIMO'
-        item.data_evento = item.data_saida
-        item.responsavel = item.responsavel_saida.username
-        lista_movimentacoes.append(item)
-
-    lista_movimentacoes.sort(key=lambda x: x.data_evento, reverse=True)
+    # 5. Ordena TUDO misturado pela data (Mais recente no topo)
+    movimentacoes.sort(key=lambda x: x['data_evento'], reverse=True)
 
     return render(request, 'estoque/relatorio_movimentacoes.html', {
-        'movimentacoes': lista_movimentacoes,
+        'movimentacoes': movimentacoes,
         'data_inicio': data_inicio,
         'data_fim': data_fim,
-        'empresa': empresa  
+        'tipo_filtro': tipo_filtro, # Enviando o filtro atual para o HTML lembrar da escolha
+        'empresa': empresa
     })
+
+# -> MÓDULO DE BACKUPS
+
+@login_required
+def painel_backups(request):
+    
+    if not request.user.is_superuser:
+        messages.error(request, "Acesso restrito ao administrador do sistema.")
+        return redirect('dashboard')
+
+    pasta_backups = os.path.join(settings.BASE_DIR, 'backups')
+    os.makedirs(pasta_backups, exist_ok=True) # Cria a pasta se não existir
+
+    # Lista todos os arquivos .json na pasta
+    arquivos = []
+    for filename in os.listdir(pasta_backups):
+        if filename.endswith('.json'):
+            filepath = os.path.join(pasta_backups, filename)
+            tamanho_mb = os.path.getsize(filepath) / (1024 * 1024)
+            data_modificacao = datetime.fromtimestamp(os.path.getmtime(filepath))
+            arquivos.append({
+                'nome': filename,
+                'tamanho': f"{tamanho_mb:.2f} MB",
+                'data': data_modificacao
+            })
+    
+    # Ordena do mais recente para o mais antigo
+    arquivos.sort(key=lambda x: x['data'], reverse=True)
+
+    return render(request, 'estoque/painel_backups.html', {'arquivos': arquivos})
+
+@login_required
+def criar_backup(request):
+    if not request.user.is_superuser:
+        messages.error(request, "Acesso restrito ao administrador do sistema.")
+        return redirect('dashboard')
+
+    pasta_backups = os.path.join(settings.BASE_DIR, 'backups')
+    os.makedirs(pasta_backups, exist_ok=True)
+
+    # Gera um nome de arquivo com a data e hora atual
+    data_atual = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    nome_arquivo = f"backup_jgtech_{data_atual}.json"
+    caminho_arquivo = os.path.join(pasta_backups, nome_arquivo)
+
+    try:
+        # Extrai os dados do banco, excluindo tabelas de permissão padrão que causam conflito
+        with open(caminho_arquivo, 'w', encoding='utf-8') as f:
+            call_command('dumpdata', exclude=['contenttypes', 'auth.Permission'], format='json', indent=4, stdout=f)
+        
+        messages.success(request, f"Backup '{nome_arquivo}' criado com sucesso!")
+    except Exception as e:
+        messages.error(request, f"Erro ao criar backup: {str(e)}")
+
+    return redirect('painel_backups')
+
+@login_required
+def baixar_backup(request, filename):
+    if not request.user.is_superuser:
+        messages.error(request, "Acesso restrito ao administrador do sistema.")
+        return redirect('dashboard')
+
+    filepath = os.path.join(settings.BASE_DIR, 'backups', filename)
+    if os.path.exists(filepath):
+        response = FileResponse(open(filepath, 'rb'), as_attachment=True, filename=filename)
+        return response
+    else:
+        messages.error(request, "Arquivo não encontrado.")
+        return redirect('painel_backups')
+
+@login_required
+def excluir_backup(request, filename):
+    if request.method == 'POST' and request.user.is_superuser:
+        filepath = os.path.join(settings.BASE_DIR, 'backups', filename)
+        if os.path.exists(filepath):
+            os.remove(filepath)
+            messages.success(request, f"Backup '{filename}' excluído permanentemente.")
+    return redirect('painel_backups')
+
+@login_required
+def restaurar_backup(request, filename):
+    if request.method == 'POST' and request.user.is_superuser:
+        filepath = os.path.join(settings.BASE_DIR, 'backups', filename)
+        if os.path.exists(filepath):
+            try:
+                # Injeta os dados do arquivo de volta no banco
+                call_command('loaddata', filepath)
+                messages.success(request, f"O sistema foi restaurado com sucesso usando o arquivo '{filename}'.")
+            except Exception as e:
+                messages.error(request, f"Erro crítico ao restaurar banco de dados: {str(e)}")
+        
+    return redirect('painel_backups')

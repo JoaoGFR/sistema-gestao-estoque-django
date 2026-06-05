@@ -1,38 +1,82 @@
 {% extends 'estoque/base.html' %}
 
 {% block content %}
-<div class="row mb-3">
+<div class="row mb-4 align-items-center">
     <div class="col-md-8">
-        <h2>Histórico de Baixas (Consumo)</h2>
+        <h2><i class="bi bi-box-arrow-right text-danger"></i> Histórico de Baixas (Consumo)</h2>
+        <p class="text-muted mb-0">Gerencie e rastreie todas as saídas de mercadorias fracionadas por lote.</p>
     </div>
     <div class="col-md-4 text-end">
-        <a href="{% url 'registrar_saida' %}" class="btn btn-danger">+ Nova Baixa</a>
+        <a href="{% url 'registrar_saida' %}" class="btn btn-danger shadow-sm">
+            <i class="bi bi-plus-circle"></i> Nova Baixa
+        </a>
     </div>
 </div>
 
-<div class="card shadow-sm">
-    <div class="card-body">
-        <table class="table table-striped">
+<div class="card shadow-sm border-0">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
             <thead class="table-dark">
                 <tr>
                     <th>Data/Hora</th>
                     <th>Produto</th>
-                    <th>Qtd</th>
-                    <th>Responsável</th>
+                    <th>Lote Origem</th> <th>Qtd</th>
+                    <th>Valor Unit.</th> <th>Responsável</th>
                     <th>Motivo/Destino</th>
+                    <th class="text-end">Ações</th>
                 </tr>
             </thead>
             <tbody>
                 {% for saida in saidas %}
                 <tr>
-                    <td>{{ saida.data|date:"d/m/Y H:i" }}</td>
-                    <td>{{ saida.produto.nome }}</td>
+                    <td class="text-muted">{{ saida.data|date:"d/m/Y H:i" }}</td>
+                    
+                    <td class="fw-bold text-dark">{{ saida.produto.nome }}</td>
+                    
+                    <td>
+                        {% if saida.lote %}
+                            <span class="badge bg-secondary">Lote {{ saida.lote.numero_lote }}</span>
+                        {% else %}
+                            <span class="text-muted small">-</span>
+                        {% endif %}
+                    </td>
+                    
                     <td class="fw-bold text-danger">-{{ saida.quantidade }}</td>
-                    <td>{{ saida.usuario.username }}</td>
-                    <td>{{ saida.motivo }}</td>
+                    
+                    <td>
+                        {% if saida.valor_venda %}
+                            <span class="text-success fw-semibold">R$ {{ saida.valor_venda|floatformat:2 }}</span>
+                        {% else %}
+                            <span class="text-muted small">R$ 0,00</span>
+                        {% endif %}
+                    </td>
+                    
+                    <td>
+                        <div class="d-flex align-items-center gap-1 text-secondary">
+                            <i class="bi bi-person-circle"></i>
+                            <span>{{ saida.usuario.get_full_name|default:saida.usuario.username|default:"Sistema" }}</span>
+                        </div>
+                    </td>
+                    
+                    <td class="text-muted small">{{ saida.motivo }}</td>
+                    
+                    <td class="text-end">
+                        {% if user.is_superuser %} <form action="{% url 'excluir_saida' saida.pk %}" method="post" class="d-inline" onsubmit="return confirm('🚨 ATENÇÃO CRÍTICA: Deseja realmente cancelar e excluir esta baixa? A quantidade de {{ saida.quantidade }} un. retornará exatamente para o Lote correspondente no estoque.');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-outline-danger" data-bs-toggle="tooltip" title="Cancelar e Devolver ao Estoque">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        {% endif %}
+                    </td>
                 </tr>
                 {% empty %}
-                <tr><td colspan="5">Nenhuma saída registrada.</td></tr>
+                <tr>
+                    <td colspan="8" class="text-center py-5 text-muted">
+                        <i class="bi bi-inbox fs-2 d-block mb-2"></i>
+                        Nenhuma saída registrada no sistema.
+                    </td>
+                </tr>
                 {% endfor %}
             </tbody>
         </table>

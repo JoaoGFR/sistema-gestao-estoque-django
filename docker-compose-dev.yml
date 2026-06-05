@@ -1,0 +1,38 @@
+services:
+  
+  db:
+    container_name: banco
+    image: postgres:15
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    
+    env_file:
+      - .env
+    restart: always
+    
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jgtech_user -d jgtech_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+
+  web:
+    container_name: site
+    restart: always
+    build: .
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    
+    depends_on:
+      db:
+        condition: service_healthy
+    
+    env_file:
+      - .env
+
+volumes:
+  postgres_data:

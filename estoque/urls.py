@@ -47,4 +47,11 @@ urlpatterns = [
     path('relatorios/', views.relatorios_gerais, name='relatorios_gerais'),
     path('relatorios/estoque/', views.relatorio_estoque_saldo, name='relatorio_estoque_saldo'),
     path('relatorios/movimentacoes/', views.relatorio_movimentacoes, name='relatorio_movimentacoes'),
+    path('entradas/excluir/<int:pk>/', views.excluir_entrada, name='excluir_entrada'),
+    path('saidas/excluir/<int:pk>/', views.excluir_saida, name='excluir_saida'),
+    path('backups/', views.painel_backups, name='painel_backups'),
+    path('backups/criar/', views.criar_backup, name='criar_backup'),
+    path('backups/baixar/<str:filename>/', views.baixar_backup, name='baixar_backup'),
+    path('backups/excluir/<str:filename>/', views.excluir_backup, name='excluir_backup'),
+    path('backups/restaurar/<str:filename>/', views.restaurar_backup, name='restaurar_backup'),
 ]

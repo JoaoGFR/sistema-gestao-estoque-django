@@ -1,0 +1,70 @@
+{% extends 'estoque/base.html' %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-8">
+        <h2><i class="bi bi-shield-check text-primary"></i> Gerenciador de Backups</h2>
+        <p class="text-muted">Crie, restaure e baixe cópias de segurança de todo o banco de dados da JGTECH.</p>
+    </div>
+    <div class="col-md-4 text-end">
+        <a href="{% url 'criar_backup' %}" class="btn btn-primary btn-lg shadow-sm">
+            <i class="bi bi-cloud-download"></i> Gerar Novo Backup
+        </a>
+    </div>
+</div>
+
+<div class="alert alert-warning shadow-sm">
+    <i class="bi bi-exclamation-triangle-fill"></i> <strong>Aviso Importante:</strong> Após gerar um backup, sempre clique em "Baixar" para salvar uma cópia segura no seu computador.
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <table class="table table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Nome do Arquivo</th>
+                    <th>Data de Criação</th>
+                    <th>Tamanho</th>
+                    <th class="text-end">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for arquivo in arquivos %}
+                <tr>
+                    <td class="fw-bold text-success"><i class="bi bi-filetype-json"></i> {{ arquivo.nome }}</td>
+                    <td>{{ arquivo.data|date:"d/m/Y às H:i" }}</td>
+                    <td>{{ arquivo.tamanho }}</td>
+                    <td class="text-end">
+                        
+                        <a href="{% url 'baixar_backup' arquivo.nome %}" class="btn btn-sm btn-outline-success" data-bs-toggle="tooltip" title="Salvar no PC">
+                            <i class="bi bi-download"></i> Baixar
+                        </a>
+
+                        <form action="{% url 'restaurar_backup' arquivo.nome %}" method="post" class="d-inline" onsubmit="return confirm('⚠️ ATENÇÃO EXTREMA: Restaurar um backup vai SOBRESCREVER os dados atuais. O sistema voltará exatamente para o momento em que este backup foi feito. Tem certeza?');">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-outline-warning ms-1" data-bs-toggle="tooltip" title="Restaurar Sistema">
+                                <i class="bi bi-arrow-counterclockwise"></i> Restaurar
+                            </button>
+                        </form>
+
+                        <form action="{% url 'excluir_backup' arquivo.nome %}" method="post" class="d-inline" onsubmit="return confirm('Deseja excluir este arquivo de backup definitivamente?');">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-outline-danger ms-1" data-bs-toggle="tooltip" title="Apagar Arquivo">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="text-center py-5 text-muted">
+                        <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                        Nenhum backup encontrado no sistema.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

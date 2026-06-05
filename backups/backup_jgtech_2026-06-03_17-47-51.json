@@ -1,0 +1,4445 @@
+[
+{
+    "model": "admin.logentry",
+    "pk": 1,
+    "fields": {
+        "action_time": "2026-01-28T14:14:47.631Z",
+        "user": 1,
+        "content_type": 7,
+        "object_id": "1",
+        "object_repr": "JGTECH",
+        "action_flag": 1,
+        "change_message": "[{\"added\": {}}]"
+    }
+},
+{
+    "model": "admin.logentry",
+    "pk": 2,
+    "fields": {
+        "action_time": "2026-01-28T14:14:52.990Z",
+        "user": 1,
+        "content_type": 4,
+        "object_id": "1",
+        "object_repr": "admin",
+        "action_flag": 2,
+        "change_message": "[{\"added\": {\"name\": \"user profile\", \"object\": \"admin - JGTECH\"}}]"
+    }
+},
+{
+    "model": "admin.logentry",
+    "pk": 3,
+    "fields": {
+        "action_time": "2026-02-26T16:01:10.567Z",
+        "user": 1,
+        "content_type": 12,
+        "object_id": "1",
+        "object_repr": "Produto quimico genérico - robertinho (1.00)",
+        "action_flag": 3,
+        "change_message": ""
+    }
+},
+{
+    "model": "admin.logentry",
+    "pk": 4,
+    "fields": {
+        "action_time": "2026-02-26T16:01:13.849Z",
+        "user": 1,
+        "content_type": 12,
+        "object_id": "2",
+        "object_repr": "Produto quimico genérico - robertinho (1.00)",
+        "action_flag": 3,
+        "change_message": ""
+    }
+},
+{
+    "model": "admin.logentry",
+    "pk": 5,
+    "fields": {
+        "action_time": "2026-02-26T16:01:16.483Z",
+        "user": 1,
+        "content_type": 12,
+        "object_id": "3",
+        "object_repr": "Produto quimico genérico - robertinho (1.00)",
+        "action_flag": 3,
+        "change_message": ""
+    }
+},
+{
+    "model": "admin.logentry",
+    "pk": 6,
+    "fields": {
+        "action_time": "2026-02-26T19:11:02.654Z",
+        "user": 1,
+        "content_type": 12,
+        "object_id": "6",
+        "object_repr": "BOOSTER 5L - FAZENDA TUCANO (20.00)",
+        "action_flag": 3,
+        "change_message": ""
+    }
+},
+{
+    "model": "admin.logentry",
+    "pk": 7,
+    "fields": {
+        "action_time": "2026-02-26T19:11:06.017Z",
+        "user": 1,
+        "content_type": 12,
+        "object_id": "5",
+        "object_repr": "Produto quimico genérico - robertinho filho (1.00)",
+        "action_flag": 3,
+        "change_message": ""
+    }
+},
+{
+    "model": "admin.logentry",
+    "pk": 8,
+    "fields": {
+        "action_time": "2026-02-26T19:11:08.540Z",
+        "user": 1,
+        "content_type": 12,
+        "object_id": "4",
+        "object_repr": "Produto quimico genérico - robertinho (1.00)",
+        "action_flag": 3,
+        "change_message": ""
+    }
+},
+{
+    "model": "admin.logentry",
+    "pk": 9,
+    "fields": {
+        "action_time": "2026-02-26T19:11:13.634Z",
+        "user": 1,
+        "content_type": 10,
+        "object_id": "2",
+        "object_repr": "BOOSTER 5L",
+        "action_flag": 3,
+        "change_message": ""
+    }
+},
+{
+    "model": "admin.logentry",
+    "pk": 10,
+    "fields": {
+        "action_time": "2026-02-26T19:11:16.157Z",
+        "user": 1,
+        "content_type": 10,
+        "object_id": "1",
+        "object_repr": "Produto quimico genérico",
+        "action_flag": 3,
+        "change_message": ""
+    }
+},
+{
+    "model": "admin.logentry",
+    "pk": 11,
+    "fields": {
+        "action_time": "2026-03-09T13:53:30.693Z",
+        "user": 1,
+        "content_type": 4,
+        "object_id": "5",
+        "object_repr": "rical",
+        "action_flag": 1,
+        "change_message": "[{\"added\": {}}, {\"added\": {\"name\": \"user profile\", \"object\": \"rical - RICAL\"}}]"
+    }
+},
+{
+    "model": "admin.logentry",
+    "pk": 12,
+    "fields": {
+        "action_time": "2026-03-09T13:53:52.646Z",
+        "user": 1,
+        "content_type": 4,
+        "object_id": "5",
+        "object_repr": "rical",
+        "action_flag": 2,
+        "change_message": "[]"
+    }
+},
+{
+    "model": "admin.logentry",
+    "pk": 13,
+    "fields": {
+        "action_time": "2026-03-09T13:54:42.118Z",
+        "user": 1,
+        "content_type": 10,
+        "object_id": "3",
+        "object_repr": "RTX 5070 16GB",
+        "action_flag": 3,
+        "change_message": ""
+    }
+},
+{
+    "model": "admin.logentry",
+    "pk": 14,
+    "fields": {
+        "action_time": "2026-03-09T13:54:44.880Z",
+        "user": 1,
+        "content_type": 10,
+        "object_id": "4",
+        "object_repr": "BOOSTER 5L",
+        "action_flag": 3,
+        "change_message": ""
+    }
+},
+{
+    "model": "admin.logentry",
+    "pk": 15,
+    "fields": {
+        "action_time": "2026-03-09T13:54:47.085Z",
+        "user": 1,
+        "content_type": 10,
+        "object_id": "5",
+        "object_repr": "GAPPER",
+        "action_flag": 3,
+        "change_message": ""
+    }
+},
+{
+    "model": "admin.logentry",
+    "pk": 16,
+    "fields": {
+        "action_time": "2026-03-09T13:54:50.623Z",
+        "user": 1,
+        "content_type": 10,
+        "object_id": "6",
+        "object_repr": "PRODUTO GENÉRICO 2L",
+        "action_flag": 3,
+        "change_message": ""
+    }
+},
+{
+    "model": "admin.logentry",
+    "pk": 17,
+    "fields": {
+        "action_time": "2026-03-09T13:55:47.718Z",
+        "user": 1,
+        "content_type": 4,
+        "object_id": "4",
+        "object_repr": "graos3@rical.com.br",
+        "action_flag": 3,
+        "change_message": ""
+    }
+},
+{
+    "model": "admin.logentry",
+    "pk": 18,
+    "fields": {
+        "action_time": "2026-03-09T13:55:54.046Z",
+        "user": 1,
+        "content_type": 4,
+        "object_id": "2",
+        "object_repr": "graos7@rical.com.br",
+        "action_flag": 3,
+        "change_message": ""
+    }
+},
+{
+    "model": "admin.logentry",
+    "pk": 19,
+    "fields": {
+        "action_time": "2026-04-15T12:32:40.765Z",
+        "user": 1,
+        "content_type": 7,
+        "object_id": "5",
+        "object_repr": "Rical T.I",
+        "action_flag": 1,
+        "change_message": "[{\"added\": {}}]"
+    }
+},
+{
+    "model": "admin.logentry",
+    "pk": 20,
+    "fields": {
+        "action_time": "2026-04-15T12:32:43.961Z",
+        "user": 1,
+        "content_type": 4,
+        "object_id": "8",
+        "object_repr": "tirical",
+        "action_flag": 1,
+        "change_message": "[{\"added\": {}}, {\"added\": {\"name\": \"user profile\", \"object\": \"tirical - Rical T.I\"}}]"
+    }
+},
+{
+    "model": "auth.user",
+    "pk": 1,
+    "fields": {
+        "password": "pbkdf2_sha256$1000000$yBv7PDWhUSn3ZpLHIwa6Df$JaCVIE6mhZ1ff0IJSheOFtqetyHs7ymsg0JuKmDn08A=",
+        "last_login": "2026-06-03T21:34:33.647Z",
+        "is_superuser": true,
+        "username": "admin",
+        "first_name": "",
+        "last_name": "",
+        "email": "ti2@rical.com.br",
+        "is_staff": true,
+        "is_active": true,
+        "date_joined": "2026-01-28T14:13:52Z",
+        "groups": [],
+        "user_permissions": []
+    }
+},
+{
+    "model": "auth.user",
+    "pk": 3,
+    "fields": {
+        "password": "pbkdf2_sha256$1000000$4Sw2DMSICFBykZRYGr7CuN$FDj5z4obgfw9rE0/HGNQ3obGrnw43lLceMazp/ZIY6Q=",
+        "last_login": "2026-02-26T21:24:07.807Z",
+        "is_superuser": false,
+        "username": "adilson@rical.com.br",
+        "first_name": "Adilson Lins",
+        "last_name": "",
+        "email": "adilson@rical.com.br",
+        "is_staff": false,
+        "is_active": true,
+        "date_joined": "2026-02-26T18:30:15.397Z",
+        "groups": [],
+        "user_permissions": []
+    }
+},
+{
+    "model": "auth.user",
+    "pk": 5,
+    "fields": {
+        "password": "pbkdf2_sha256$1000000$v5msFQJ94lGhhq2betlpFb$8E41SDF7rf7lPR/Lmw+X7h3P5od4EJJbjQ3Q5MPFdI4=",
+        "last_login": "2026-04-23T14:37:32.753Z",
+        "is_superuser": false,
+        "username": "rical",
+        "first_name": "",
+        "last_name": "",
+        "email": "",
+        "is_staff": false,
+        "is_active": true,
+        "date_joined": "2026-03-09T13:53:30Z",
+        "groups": [],
+        "user_permissions": []
+    }
+},
+{
+    "model": "auth.user",
+    "pk": 6,
+    "fields": {
+        "password": "pbkdf2_sha256$1000000$qUgwG6BXXsifsrU0dxZjNP$aKKPp85TmoJ+To6POtvgfF3VDkTmFFAM97HMjHXfhDU=",
+        "last_login": "2026-04-18T14:49:35.637Z",
+        "is_superuser": false,
+        "username": "rical.evellyn",
+        "first_name": "Evellyn",
+        "last_name": "Mendes",
+        "email": "graos6@rical.com.br",
+        "is_staff": false,
+        "is_active": true,
+        "date_joined": "2026-03-11T19:15:58.802Z",
+        "groups": [],
+        "user_permissions": []
+    }
+},
+{
+    "model": "auth.user",
+    "pk": 7,
+    "fields": {
+        "password": "pbkdf2_sha256$1000000$Jmr7X62Nu751Qcx2hU3biL$FtqHrZGh/mL5rVJLpqaWPVLg4HpHknX9psrhvgnY4l8=",
+        "last_login": "2026-04-10T18:48:12.973Z",
+        "is_superuser": false,
+        "username": "rical.gideo",
+        "first_name": "Gideo",
+        "last_name": "Braga",
+        "email": "classificacao@rical.com.br",
+        "is_staff": false,
+        "is_active": true,
+        "date_joined": "2026-03-11T19:26:28.474Z",
+        "groups": [],
+        "user_permissions": []
+    }
+},
+{
+    "model": "auth.user",
+    "pk": 8,
+    "fields": {
+        "password": "pbkdf2_sha256$1000000$gR5kxdlFwg2MpZ2UhSvW02$hEh1hCCjbacaDu8a5CVrS1Hk2GqMxD4dElgO6X96r/c=",
+        "last_login": "2026-04-15T12:32:59.724Z",
+        "is_superuser": false,
+        "username": "tirical",
+        "first_name": "",
+        "last_name": "",
+        "email": "",
+        "is_staff": false,
+        "is_active": true,
+        "date_joined": "2026-04-15T12:32:43.833Z",
+        "groups": [],
+        "user_permissions": []
+    }
+},
+{
+    "model": "sessions.session",
+    "pk": "0gv6hx7ivmshl0i6akyhvdjts2o7u5l9",
+    "fields": {
+        "session_data": ".eJxVjEEOwiAQRe_C2hDoQAGX7j0DmZkOUjVtUtqV8e7apAvd_vfef6mM21rz1mTJ46DOyqvT70bID5l2MNxxus2a52ldRtK7og_a9HUe5Hk53L-Diq1-a2bCWAz0CRxRbyIYQ52LIuJLCJyKd854Dh0LgBULMXpMwTAkCmjV-wPiyDd2:1w7EmL:ChTwC0rHX6CnHOJbDNmrWyknlaJAJCe9ATKGBQQg8zc",
+        "expire_date": "2026-04-13T15:43:49.196Z"
+    }
+},
+{
+    "model": "sessions.session",
+    "pk": "1n4s9r52czrpgptr85jx6xvicy4kuj0l",
+    "fields": {
+        "session_data": ".eJxVjMsOwiAQRf-FtSEBymNcuvcbyAwDUjWQlHZl_Hdt0oVu7znnvkTEba1xG3mJM4uzcOL0uxGmR2474Du2W5ept3WZSe6KPOiQ1875eTncv4OKo35rpSFYLF4jsNU4cUAm5Z01xBMnRYUnQ9YVSBDYJiAyxThEyB5tBvH-APjtONk:1w59B8:brhgCjg1lpgjBK0byrrM88Ea2SBERLV65Gdw4NH1Q60",
+        "expire_date": "2026-04-07T21:20:46.195Z"
+    }
+},
+{
+    "model": "sessions.session",
+    "pk": "27z599bxezw8nstc2bwcyzvomc88xtj2",
+    "fields": {
+        "session_data": ".eJxVjMsOwiAQRf-FtSEgD8Gl-34DmWEGqRqalHZl_HfbpAvdnnPufYsE61LT2nlOI4mr0OL0yxDyk9su6AHtPsk8tWUeUe6JPGyXw0T8uh3t30GFXrd1iREgO-OyURr9ORqjNVqlLoi2-OBRIwTDWRGV6D1zcD6Q441ZBCM-X9yBOAE:1vvh8g:eh7p1IW776TIMW_9lZ8680AdQyd1W_dgILaXTkJ-Py8",
+        "expire_date": "2026-03-12T19:35:10.011Z"
+    }
+},
+{
+    "model": "sessions.session",
+    "pk": "48fe1y52mo5ejbdufu8akz8qd2l8h1ks",
+    "fields": {
+        "session_data": ".eJxVjEEOwiAQRe_C2pCBFgGX7j0DGZhBqoYmpV0Z7y5NutDtf-_9twi4rSVsjZcwkbiIUZx-t4jpyXUH9MB6n2Wa67pMUe6KPGiTt5n4dT3cv4OCrfRan8lq6xNghoFcjMla58hH4o6yGZzBzICKPfDYnQzZaGWNVYBaK_H5AvKON84:1vwMWl:ET1-cpzYbOhgFxjY5fKLu7-S53K7VMYPY7lcVWz8PeA",
+        "expire_date": "2026-03-14T15:46:47.344Z"
+    }
+},
+{
+    "model": "sessions.session",
+    "pk": "k5zp2hqg8dx275pwgbyp22t3vkfs5qi1",
+    "fields": {
+        "session_data": ".eJxVjEEOwiAURO_C2hAQKMWle89A_oePVA0kpV0Z725JumhXk8y8eV_mYV2yXxvNforsxiy7HDuE8KbSh_iC8qw81LLME_KO8H1t_FEjfe47exJkaHl7i0AGtTLDgJokuNEl7WJPSTYFhZtqNMmhvpqULBChUNJZFIgYomK_P_0UOQM:1w5UAa:F9mklpqe9Id7MthYtC7KUNIoXFhdoo4AHklgpDAaSUA",
+        "expire_date": "2026-04-08T19:45:36.136Z"
+    }
+},
+{
+    "model": "sessions.session",
+    "pk": "kq0m6wyycfizxuwj6tobwnk1gwvek2dm",
+    "fields": {
+        "session_data": ".eJxVjEEOwiAQRe_C2hDoQAGX7j0DmZkOUjVtUtqV8e7apAvd_vfef6mM21rz1mTJ46DOyqvT70bID5l2MNxxus2a52ldRtK7og_a9HUe5Hk53L-Diq1-a2bCWAz0CRxRbyIYQ52LIuJLCJyKd854Dh0LgBULMXpMwTAkCmjV-wPiyDd2:1w5OR9:ZMDKyMkXJjFsolpFgUww6FNoWXmGO4z0Aa0AYNWDYQ8",
+        "expire_date": "2026-04-08T13:38:19.654Z"
+    }
+},
+{
+    "model": "sessions.session",
+    "pk": "kyjo6d061z97ocq7ksubgjk34m7tkov1",
+    "fields": {
+        "session_data": ".eJxVjMsOwiAQRf-FtSEgD8Gl-34DmWEGqRqalHZl_HfbpAvdnnPufYsE61LT2nlOI4mr0OL0yxDyk9su6AHtPsk8tWUeUe6JPGyXw0T8uh3t30GFXrd1iREgO-OyURr9ORqjNVqlLoi2-OBRIwTDWRGV6D1zcD6Q441ZBCM-X9yBOAE:1wUtEP:wn8hAzU9kH97PMwIHVDxaJ-ykXCaJYj0s9dkn52sdos",
+        "expire_date": "2026-06-17T21:34:33.651Z"
+    }
+},
+{
+    "model": "sessions.session",
+    "pk": "lebjznnzm68vjf0ttsellkf2c5k5mi6z",
+    "fields": {
+        "session_data": ".eJxVjEEOwiAURO_C2hAQKMWle89A_oePVA0kpV0Z725JumhXk8y8eV_mYV2yXxvNforsxiy7HDuE8KbSh_iC8qw81LLME_KO8H1t_FEjfe47exJkaHl7i0AGtTLDgJokuNEl7WJPSTYFhZtqNMmhvpqULBChUNJZFIgYomK_P_0UOQM:1wBGto:Qe61iu0fE83Y9L59-4Y-HhOcQw2KEdlU-oH8hOJVkY0",
+        "expire_date": "2026-04-24T18:48:12.976Z"
+    }
+},
+{
+    "model": "sessions.session",
+    "pk": "ocnid3uyx5nvr5edcuszvuarspv51n6n",
+    "fields": {
+        "session_data": ".eJxVjEEOwiAQRe_C2hDoQAGX7j0DmZkOUjVtUtqV8e7apAvd_vfef6mM21rz1mTJ46DOyqvT70bID5l2MNxxus2a52ldRtK7og_a9HUe5Hk53L-Diq1-a2bCWAz0CRxRbyIYQ52LIuJLCJyKd854Dh0LgBULMXpMwTAkCmjV-wPiyDd2:1w3yRZ:8M1M1wLyiZa6PC3rFSKeebu3n0JUmXYen44zt3XtXfg",
+        "expire_date": "2026-04-04T15:40:53.823Z"
+    }
+},
+{
+    "model": "sessions.session",
+    "pk": "pc1klsons25ohudaq3bod6lycypka9gw",
+    "fields": {
+        "session_data": ".eJxVjMsOwiAQRf-FtSEBymNcuvcbyAwDUjWQlHZl_Hdt0oVu7znnvkTEba1xG3mJM4uzcOL0uxGmR2474Du2W5ept3WZSe6KPOiQ1875eTncv4OKo35rpSFYLF4jsNU4cUAm5Z01xBMnRYUnQ9YVSBDYJiAyxThEyB5tBvH-APjtONk:1wD1ln:lwuDK2buuQiC29MMNC0AYTNo8c81I2DX-INt76nrlcM",
+        "expire_date": "2026-04-29T15:03:11.975Z"
+    }
+},
+{
+    "model": "sessions.session",
+    "pk": "qc4tmasem9prhdp8bovj7e7xhpbrw7n3",
+    "fields": {
+        "session_data": ".eJxVjEEOwiAQRe_C2hDoQAGX7j0DmZkOUjVtUtqV8e7apAvd_vfef6mM21rz1mTJ46DOyqvT70bID5l2MNxxus2a52ldRtK7og_a9HUe5Hk53L-Diq1-a2bCWAz0CRxRbyIYQ52LIuJLCJyKd854Dh0LgBULMXpMwTAkCmjV-wPiyDd2:1wFvBM:tioRkxCNsPTA_nlui1sZFFvI30MLUW_ZZ9SnscU2oNQ",
+        "expire_date": "2026-05-07T14:37:32.756Z"
+    }
+},
+{
+    "model": "sessions.session",
+    "pk": "qcugpm8bovn6wkn6iwcc3a70wqtg5gyl",
+    "fields": {
+        "session_data": ".eJxVjMsOwiAQRf-FtSEBymNcuvcbyAwDUjWQlHZl_Hdt0oVu7znnvkTEba1xG3mJM4uzcOL0uxGmR2474Du2W5ept3WZSe6KPOiQ1875eTncv4OKo35rpSFYLF4jsNU4cUAm5Z01xBMnRYUnQ9YVSBDYJiAyxThEyB5tBvH-APjtONk:1wE6zH:MthDnhUJKNBIOX0gfUVO-bdLe80ew-rYdGKjCpFZ268",
+        "expire_date": "2026-05-02T14:49:35.657Z"
+    }
+},
+{
+    "model": "sessions.session",
+    "pk": "shiefqth0rpcz4iqgiz8dc92rpjg2794",
+    "fields": {
+        "session_data": ".eJxVjMEOwiAQRP-FsyF0Fwp49N5vIMBupWpoUtqT8d9tkx70Npn3Zt4ixG0tYWu8hInEVYC4_HYp5ifXA9Aj1vss81zXZUryUORJmxxm4tftdP8OSmxlX2OP1pmkoDPoMFskUMl6Cxl1p4BBO_DWsomQKfpRE4_GJGSH_R5JfL6lxTdM:1vvgrO:8bBh4fg6a2jzkQBOt9O8DWoD5T9gg3pi8L1jiMwV-lQ",
+        "expire_date": "2026-03-12T19:17:18.361Z"
+    }
+},
+{
+    "model": "sessions.session",
+    "pk": "yg548dzimontfmc4zlcporqhnk7vueib",
+    "fields": {
+        "session_data": ".eJxVjEEOwiAURO_C2hAQKMWle89A_oePVA0kpV0Z725JumhXk8y8eV_mYV2yXxvNforsxiy7HDuE8KbSh_iC8qw81LLME_KO8H1t_FEjfe47exJkaHl7i0AGtTLDgJokuNEl7WJPSTYFhZtqNMmhvpqULBChUNJZFIgYomK_P_0UOQM:1w2ZE6:FEVgQYfZKWQaxuwwQmKeiLlDMx0WmYKleuUum1SqFnA",
+        "expire_date": "2026-03-31T18:33:10.547Z"
+    }
+},
+{
+    "model": "estoque.empresa",
+    "pk": 1,
+    "fields": {
+        "nome": "JGTECH",
+        "cnpj": null,
+        "ativo": true
+    }
+},
+{
+    "model": "estoque.empresa",
+    "pk": 2,
+    "fields": {
+        "nome": "RICAL",
+        "cnpj": null,
+        "ativo": true
+    }
+},
+{
+    "model": "estoque.empresa",
+    "pk": 3,
+    "fields": {
+        "nome": "techlins",
+        "cnpj": null,
+        "ativo": true
+    }
+},
+{
+    "model": "estoque.empresa",
+    "pk": 4,
+    "fields": {
+        "nome": "Rical Rack",
+        "cnpj": null,
+        "ativo": true
+    }
+},
+{
+    "model": "estoque.empresa",
+    "pk": 5,
+    "fields": {
+        "nome": "Rical T.I",
+        "cnpj": null,
+        "ativo": true
+    }
+},
+{
+    "model": "estoque.userprofile",
+    "pk": 1,
+    "fields": {
+        "user": 1,
+        "empresa": 1,
+        "e_dono": true
+    }
+},
+{
+    "model": "estoque.userprofile",
+    "pk": 3,
+    "fields": {
+        "user": 3,
+        "empresa": 3,
+        "e_dono": true
+    }
+},
+{
+    "model": "estoque.userprofile",
+    "pk": 5,
+    "fields": {
+        "user": 5,
+        "empresa": 2,
+        "e_dono": true
+    }
+},
+{
+    "model": "estoque.userprofile",
+    "pk": 6,
+    "fields": {
+        "user": 6,
+        "empresa": 2,
+        "e_dono": false
+    }
+},
+{
+    "model": "estoque.userprofile",
+    "pk": 7,
+    "fields": {
+        "user": 7,
+        "empresa": 2,
+        "e_dono": false
+    }
+},
+{
+    "model": "estoque.userprofile",
+    "pk": 8,
+    "fields": {
+        "user": 8,
+        "empresa": 5,
+        "e_dono": true
+    }
+},
+{
+    "model": "estoque.categoria",
+    "pk": 1,
+    "fields": {
+        "empresa": 1,
+        "nome": "QUIMICOS"
+    }
+},
+{
+    "model": "estoque.categoria",
+    "pk": 2,
+    "fields": {
+        "empresa": 2,
+        "nome": "Químicos"
+    }
+},
+{
+    "model": "estoque.categoria",
+    "pk": 3,
+    "fields": {
+        "empresa": 2,
+        "nome": "FERTILIZANTE"
+    }
+},
+{
+    "model": "estoque.categoria",
+    "pk": 4,
+    "fields": {
+        "empresa": 3,
+        "nome": "placas de video"
+    }
+},
+{
+    "model": "estoque.categoria",
+    "pk": 5,
+    "fields": {
+        "empresa": 2,
+        "nome": "ADJUVANTE E ÓLEOS "
+    }
+},
+{
+    "model": "estoque.categoria",
+    "pk": 6,
+    "fields": {
+        "empresa": 2,
+        "nome": "INOCULANTE "
+    }
+},
+{
+    "model": "estoque.categoria",
+    "pk": 7,
+    "fields": {
+        "empresa": 5,
+        "nome": "CAMERA"
+    }
+},
+{
+    "model": "estoque.categoria",
+    "pk": 8,
+    "fields": {
+        "empresa": 5,
+        "nome": "DVR"
+    }
+},
+{
+    "model": "estoque.categoria",
+    "pk": 9,
+    "fields": {
+        "empresa": 5,
+        "nome": "POWER BALUN"
+    }
+},
+{
+    "model": "estoque.categoria",
+    "pk": 10,
+    "fields": {
+        "empresa": 5,
+        "nome": "SWITCH"
+    }
+},
+{
+    "model": "estoque.categoria",
+    "pk": 11,
+    "fields": {
+        "empresa": 5,
+        "nome": "CAIXA DE PASSAGEM"
+    }
+},
+{
+    "model": "estoque.localizacao",
+    "pk": 1,
+    "fields": {
+        "empresa": 1,
+        "nome": "PALETE 001"
+    }
+},
+{
+    "model": "estoque.localizacao",
+    "pk": 2,
+    "fields": {
+        "empresa": 2,
+        "nome": "PALETE 001 GALPAO"
+    }
+},
+{
+    "model": "estoque.localizacao",
+    "pk": 3,
+    "fields": {
+        "empresa": 2,
+        "nome": "PALLT 9"
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 7,
+    "fields": {
+        "empresa": 2,
+        "categoria": 2,
+        "localizacao": null,
+        "nome": "BIFENTRINA A 5L",
+        "sku": "15112",
+        "ean": null,
+        "unidade": "GL",
+        "estoque_minimo": 1,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 8,
+    "fields": {
+        "empresa": 2,
+        "categoria": 3,
+        "localizacao": null,
+        "nome": "NEM-OUT 10 kg",
+        "sku": "16062",
+        "ean": null,
+        "unidade": "GL",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 9,
+    "fields": {
+        "empresa": 2,
+        "categoria": 2,
+        "localizacao": null,
+        "nome": "FIPRONIL 500 5L",
+        "sku": "15107",
+        "ean": null,
+        "unidade": "GL",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 10,
+    "fields": {
+        "empresa": 2,
+        "categoria": 2,
+        "localizacao": null,
+        "nome": "CLINCHER 20 L",
+        "sku": "13146",
+        "ean": null,
+        "unidade": "GL",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 11,
+    "fields": {
+        "empresa": 2,
+        "categoria": 2,
+        "localizacao": null,
+        "nome": "METOMIL 20 L",
+        "sku": "15110",
+        "ean": null,
+        "unidade": "GL",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 44,
+    "fields": {
+        "empresa": 2,
+        "categoria": null,
+        "localizacao": null,
+        "nome": "RANCONA 5 L",
+        "sku": "13434",
+        "ean": null,
+        "unidade": "GL",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 46,
+    "fields": {
+        "empresa": 2,
+        "categoria": 2,
+        "localizacao": null,
+        "nome": "STARICE 5L",
+        "sku": "16144",
+        "ean": null,
+        "unidade": "GL",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 48,
+    "fields": {
+        "empresa": 2,
+        "categoria": 3,
+        "localizacao": null,
+        "nome": "MAXI ZINC 10L",
+        "sku": "15139",
+        "ean": null,
+        "unidade": "GL",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 49,
+    "fields": {
+        "empresa": 2,
+        "categoria": 2,
+        "localizacao": null,
+        "nome": "GLIFOSATO WG 5 kg",
+        "sku": "15106",
+        "ean": null,
+        "unidade": "PCT",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 50,
+    "fields": {
+        "empresa": 2,
+        "categoria": 2,
+        "localizacao": null,
+        "nome": "SELTIMA 5 LT",
+        "sku": "15252",
+        "ean": null,
+        "unidade": "GL",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 51,
+    "fields": {
+        "empresa": 2,
+        "categoria": 3,
+        "localizacao": null,
+        "nome": "DRIPPY 5 L",
+        "sku": "15793",
+        "ean": null,
+        "unidade": "GL",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 52,
+    "fields": {
+        "empresa": 2,
+        "categoria": 2,
+        "localizacao": null,
+        "nome": "XEQUE MATE WG",
+        "sku": "15826",
+        "ean": null,
+        "unidade": "PCT",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 53,
+    "fields": {
+        "empresa": 2,
+        "categoria": 2,
+        "localizacao": null,
+        "nome": "IMAZAPIQUE 1 kg",
+        "sku": "15774",
+        "ean": null,
+        "unidade": "PCT",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 54,
+    "fields": {
+        "empresa": 2,
+        "categoria": 3,
+        "localizacao": null,
+        "nome": "CONCENTRAT MN 10L",
+        "sku": "15141",
+        "ean": null,
+        "unidade": "GL",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 55,
+    "fields": {
+        "empresa": 2,
+        "categoria": 3,
+        "localizacao": null,
+        "nome": "GRAIN-SET 20L",
+        "sku": "15552",
+        "ean": null,
+        "unidade": "UN",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 57,
+    "fields": {
+        "empresa": 2,
+        "categoria": 2,
+        "localizacao": null,
+        "nome": "DERMACOR 1 LT",
+        "sku": "14166",
+        "ean": null,
+        "unidade": "GL",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 58,
+    "fields": {
+        "empresa": 2,
+        "categoria": 2,
+        "localizacao": null,
+        "nome": "TRICLOPIR 20 LT",
+        "sku": "15534",
+        "ean": null,
+        "unidade": "GL",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 59,
+    "fields": {
+        "empresa": 2,
+        "categoria": 2,
+        "localizacao": null,
+        "nome": "VIOVAN 10L",
+        "sku": "16208",
+        "ean": null,
+        "unidade": "GL",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 60,
+    "fields": {
+        "empresa": 2,
+        "categoria": 2,
+        "localizacao": null,
+        "nome": "CLORPIRIFOS 20L",
+        "sku": "15777",
+        "ean": null,
+        "unidade": "GL",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 61,
+    "fields": {
+        "empresa": 2,
+        "categoria": 2,
+        "localizacao": null,
+        "nome": "PICLORAM 20L",
+        "sku": "15993",
+        "ean": null,
+        "unidade": "GL",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 62,
+    "fields": {
+        "empresa": 2,
+        "categoria": 3,
+        "localizacao": null,
+        "nome": "KMAX + 10 L",
+        "sku": "15854",
+        "ean": null,
+        "unidade": "GL",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 63,
+    "fields": {
+        "empresa": 2,
+        "categoria": 2,
+        "localizacao": null,
+        "nome": "CLORFENAPIR 10 LT",
+        "sku": "15776",
+        "ean": null,
+        "unidade": "GL",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 64,
+    "fields": {
+        "empresa": 2,
+        "categoria": 2,
+        "localizacao": null,
+        "nome": "CIPERMITRINA 5L",
+        "sku": "16148",
+        "ean": null,
+        "unidade": "UN",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 65,
+    "fields": {
+        "empresa": 2,
+        "categoria": 2,
+        "localizacao": null,
+        "nome": "FLUROXIPIR 20 L",
+        "sku": "16220",
+        "ean": null,
+        "unidade": "GL",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 66,
+    "fields": {
+        "empresa": 2,
+        "categoria": 2,
+        "localizacao": null,
+        "nome": "APROACH POWER 20 LT",
+        "sku": "15424",
+        "ean": null,
+        "unidade": "GL",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 67,
+    "fields": {
+        "empresa": 2,
+        "categoria": 2,
+        "localizacao": null,
+        "nome": "FLUIFEX MAX 5 LT",
+        "sku": "16268",
+        "ean": null,
+        "unidade": "GL",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 68,
+    "fields": {
+        "empresa": 2,
+        "categoria": 3,
+        "localizacao": null,
+        "nome": "AGRO-MOS 20 LT",
+        "sku": "15972",
+        "ean": null,
+        "unidade": "UN",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 69,
+    "fields": {
+        "empresa": 2,
+        "categoria": 3,
+        "localizacao": null,
+        "nome": "LIQUI-PLEX CaMg+B 20L",
+        "sku": "16272",
+        "ean": null,
+        "unidade": "GL",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 70,
+    "fields": {
+        "empresa": 2,
+        "categoria": 3,
+        "localizacao": null,
+        "nome": "ENERGY 20 LT",
+        "sku": "16012",
+        "ean": null,
+        "unidade": "GL",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 71,
+    "fields": {
+        "empresa": 2,
+        "categoria": 2,
+        "localizacao": null,
+        "nome": "EXPEDITION 5 LT",
+        "sku": "13253",
+        "ean": null,
+        "unidade": "GL",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 72,
+    "fields": {
+        "empresa": 2,
+        "categoria": 2,
+        "localizacao": null,
+        "nome": "TEBUCO 430 5 L",
+        "sku": "15113",
+        "ean": null,
+        "unidade": "GL",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 73,
+    "fields": {
+        "empresa": 2,
+        "categoria": 2,
+        "localizacao": null,
+        "nome": "BIM MAX 5 LT",
+        "sku": "14169",
+        "ean": null,
+        "unidade": "GL",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 74,
+    "fields": {
+        "empresa": 2,
+        "categoria": 2,
+        "localizacao": null,
+        "nome": "BIFENTRINA 100 10 LT",
+        "sku": "15778",
+        "ean": null,
+        "unidade": "GL",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 75,
+    "fields": {
+        "empresa": 2,
+        "categoria": 2,
+        "localizacao": null,
+        "nome": "BIM 750 1 kg",
+        "sku": "13580",
+        "ean": null,
+        "unidade": "PCT",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 76,
+    "fields": {
+        "empresa": 2,
+        "categoria": 2,
+        "localizacao": null,
+        "nome": "CERTEZA N 5 LT",
+        "sku": "15769",
+        "ean": null,
+        "unidade": "GL",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 77,
+    "fields": {
+        "empresa": 2,
+        "categoria": 3,
+        "localizacao": null,
+        "nome": "LAPONICA 20 LT",
+        "sku": "15795",
+        "ean": null,
+        "unidade": "GL",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 78,
+    "fields": {
+        "empresa": 2,
+        "categoria": 3,
+        "localizacao": null,
+        "nome": "SOLUÇÃO NITROGENADA 20 LT",
+        "sku": "15782",
+        "ean": null,
+        "unidade": "GL",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 79,
+    "fields": {
+        "empresa": 2,
+        "categoria": 2,
+        "localizacao": null,
+        "nome": "GAPPER BOMBONA 5 LT",
+        "sku": "16282",
+        "ean": null,
+        "unidade": "GL",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 80,
+    "fields": {
+        "empresa": 2,
+        "categoria": 2,
+        "localizacao": null,
+        "nome": "EXALT BOMBONA 5 LT",
+        "sku": "16284",
+        "ean": null,
+        "unidade": "GL",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 81,
+    "fields": {
+        "empresa": 2,
+        "categoria": 2,
+        "localizacao": null,
+        "nome": "VESSARYA BOMBONA 10 LT",
+        "sku": "16283",
+        "ean": null,
+        "unidade": "GL",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 82,
+    "fields": {
+        "empresa": 2,
+        "categoria": 3,
+        "localizacao": null,
+        "nome": "INITIATE SOY 5 lt",
+        "sku": "16183",
+        "ean": null,
+        "unidade": "GL",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 83,
+    "fields": {
+        "empresa": 2,
+        "categoria": 5,
+        "localizacao": null,
+        "nome": "MC OIL 20 LT",
+        "sku": "16297",
+        "ean": null,
+        "unidade": "GL",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 84,
+    "fields": {
+        "empresa": 2,
+        "categoria": 3,
+        "localizacao": null,
+        "nome": "SUPA SILICA 10 LT",
+        "sku": "15142",
+        "ean": null,
+        "unidade": "GL",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 85,
+    "fields": {
+        "empresa": 2,
+        "categoria": 2,
+        "localizacao": null,
+        "nome": "BRIO 5 LT",
+        "sku": "13254",
+        "ean": null,
+        "unidade": "GL",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 86,
+    "fields": {
+        "empresa": 2,
+        "categoria": 3,
+        "localizacao": null,
+        "nome": "NITROFIX 5 LT",
+        "sku": "15779",
+        "ean": null,
+        "unidade": "GL",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 87,
+    "fields": {
+        "empresa": 2,
+        "categoria": 2,
+        "localizacao": null,
+        "nome": "RASTER 10 LT",
+        "sku": "16227",
+        "ean": null,
+        "unidade": "GL",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 88,
+    "fields": {
+        "empresa": 2,
+        "categoria": 5,
+        "localizacao": null,
+        "nome": "PROTAC 500g",
+        "sku": "16149",
+        "ean": null,
+        "unidade": "PCT",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 89,
+    "fields": {
+        "empresa": 2,
+        "categoria": 2,
+        "localizacao": null,
+        "nome": "FUSÃO 10 LT",
+        "sku": "14175",
+        "ean": null,
+        "unidade": "GL",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 91,
+    "fields": {
+        "empresa": 2,
+        "categoria": 3,
+        "localizacao": null,
+        "nome": "VIGORA 20 LT",
+        "sku": "15790",
+        "ean": null,
+        "unidade": "GL",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 92,
+    "fields": {
+        "empresa": 2,
+        "categoria": 2,
+        "localizacao": null,
+        "nome": "NORTON 20 LT",
+        "sku": "15532",
+        "ean": null,
+        "unidade": "GL",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 93,
+    "fields": {
+        "empresa": 2,
+        "categoria": 2,
+        "localizacao": null,
+        "nome": "GLUFOSINATO 20 LT",
+        "sku": "16150",
+        "ean": null,
+        "unidade": "GL",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 94,
+    "fields": {
+        "empresa": 2,
+        "categoria": 3,
+        "localizacao": null,
+        "nome": "IDOLO 5 LT",
+        "sku": "15785",
+        "ean": null,
+        "unidade": "GL",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 96,
+    "fields": {
+        "empresa": 2,
+        "categoria": 2,
+        "localizacao": null,
+        "nome": "KIFIX 10 X 1 kg",
+        "sku": "12777",
+        "ean": null,
+        "unidade": "UN",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 97,
+    "fields": {
+        "empresa": 2,
+        "categoria": 2,
+        "localizacao": null,
+        "nome": "PROWL H20 10 LT",
+        "sku": "15251",
+        "ean": null,
+        "unidade": "GL",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 99,
+    "fields": {
+        "empresa": 2,
+        "categoria": 2,
+        "localizacao": null,
+        "nome": "BASAGRAN 5 LT",
+        "sku": "16285",
+        "ean": null,
+        "unidade": "GL",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 100,
+    "fields": {
+        "empresa": 2,
+        "categoria": 6,
+        "localizacao": null,
+        "nome": "LALRISE AZOS SC 3 LT",
+        "sku": "16165",
+        "ean": null,
+        "unidade": "PCT",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 101,
+    "fields": {
+        "empresa": 2,
+        "categoria": 6,
+        "localizacao": null,
+        "nome": "UTRISHA N - 5 Kg",
+        "sku": "16074",
+        "ean": null,
+        "unidade": "PCT",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 102,
+    "fields": {
+        "empresa": 2,
+        "categoria": 2,
+        "localizacao": null,
+        "nome": "BIM MAX 20 LT",
+        "sku": "14399",
+        "ean": null,
+        "unidade": "GL",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 104,
+    "fields": {
+        "empresa": 2,
+        "categoria": 3,
+        "localizacao": null,
+        "nome": "ARGOS 20 LT",
+        "sku": "15952",
+        "ean": null,
+        "unidade": "GL",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 105,
+    "fields": {
+        "empresa": 2,
+        "categoria": 3,
+        "localizacao": null,
+        "nome": "BOOSTER INFINITY 5 LT",
+        "sku": "16177",
+        "ean": null,
+        "unidade": "GL",
+        "estoque_minimo": 5,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 106,
+    "fields": {
+        "empresa": 5,
+        "categoria": 11,
+        "localizacao": null,
+        "nome": "CAIXA DE CAMERA VBOX 11100 BRANCA",
+        "sku": null,
+        "ean": null,
+        "unidade": "UN",
+        "estoque_minimo": 8,
+        "controla_lote": false
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 107,
+    "fields": {
+        "empresa": 5,
+        "categoria": 8,
+        "localizacao": null,
+        "nome": "DVR 4 PORTAS MHDX1104",
+        "sku": null,
+        "ean": null,
+        "unidade": "UN",
+        "estoque_minimo": 2,
+        "controla_lote": false
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 108,
+    "fields": {
+        "empresa": 5,
+        "categoria": 8,
+        "localizacao": null,
+        "nome": "DVR MHDX 3104 4 PORTAS",
+        "sku": null,
+        "ean": null,
+        "unidade": "UN",
+        "estoque_minimo": 2,
+        "controla_lote": false
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 109,
+    "fields": {
+        "empresa": 5,
+        "categoria": 9,
+        "localizacao": null,
+        "nome": "POWER BALUN 4 PORTAS",
+        "sku": null,
+        "ean": null,
+        "unidade": "UN",
+        "estoque_minimo": 2,
+        "controla_lote": false
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 110,
+    "fields": {
+        "empresa": 5,
+        "categoria": 7,
+        "localizacao": null,
+        "nome": "CAMERA FULL COLOR 3220",
+        "sku": null,
+        "ean": null,
+        "unidade": "UN",
+        "estoque_minimo": 8,
+        "controla_lote": false
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 111,
+    "fields": {
+        "empresa": 5,
+        "categoria": 10,
+        "localizacao": null,
+        "nome": "SWITCH 8P GIGABIT LS1008G",
+        "sku": null,
+        "ean": null,
+        "unidade": "UN",
+        "estoque_minimo": 3,
+        "controla_lote": false
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 112,
+    "fields": {
+        "empresa": 5,
+        "categoria": 10,
+        "localizacao": null,
+        "nome": "SWTICH 8P GIGABIT LS108G",
+        "sku": null,
+        "ean": null,
+        "unidade": "UN",
+        "estoque_minimo": 2,
+        "controla_lote": false
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 113,
+    "fields": {
+        "empresa": 5,
+        "categoria": 10,
+        "localizacao": null,
+        "nome": "SWITCH 8P FAST SF 800",
+        "sku": null,
+        "ean": null,
+        "unidade": "UN",
+        "estoque_minimo": 2,
+        "controla_lote": false
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 114,
+    "fields": {
+        "empresa": 5,
+        "categoria": 9,
+        "localizacao": null,
+        "nome": "POWER BALUN 16P VB3016",
+        "sku": null,
+        "ean": null,
+        "unidade": "UN",
+        "estoque_minimo": 2,
+        "controla_lote": false
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 115,
+    "fields": {
+        "empresa": 5,
+        "categoria": 7,
+        "localizacao": null,
+        "nome": "CAMERA SPEED DOME VIP3220",
+        "sku": null,
+        "ean": null,
+        "unidade": "UN",
+        "estoque_minimo": 1,
+        "controla_lote": false
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 116,
+    "fields": {
+        "empresa": 5,
+        "categoria": 7,
+        "localizacao": null,
+        "nome": "CAMERA VHD3150 ZOOM REGULAVEL",
+        "sku": null,
+        "ean": null,
+        "unidade": "UN",
+        "estoque_minimo": 1,
+        "controla_lote": false
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 117,
+    "fields": {
+        "empresa": 5,
+        "categoria": 11,
+        "localizacao": null,
+        "nome": "CAIXA 20x30 CINZA",
+        "sku": null,
+        "ean": null,
+        "unidade": "UN",
+        "estoque_minimo": 2,
+        "controla_lote": false
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 118,
+    "fields": {
+        "empresa": 5,
+        "categoria": 7,
+        "localizacao": null,
+        "nome": "CAMERA VHD3130 HD",
+        "sku": null,
+        "ean": null,
+        "unidade": "UN",
+        "estoque_minimo": 6,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 119,
+    "fields": {
+        "empresa": 5,
+        "categoria": 7,
+        "localizacao": null,
+        "nome": "CAMERA VHD3120B FULL HD",
+        "sku": null,
+        "ean": null,
+        "unidade": "UN",
+        "estoque_minimo": 6,
+        "controla_lote": false
+    }
+},
+{
+    "model": "estoque.produto",
+    "pk": 120,
+    "fields": {
+        "empresa": 1,
+        "categoria": 1,
+        "localizacao": 1,
+        "nome": "Produto Teste",
+        "sku": null,
+        "ean": null,
+        "unidade": "UN",
+        "estoque_minimo": 2,
+        "controla_lote": true
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 8,
+    "fields": {
+        "produto": 7,
+        "numero_lote": "PC23117 mapa:16322",
+        "preco_compra": "0.00",
+        "fornecedor": "Nortox",
+        "data_fabricacao": "2023-05-31",
+        "data_validade": "2026-05-31",
+        "quantidade_inicial": 1,
+        "quantidade_atual": 0,
+        "data_entrada": "2026-03-13T12:28:42.512Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ESGOTADO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 9,
+    "fields": {
+        "produto": 7,
+        "numero_lote": "PC23202 Mapa:16322",
+        "preco_compra": "0.00",
+        "fornecedor": "Nortox",
+        "data_fabricacao": "2023-07-31",
+        "data_validade": "2026-07-21",
+        "quantidade_inicial": 2,
+        "quantidade_atual": 0,
+        "data_entrada": "2026-03-13T12:30:45.853Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ESGOTADO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 10,
+    "fields": {
+        "produto": 8,
+        "numero_lote": "UBO-022420",
+        "preco_compra": "0.00",
+        "fornecedor": "Altech",
+        "data_fabricacao": "2025-10-30",
+        "data_validade": "2026-10-30",
+        "quantidade_inicial": 35,
+        "quantidade_atual": 35,
+        "data_entrada": "2026-03-13T12:34:45.887Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 11,
+    "fields": {
+        "produto": 9,
+        "numero_lote": "032-24-54880",
+        "preco_compra": "0.00",
+        "fornecedor": "Nortox",
+        "data_fabricacao": "2024-11-20",
+        "data_validade": "2026-11-30",
+        "quantidade_inicial": 5,
+        "quantidade_atual": 5,
+        "data_entrada": "2026-03-13T12:40:27.563Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 12,
+    "fields": {
+        "produto": 10,
+        "numero_lote": "25C2887K77 mapa:00402",
+        "preco_compra": "0.00",
+        "fornecedor": "corteva",
+        "data_fabricacao": "2025-03-06",
+        "data_validade": "2027-03-06",
+        "quantidade_inicial": 114,
+        "quantidade_atual": 114,
+        "data_entrada": "2026-03-13T12:49:37.408Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 13,
+    "fields": {
+        "produto": 10,
+        "numero_lote": "25C2887K81",
+        "preco_compra": "0.00",
+        "fornecedor": "corteva",
+        "data_fabricacao": "2025-03-06",
+        "data_validade": "2027-03-06",
+        "quantidade_inicial": 8,
+        "quantidade_atual": 3,
+        "data_entrada": "2026-03-13T12:54:34.665Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 14,
+    "fields": {
+        "produto": 10,
+        "numero_lote": "25C2887K83 mapa:00402",
+        "preco_compra": "0.00",
+        "fornecedor": "corteva",
+        "data_fabricacao": "2025-03-06",
+        "data_validade": "2027-03-06",
+        "quantidade_inicial": 79,
+        "quantidade_atual": 84,
+        "data_entrada": "2026-03-13T12:57:11.188Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 15,
+    "fields": {
+        "produto": 11,
+        "numero_lote": "176-25-14460 mapa:23920",
+        "preco_compra": "0.00",
+        "fornecedor": "Nortox",
+        "data_fabricacao": "2025-03-10",
+        "data_validade": "2027-03-31",
+        "quantidade_inicial": 15,
+        "quantidade_atual": 15,
+        "data_entrada": "2026-03-13T13:00:18.060Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 47,
+    "fields": {
+        "produto": 44,
+        "numero_lote": "0031-24-5660",
+        "preco_compra": "0.00",
+        "fornecedor": "UPL",
+        "data_fabricacao": "2024-04-02",
+        "data_validade": "2027-04-02",
+        "quantidade_inicial": 5,
+        "quantidade_atual": 5,
+        "data_entrada": "2026-03-13T13:04:29.850Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 50,
+    "fields": {
+        "produto": 46,
+        "numero_lote": "0001-25 mapa:2799",
+        "preco_compra": "0.00",
+        "fornecedor": "bayer",
+        "data_fabricacao": "2025-04-07",
+        "data_validade": "2027-04-08",
+        "quantidade_inicial": 117,
+        "quantidade_atual": 97,
+        "data_entrada": "2026-03-13T13:10:26.906Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 53,
+    "fields": {
+        "produto": 48,
+        "numero_lote": "2505-28558",
+        "preco_compra": "0.00",
+        "fornecedor": "Agrichem",
+        "data_fabricacao": "2025-04-29",
+        "data_validade": "2027-04-29",
+        "quantidade_inicial": 1,
+        "quantidade_atual": 1,
+        "data_entrada": "2026-03-13T13:14:41.744Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 54,
+    "fields": {
+        "produto": 49,
+        "numero_lote": "002-25-108000 mapa:6117",
+        "preco_compra": "0.00",
+        "fornecedor": "Nortox",
+        "data_fabricacao": "2025-04-01",
+        "data_validade": "2027-04-30",
+        "quantidade_inicial": 978,
+        "quantidade_atual": 978,
+        "data_entrada": "2026-03-13T13:23:09.105Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 55,
+    "fields": {
+        "produto": 50,
+        "numero_lote": "16072956P0 Mapa:19621",
+        "preco_compra": "0.00",
+        "fornecedor": "basf",
+        "data_fabricacao": "2024-04-30",
+        "data_validade": "2027-04-30",
+        "quantidade_inicial": 8,
+        "quantidade_atual": 8,
+        "data_entrada": "2026-03-13T13:25:17.013Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 56,
+    "fields": {
+        "produto": 51,
+        "numero_lote": "2020",
+        "preco_compra": "0.00",
+        "fornecedor": "Prime",
+        "data_fabricacao": "2024-07-15",
+        "data_validade": "2027-05-28",
+        "quantidade_inicial": 25,
+        "quantidade_atual": 25,
+        "data_entrada": "2026-03-13T13:27:11.195Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 57,
+    "fields": {
+        "produto": 52,
+        "numero_lote": "006-24-403200 Mapa:10023",
+        "preco_compra": "0.00",
+        "fornecedor": "Ihara",
+        "data_fabricacao": "2024-05-30",
+        "data_validade": "2027-05-30",
+        "quantidade_inicial": 502,
+        "quantidade_atual": 396,
+        "data_entrada": "2026-03-13T13:29:11.124Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 58,
+    "fields": {
+        "produto": 53,
+        "numero_lote": "001-25-10561 mapa:07424",
+        "preco_compra": "0.00",
+        "fornecedor": "Nortox",
+        "data_fabricacao": "2025-05-01",
+        "data_validade": "2027-05-31",
+        "quantidade_inicial": 497,
+        "quantidade_atual": 486,
+        "data_entrada": "2026-03-13T13:30:48.295Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 59,
+    "fields": {
+        "produto": 54,
+        "numero_lote": "250628654",
+        "preco_compra": "0.00",
+        "fornecedor": "Agrichem",
+        "data_fabricacao": "2025-06-09",
+        "data_validade": "2027-06-06",
+        "quantidade_inicial": 2,
+        "quantidade_atual": 0,
+        "data_entrada": "2026-03-13T13:32:16.048Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ESGOTADO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 60,
+    "fields": {
+        "produto": 54,
+        "numero_lote": "250628654",
+        "preco_compra": "0.00",
+        "fornecedor": "Agrichem",
+        "data_fabricacao": "2025-06-09",
+        "data_validade": "2027-06-06",
+        "quantidade_inicial": 1,
+        "quantidade_atual": 0,
+        "data_entrada": "2026-03-13T13:33:29.876Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ESGOTADO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 61,
+    "fields": {
+        "produto": 55,
+        "numero_lote": "UBO-021109",
+        "preco_compra": "0.00",
+        "fornecedor": "Altech",
+        "data_fabricacao": "2025-06-13",
+        "data_validade": "2027-06-13",
+        "quantidade_inicial": 1,
+        "quantidade_atual": 1,
+        "data_entrada": "2026-03-13T13:37:00.701Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 62,
+    "fields": {
+        "produto": 57,
+        "numero_lote": "24F2887L36 mapa:9515",
+        "preco_compra": "0.00",
+        "fornecedor": "corteva",
+        "data_fabricacao": "2024-06-23",
+        "data_validade": "2027-06-23",
+        "quantidade_inicial": 34,
+        "quantidade_atual": 34,
+        "data_entrada": "2026-03-13T13:42:22.112Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 63,
+    "fields": {
+        "produto": 58,
+        "numero_lote": "025-25-6020 mapa:05821",
+        "preco_compra": "0.00",
+        "fornecedor": "Nortox",
+        "data_fabricacao": "2025-06-02",
+        "data_validade": "2027-06-30",
+        "quantidade_inicial": 27,
+        "quantidade_atual": 27,
+        "data_entrada": "2026-03-13T13:44:32.015Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 64,
+    "fields": {
+        "produto": 58,
+        "numero_lote": "026-25-12050 Mapa:05821",
+        "preco_compra": "0.00",
+        "fornecedor": "Nortox",
+        "data_fabricacao": "2025-06-02",
+        "data_validade": "2027-06-30",
+        "quantidade_inicial": 10,
+        "quantidade_atual": 10,
+        "data_entrada": "2026-03-13T13:45:41.553Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 65,
+    "fields": {
+        "produto": 59,
+        "numero_lote": "25G2887YA3 mapa:22720",
+        "preco_compra": "0.00",
+        "fornecedor": "corteva",
+        "data_fabricacao": "2025-07-02",
+        "data_validade": "2027-07-02",
+        "quantidade_inicial": 100,
+        "quantidade_atual": 100,
+        "data_entrada": "2026-03-13T13:56:43.382Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 66,
+    "fields": {
+        "produto": 49,
+        "numero_lote": "013-25-129601 mapa:6117",
+        "preco_compra": "0.00",
+        "fornecedor": "Nortox",
+        "data_fabricacao": "2025-07-01",
+        "data_validade": "2027-07-31",
+        "quantidade_inicial": 51,
+        "quantidade_atual": 47,
+        "data_entrada": "2026-03-13T13:57:46.846Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 67,
+    "fields": {
+        "produto": 11,
+        "numero_lote": "252-25-14460 mapa:23920",
+        "preco_compra": "0.00",
+        "fornecedor": "Nortox",
+        "data_fabricacao": "2025-07-18",
+        "data_validade": "2027-07-31",
+        "quantidade_inicial": 30,
+        "quantidade_atual": 30,
+        "data_entrada": "2026-03-13T13:59:55.437Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 68,
+    "fields": {
+        "produto": 60,
+        "numero_lote": "031-25-20490 mapa:12419",
+        "preco_compra": "0.00",
+        "fornecedor": "Nortox",
+        "data_fabricacao": "2025-07-11",
+        "data_validade": "2027-07-31",
+        "quantidade_inicial": 40,
+        "quantidade_atual": 40,
+        "data_entrada": "2026-03-13T14:02:16.951Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 69,
+    "fields": {
+        "produto": 61,
+        "numero_lote": "004-25-42550 mapa:20023",
+        "preco_compra": "0.00",
+        "fornecedor": "Nortox",
+        "data_fabricacao": "2025-07-28",
+        "data_validade": "2027-07-31",
+        "quantidade_inicial": 33,
+        "quantidade_atual": 31,
+        "data_entrada": "2026-03-13T14:05:19.485Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 70,
+    "fields": {
+        "produto": 62,
+        "numero_lote": "2508-29183",
+        "preco_compra": "0.00",
+        "fornecedor": "Agrichem",
+        "data_fabricacao": "2025-08-01",
+        "data_validade": "2027-08-01",
+        "quantidade_inicial": 12,
+        "quantidade_atual": 12,
+        "data_entrada": "2026-03-13T14:07:00.689Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 71,
+    "fields": {
+        "produto": 58,
+        "numero_lote": "055-25-12040 mapa:05821",
+        "preco_compra": "0.00",
+        "fornecedor": "Nortox",
+        "data_fabricacao": "2025-09-24",
+        "data_validade": "2027-09-30",
+        "quantidade_inicial": 12,
+        "quantidade_atual": 12,
+        "data_entrada": "2026-03-13T14:09:30.857Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 72,
+    "fields": {
+        "produto": 63,
+        "numero_lote": "302-25-18190 mapa:16220",
+        "preco_compra": "0.00",
+        "fornecedor": "basf",
+        "data_fabricacao": "2025-09-07",
+        "data_validade": "2027-09-30",
+        "quantidade_inicial": 80,
+        "quantidade_atual": 67,
+        "data_entrada": "2026-03-13T14:15:30.663Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 73,
+    "fields": {
+        "produto": 60,
+        "numero_lote": "054-25-20150 mapa:12419",
+        "preco_compra": "0.00",
+        "fornecedor": "Nortox",
+        "data_fabricacao": "2025-09-04",
+        "data_validade": "2027-09-30",
+        "quantidade_inicial": 15,
+        "quantidade_atual": 15,
+        "data_entrada": "2026-03-13T14:17:44.573Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 74,
+    "fields": {
+        "produto": 60,
+        "numero_lote": "060-25-20190 mapa:12419",
+        "preco_compra": "0.00",
+        "fornecedor": "Nortox",
+        "data_fabricacao": "2025-09-18",
+        "data_validade": "2027-09-30",
+        "quantidade_inicial": 45,
+        "quantidade_atual": 45,
+        "data_entrada": "2026-03-13T14:25:06.079Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 75,
+    "fields": {
+        "produto": 64,
+        "numero_lote": "083-25-9730 mapa:3101",
+        "preco_compra": "0.00",
+        "fornecedor": "Nortox",
+        "data_fabricacao": "2025-09-02",
+        "data_validade": "2027-09-30",
+        "quantidade_inicial": 53,
+        "quantidade_atual": 53,
+        "data_entrada": "2026-03-13T14:47:45.302Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 76,
+    "fields": {
+        "produto": 65,
+        "numero_lote": "030-25-24490 mapa:18421",
+        "preco_compra": "0.00",
+        "fornecedor": "Nortox",
+        "data_fabricacao": "2025-09-08",
+        "data_validade": "2027-09-30",
+        "quantidade_inicial": 23,
+        "quantidade_atual": 20,
+        "data_entrada": "2026-03-13T14:51:04.561Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 77,
+    "fields": {
+        "produto": 66,
+        "numero_lote": "24J887K23 mapa:13420",
+        "preco_compra": "0.00",
+        "fornecedor": "corteva",
+        "data_fabricacao": "2024-10-01",
+        "data_validade": "2027-10-01",
+        "quantidade_inicial": 5,
+        "quantidade_atual": 5,
+        "data_entrada": "2026-03-13T14:53:47.151Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 78,
+    "fields": {
+        "produto": 66,
+        "numero_lote": "24J2887K27 mapa:13420",
+        "preco_compra": "0.00",
+        "fornecedor": "corteva",
+        "data_fabricacao": "2024-10-02",
+        "data_validade": "2027-10-02",
+        "quantidade_inicial": 2,
+        "quantidade_atual": 2,
+        "data_entrada": "2026-03-13T14:55:00.857Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 79,
+    "fields": {
+        "produto": 67,
+        "numero_lote": "2510-99764",
+        "preco_compra": "0.00",
+        "fornecedor": "Agrichem",
+        "data_fabricacao": "2025-10-09",
+        "data_validade": "2027-10-09",
+        "quantidade_inicial": 6,
+        "quantidade_atual": 6,
+        "data_entrada": "2026-03-13T14:56:51.660Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 80,
+    "fields": {
+        "produto": 48,
+        "numero_lote": "2510-29597",
+        "preco_compra": "0.00",
+        "fornecedor": "Agrichem",
+        "data_fabricacao": "2025-10-24",
+        "data_validade": "2027-10-23",
+        "quantidade_inicial": 16,
+        "quantidade_atual": 11,
+        "data_entrada": "2026-03-13T18:48:53.057Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 81,
+    "fields": {
+        "produto": 68,
+        "numero_lote": "UBO-022425",
+        "preco_compra": "0.00",
+        "fornecedor": "Altech",
+        "data_fabricacao": "2025-10-30",
+        "data_validade": "2027-10-30",
+        "quantidade_inicial": 2,
+        "quantidade_atual": 2,
+        "data_entrada": "2026-03-13T19:07:22.724Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 82,
+    "fields": {
+        "produto": 11,
+        "numero_lote": "441-25-14440 mapa:23920",
+        "preco_compra": "0.00",
+        "fornecedor": "Nortox",
+        "data_fabricacao": "2025-10-02",
+        "data_validade": "2027-10-31",
+        "quantidade_inicial": 7,
+        "quantidade_atual": 4,
+        "data_entrada": "2026-03-13T19:09:11.666Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 83,
+    "fields": {
+        "produto": 11,
+        "numero_lote": "442-25-14460 mapa:23920",
+        "preco_compra": "0.00",
+        "fornecedor": "Nortox",
+        "data_fabricacao": "2025-10-03",
+        "data_validade": "2027-10-31",
+        "quantidade_inicial": 263,
+        "quantidade_atual": 263,
+        "data_entrada": "2026-03-13T19:10:28.397Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 84,
+    "fields": {
+        "produto": 69,
+        "numero_lote": "UBO-022440",
+        "preco_compra": "0.00",
+        "fornecedor": "Altech",
+        "data_fabricacao": "2025-10-31",
+        "data_validade": "2027-10-31",
+        "quantidade_inicial": 25,
+        "quantidade_atual": 25,
+        "data_entrada": "2026-03-13T19:16:06.301Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 85,
+    "fields": {
+        "produto": 70,
+        "numero_lote": "2269",
+        "preco_compra": "0.00",
+        "fornecedor": "Prime",
+        "data_fabricacao": "2024-12-30",
+        "data_validade": "2027-12-02",
+        "quantidade_inicial": 5,
+        "quantidade_atual": 5,
+        "data_entrada": "2026-03-13T19:18:31.893Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 86,
+    "fields": {
+        "produto": 71,
+        "numero_lote": "25A2887K64 mapa:28219",
+        "preco_compra": "0.00",
+        "fornecedor": "corteva",
+        "data_fabricacao": "2025-01-13",
+        "data_validade": "2028-01-13",
+        "quantidade_inicial": 209,
+        "quantidade_atual": 76,
+        "data_entrada": "2026-03-13T19:20:33.326Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 87,
+    "fields": {
+        "produto": 9,
+        "numero_lote": "003255440",
+        "preco_compra": "0.00",
+        "fornecedor": "Nortox",
+        "data_fabricacao": "2025-01-15",
+        "data_validade": "2028-01-31",
+        "quantidade_inicial": 1,
+        "quantidade_atual": 1,
+        "data_entrada": "2026-03-13T20:41:42.994Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 88,
+    "fields": {
+        "produto": 9,
+        "numero_lote": "003-25-5440 mapa:11021",
+        "preco_compra": "0.00",
+        "fornecedor": "Nortox",
+        "data_fabricacao": "2025-01-15",
+        "data_validade": "2028-01-31",
+        "quantidade_inicial": 59,
+        "quantidade_atual": 59,
+        "data_entrada": "2026-03-13T20:42:55.677Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 89,
+    "fields": {
+        "produto": 9,
+        "numero_lote": "004-25-5440 mapa:11021",
+        "preco_compra": "0.00",
+        "fornecedor": "Nortox",
+        "data_fabricacao": "2025-01-17",
+        "data_validade": "2028-01-31",
+        "quantidade_inicial": 100,
+        "quantidade_atual": 100,
+        "data_entrada": "2026-03-13T20:45:41.354Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 90,
+    "fields": {
+        "produto": 72,
+        "numero_lote": "008-25-12310 mapa:8418",
+        "preco_compra": "0.00",
+        "fornecedor": "Nortox",
+        "data_fabricacao": "2025-01-11",
+        "data_validade": "2028-01-31",
+        "quantidade_inicial": 154,
+        "quantidade_atual": 133,
+        "data_entrada": "2026-03-13T20:48:24.754Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 91,
+    "fields": {
+        "produto": 73,
+        "numero_lote": "25C2887K05 mapa:13320",
+        "preco_compra": "0.00",
+        "fornecedor": "corteva",
+        "data_fabricacao": "2025-03-01",
+        "data_validade": "2028-02-29",
+        "quantidade_inicial": 272,
+        "quantidade_atual": 272,
+        "data_entrada": "2026-03-13T20:50:17.046Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 92,
+    "fields": {
+        "produto": 73,
+        "numero_lote": "25C2887K14 mapa:13320",
+        "preco_compra": "0.00",
+        "fornecedor": "corteva",
+        "data_fabricacao": "2025-03-02",
+        "data_validade": "2028-03-01",
+        "quantidade_inicial": 322,
+        "quantidade_atual": 322,
+        "data_entrada": "2026-03-13T20:51:46.064Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 93,
+    "fields": {
+        "produto": 72,
+        "numero_lote": "017-25-12310 mapa:8418",
+        "preco_compra": "0.00",
+        "fornecedor": "corteva",
+        "data_fabricacao": "2025-03-22",
+        "data_validade": "2028-03-31",
+        "quantidade_inicial": 104,
+        "quantidade_atual": 104,
+        "data_entrada": "2026-03-13T20:57:25.602Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 94,
+    "fields": {
+        "produto": 72,
+        "numero_lote": "022-25-8230 mapa:8418",
+        "preco_compra": "0.00",
+        "fornecedor": "corteva",
+        "data_fabricacao": "2025-03-28",
+        "data_validade": "2028-03-31",
+        "quantidade_inicial": 4,
+        "quantidade_atual": 4,
+        "data_entrada": "2026-03-13T20:58:28.828Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 95,
+    "fields": {
+        "produto": 74,
+        "numero_lote": "001-25-48000 mapa:19020",
+        "preco_compra": "0.00",
+        "fornecedor": "Nortox",
+        "data_fabricacao": "2025-04-06",
+        "data_validade": "2028-04-25",
+        "quantidade_inicial": 25,
+        "quantidade_atual": 25,
+        "data_entrada": "2026-03-13T21:00:49.867Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 96,
+    "fields": {
+        "produto": 75,
+        "numero_lote": "25E2946014 mapa:688604",
+        "preco_compra": "0.00",
+        "fornecedor": "Nortox",
+        "data_fabricacao": "2025-05-17",
+        "data_validade": "2028-05-17",
+        "quantidade_inicial": 240,
+        "quantidade_atual": 240,
+        "data_entrada": "2026-03-13T21:03:17.753Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 97,
+    "fields": {
+        "produto": 75,
+        "numero_lote": "25F2946025 mapa:688604",
+        "preco_compra": "0.00",
+        "fornecedor": "Nortox",
+        "data_fabricacao": "2025-06-11",
+        "data_validade": "2028-06-11",
+        "quantidade_inicial": 480,
+        "quantidade_atual": 480,
+        "data_entrada": "2026-03-13T21:04:37.425Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 98,
+    "fields": {
+        "produto": 75,
+        "numero_lote": "25F2946026 mapa:688604",
+        "preco_compra": "0.00",
+        "fornecedor": "Nortox",
+        "data_fabricacao": "2025-06-11",
+        "data_validade": "2028-06-11",
+        "quantidade_inicial": 890,
+        "quantidade_atual": 890,
+        "data_entrada": "2026-03-13T21:05:29.789Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 99,
+    "fields": {
+        "produto": 75,
+        "numero_lote": "25F2946027 mapa:688604",
+        "preco_compra": "0.00",
+        "fornecedor": "Nortox",
+        "data_fabricacao": "2025-06-11",
+        "data_validade": "2028-06-11",
+        "quantidade_inicial": 890,
+        "quantidade_atual": 890,
+        "data_entrada": "2026-03-13T21:06:49.865Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 100,
+    "fields": {
+        "produto": 75,
+        "numero_lote": "25F2946028 mapa:688604",
+        "preco_compra": "0.00",
+        "fornecedor": "Nortox",
+        "data_fabricacao": "2025-06-12",
+        "data_validade": "2028-06-12",
+        "quantidade_inicial": 744,
+        "quantidade_atual": 744,
+        "data_entrada": "2026-03-13T21:07:40.934Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 101,
+    "fields": {
+        "produto": 75,
+        "numero_lote": "25F2946029 mapa:688604",
+        "preco_compra": "0.00",
+        "fornecedor": "Nortox",
+        "data_fabricacao": "2025-06-12",
+        "data_validade": "2028-06-12",
+        "quantidade_inicial": 747,
+        "quantidade_atual": 747,
+        "data_entrada": "2026-03-13T21:08:23.200Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 102,
+    "fields": {
+        "produto": 75,
+        "numero_lote": "25F2946030 mapa:688604",
+        "preco_compra": "0.00",
+        "fornecedor": "Nortox",
+        "data_fabricacao": "2025-06-12",
+        "data_validade": "2028-06-12",
+        "quantidade_inicial": 730,
+        "quantidade_atual": 730,
+        "data_entrada": "2026-03-13T21:15:41.580Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 103,
+    "fields": {
+        "produto": 73,
+        "numero_lote": "25E2887N90 mapa:13320",
+        "preco_compra": "0.00",
+        "fornecedor": "Nortox",
+        "data_fabricacao": "2025-05-14",
+        "data_validade": "2028-05-23",
+        "quantidade_inicial": 528,
+        "quantidade_atual": 528,
+        "data_entrada": "2026-03-13T21:17:12.981Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 105,
+    "fields": {
+        "produto": 66,
+        "numero_lote": "25F2887N88 mapa:13420",
+        "preco_compra": "0.00",
+        "fornecedor": "corteva",
+        "data_fabricacao": "2025-06-22",
+        "data_validade": "2028-06-21",
+        "quantidade_inicial": 505,
+        "quantidade_atual": 505,
+        "data_entrada": "2026-03-14T13:22:57.414Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 106,
+    "fields": {
+        "produto": 76,
+        "numero_lote": "0131-25-11222 mapa:4810",
+        "preco_compra": "0.00",
+        "fornecedor": "Ihara",
+        "data_fabricacao": "2025-07-24",
+        "data_validade": "2028-07-18",
+        "quantidade_inicial": 90,
+        "quantidade_atual": 90,
+        "data_entrada": "2026-03-14T13:27:05.644Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 107,
+    "fields": {
+        "produto": 76,
+        "numero_lote": "0143-25-11184 mapa:4810",
+        "preco_compra": "0.00",
+        "fornecedor": "Ihara",
+        "data_fabricacao": "2025-08-01",
+        "data_validade": "2028-07-25",
+        "quantidade_inicial": 64,
+        "quantidade_atual": 64,
+        "data_entrada": "2026-03-14T13:28:00.631Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 108,
+    "fields": {
+        "produto": 72,
+        "numero_lote": "036-25-14580 mapa:8418",
+        "preco_compra": "0.00",
+        "fornecedor": "Nortox",
+        "data_fabricacao": "2025-07-10",
+        "data_validade": "2028-07-31",
+        "quantidade_inicial": 40,
+        "quantidade_atual": 39,
+        "data_entrada": "2026-03-14T13:30:52.684Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 109,
+    "fields": {
+        "produto": 77,
+        "numero_lote": "2143",
+        "preco_compra": "0.00",
+        "fornecedor": "Prime",
+        "data_fabricacao": "2024-08-16",
+        "data_validade": "2028-08-16",
+        "quantidade_inicial": 66,
+        "quantidade_atual": 66,
+        "data_entrada": "2026-03-14T13:31:59.604Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 110,
+    "fields": {
+        "produto": 78,
+        "numero_lote": "5273-24",
+        "preco_compra": "0.00",
+        "fornecedor": "Nortox",
+        "data_fabricacao": null,
+        "data_validade": "2028-08-26",
+        "quantidade_inicial": 107,
+        "quantidade_atual": 0,
+        "data_entrada": "2026-03-14T13:33:34.382Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ESGOTADO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 111,
+    "fields": {
+        "produto": 79,
+        "numero_lote": "25I2887K83",
+        "preco_compra": "0.00",
+        "fornecedor": "corteva",
+        "data_fabricacao": "2025-09-06",
+        "data_validade": "2028-09-05",
+        "quantidade_inicial": 29,
+        "quantidade_atual": 25,
+        "data_entrada": "2026-03-14T13:38:24.451Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 112,
+    "fields": {
+        "produto": 80,
+        "numero_lote": "25I2887P40 mapa:14314",
+        "preco_compra": "0.00",
+        "fornecedor": "corteva",
+        "data_fabricacao": "2025-09-29",
+        "data_validade": "2028-09-28",
+        "quantidade_inicial": 30,
+        "quantidade_atual": 0,
+        "data_entrada": "2026-03-16T12:37:33.691Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ESGOTADO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 113,
+    "fields": {
+        "produto": 81,
+        "numero_lote": "25J2887K35 mapa:19916",
+        "preco_compra": "0.00",
+        "fornecedor": "corteva",
+        "data_fabricacao": "2025-10-03",
+        "data_validade": "2028-10-02",
+        "quantidade_inicial": 100,
+        "quantidade_atual": 100,
+        "data_entrada": "2026-03-16T12:40:07.789Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 114,
+    "fields": {
+        "produto": 82,
+        "numero_lote": "UBO-022208",
+        "preco_compra": "0.00",
+        "fornecedor": "Altech",
+        "data_fabricacao": "2025-10-06",
+        "data_validade": "2028-10-06",
+        "quantidade_inicial": 20,
+        "quantidade_atual": 20,
+        "data_entrada": "2026-03-16T12:42:22.377Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 115,
+    "fields": {
+        "produto": 83,
+        "numero_lote": "104-25-5000",
+        "preco_compra": "0.00",
+        "fornecedor": "Macrobio",
+        "data_fabricacao": "2025-10-09",
+        "data_validade": "2028-10-09",
+        "quantidade_inicial": 12,
+        "quantidade_atual": 0,
+        "data_entrada": "2026-03-16T12:46:10.079Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ESGOTADO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 116,
+    "fields": {
+        "produto": 84,
+        "numero_lote": "2401-26140",
+        "preco_compra": "0.00",
+        "fornecedor": "Agrichem",
+        "data_fabricacao": "2024-01-12",
+        "data_validade": "2029-01-10",
+        "quantidade_inicial": 6,
+        "quantidade_atual": 6,
+        "data_entrada": "2026-03-16T12:51:08.368Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 117,
+    "fields": {
+        "produto": 85,
+        "numero_lote": "018-24-10600 mapa:09009",
+        "preco_compra": "0.00",
+        "fornecedor": "basf",
+        "data_fabricacao": "2024-03-01",
+        "data_validade": "2029-03-01",
+        "quantidade_inicial": 103,
+        "quantidade_atual": 103,
+        "data_entrada": "2026-03-16T12:53:44.070Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 118,
+    "fields": {
+        "produto": 86,
+        "numero_lote": "0065-25",
+        "preco_compra": "0.00",
+        "fornecedor": "Nortox",
+        "data_fabricacao": "2025-05-01",
+        "data_validade": "2029-05-01",
+        "quantidade_inicial": 492,
+        "quantidade_atual": 491,
+        "data_entrada": "2026-03-16T12:57:39.428Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 119,
+    "fields": {
+        "produto": 87,
+        "numero_lote": "25F2217B19",
+        "preco_compra": "0.00",
+        "fornecedor": "corteva",
+        "data_fabricacao": "2025-06-24",
+        "data_validade": "2029-06-23",
+        "quantidade_inicial": 10,
+        "quantidade_atual": 10,
+        "data_entrada": "2026-03-16T12:59:23.550Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 120,
+    "fields": {
+        "produto": 88,
+        "numero_lote": "5195-25",
+        "preco_compra": "0.00",
+        "fornecedor": "Nortox",
+        "data_fabricacao": "2025-07-01",
+        "data_validade": "2029-07-01",
+        "quantidade_inicial": 42,
+        "quantidade_atual": 42,
+        "data_entrada": "2026-03-16T13:00:48.147Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 121,
+    "fields": {
+        "produto": 89,
+        "numero_lote": "0243-25-10694 mapa:9517",
+        "preco_compra": "0.00",
+        "fornecedor": "Ihara",
+        "data_fabricacao": "2025-07-13",
+        "data_validade": "2029-07-03",
+        "quantidade_inicial": 146,
+        "quantidade_atual": 146,
+        "data_entrada": "2026-03-16T13:02:27.408Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 122,
+    "fields": {
+        "produto": 62,
+        "numero_lote": "2408-27221",
+        "preco_compra": "0.00",
+        "fornecedor": "Nortox",
+        "data_fabricacao": "2024-08-14",
+        "data_validade": "2029-08-13",
+        "quantidade_inicial": 20,
+        "quantidade_atual": 0,
+        "data_entrada": "2026-03-16T13:07:29.196Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ESGOTADO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 123,
+    "fields": {
+        "produto": 48,
+        "numero_lote": "250428418",
+        "preco_compra": "0.00",
+        "fornecedor": "Agrichem",
+        "data_fabricacao": "2025-04-22",
+        "data_validade": "2029-08-19",
+        "quantidade_inicial": 2,
+        "quantidade_atual": 2,
+        "data_entrada": "2026-03-16T13:08:45.797Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 126,
+    "fields": {
+        "produto": 91,
+        "numero_lote": "2453",
+        "preco_compra": "0.00",
+        "fornecedor": "Prime",
+        "data_fabricacao": "2023-12-27",
+        "data_validade": "2029-09-15",
+        "quantidade_inicial": 4,
+        "quantidade_atual": 0,
+        "data_entrada": "2026-03-16T13:19:24.709Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ESGOTADO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 127,
+    "fields": {
+        "produto": 92,
+        "numero_lote": "117-25-43870 mapa:11409",
+        "preco_compra": "0.00",
+        "fornecedor": "Nortox",
+        "data_fabricacao": "2025-10-09",
+        "data_validade": "2029-10-31",
+        "quantidade_inicial": 5,
+        "quantidade_atual": 0,
+        "data_entrada": "2026-03-16T13:23:06.713Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ESGOTADO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 128,
+    "fields": {
+        "produto": 93,
+        "numero_lote": "108-25-59740 mapa:29120",
+        "preco_compra": "0.00",
+        "fornecedor": "Nortox",
+        "data_fabricacao": "2025-10-11",
+        "data_validade": "2029-10-31",
+        "quantidade_inicial": 11,
+        "quantidade_atual": 11,
+        "data_entrada": "2026-03-16T13:26:10.362Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 129,
+    "fields": {
+        "produto": 93,
+        "numero_lote": "111-25-59740 mapa:29120",
+        "preco_compra": "0.00",
+        "fornecedor": "Nortox",
+        "data_fabricacao": "2025-10-15",
+        "data_validade": "2029-10-31",
+        "quantidade_inicial": 90,
+        "quantidade_atual": 90,
+        "data_entrada": "2026-03-16T13:27:14.077Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 130,
+    "fields": {
+        "produto": 93,
+        "numero_lote": "116-25-59740 mapa:29120",
+        "preco_compra": "0.00",
+        "fornecedor": "nortox",
+        "data_fabricacao": "2025-10-18",
+        "data_validade": "2029-10-31",
+        "quantidade_inicial": 75,
+        "quantidade_atual": 75,
+        "data_entrada": "2026-03-16T13:34:45.702Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 131,
+    "fields": {
+        "produto": 94,
+        "numero_lote": "2544",
+        "preco_compra": "0.00",
+        "fornecedor": "Prime",
+        "data_fabricacao": "2026-01-06",
+        "data_validade": "2029-12-05",
+        "quantidade_inicial": 4,
+        "quantidade_atual": 4,
+        "data_entrada": "2026-03-16T13:37:40.592Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 135,
+    "fields": {
+        "produto": 96,
+        "numero_lote": "006-25-01500 mapa:007907",
+        "preco_compra": "0.00",
+        "fornecedor": "basf",
+        "data_fabricacao": "2025-02-01",
+        "data_validade": "2030-02-01",
+        "quantidade_inicial": 472,
+        "quantidade_atual": 471,
+        "data_entrada": "2026-03-16T13:45:27.585Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 136,
+    "fields": {
+        "produto": 96,
+        "numero_lote": "007-25-01500 mapa:007907",
+        "preco_compra": "0.00",
+        "fornecedor": "basf",
+        "data_fabricacao": "2025-02-01",
+        "data_validade": "2030-02-01",
+        "quantidade_inicial": 9,
+        "quantidade_atual": 7,
+        "data_entrada": "2026-03-16T13:45:56.144Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 137,
+    "fields": {
+        "produto": 96,
+        "numero_lote": "073-25-01500 mapa:007907",
+        "preco_compra": "0.00",
+        "fornecedor": "basf",
+        "data_fabricacao": "2025-03-01",
+        "data_validade": "2030-03-01",
+        "quantidade_inicial": 550,
+        "quantidade_atual": 550,
+        "data_entrada": "2026-03-16T13:46:46.908Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 138,
+    "fields": {
+        "produto": 96,
+        "numero_lote": "074-25-01500 mapa:007907",
+        "preco_compra": "0.00",
+        "fornecedor": "basf",
+        "data_fabricacao": "2025-03-01",
+        "data_validade": "2030-02-01",
+        "quantidade_inicial": 10,
+        "quantidade_atual": 10,
+        "data_entrada": "2026-03-16T13:48:43.906Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 139,
+    "fields": {
+        "produto": 97,
+        "numero_lote": "25077H01HY mapa:05920",
+        "preco_compra": "0.00",
+        "fornecedor": "basf",
+        "data_fabricacao": "2025-03-01",
+        "data_validade": "2030-03-01",
+        "quantidade_inicial": 159,
+        "quantidade_atual": 159,
+        "data_entrada": "2026-03-16T13:51:36.985Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 140,
+    "fields": {
+        "produto": 97,
+        "numero_lote": "25083HO1HY mapa:05920",
+        "preco_compra": "0.00",
+        "fornecedor": "basf",
+        "data_fabricacao": "2025-03-01",
+        "data_validade": "2030-03-01",
+        "quantidade_inicial": 329,
+        "quantidade_atual": 329,
+        "data_entrada": "2026-03-16T13:52:51.510Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 141,
+    "fields": {
+        "produto": 97,
+        "numero_lote": "25084H01HY mapa:05920",
+        "preco_compra": "0.00",
+        "fornecedor": "basf",
+        "data_fabricacao": "2025-03-01",
+        "data_validade": "2030-03-01",
+        "quantidade_inicial": 2,
+        "quantidade_atual": 2,
+        "data_entrada": "2026-03-16T13:55:02.373Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 142,
+    "fields": {
+        "produto": 97,
+        "numero_lote": "25077H01HY mapa:05920",
+        "preco_compra": "0.00",
+        "fornecedor": "basf",
+        "data_fabricacao": "2025-03-01",
+        "data_validade": "2030-03-31",
+        "quantidade_inicial": 12,
+        "quantidade_atual": 12,
+        "data_entrada": "2026-03-16T13:58:01.717Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 143,
+    "fields": {
+        "produto": 97,
+        "numero_lote": "25084H01HY mapa:05920",
+        "preco_compra": "0.00",
+        "fornecedor": "basf",
+        "data_fabricacao": "2025-03-01",
+        "data_validade": "2030-03-31",
+        "quantidade_inicial": 168,
+        "quantidade_atual": 168,
+        "data_entrada": "2026-03-16T13:58:51.477Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 144,
+    "fields": {
+        "produto": 99,
+        "numero_lote": "008-25-36000 mapa:0594",
+        "preco_compra": "0.00",
+        "fornecedor": "basf",
+        "data_fabricacao": "2025-04-01",
+        "data_validade": "2030-04-01",
+        "quantidade_inicial": 96,
+        "quantidade_atual": 96,
+        "data_entrada": "2026-03-16T14:01:36.809Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 145,
+    "fields": {
+        "produto": 84,
+        "numero_lote": "2504-28430",
+        "preco_compra": "0.00",
+        "fornecedor": "Agrichem",
+        "data_fabricacao": "2025-04-14",
+        "data_validade": "2030-04-10",
+        "quantidade_inicial": 177,
+        "quantidade_atual": 167,
+        "data_entrada": "2026-03-16T14:02:51.318Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 146,
+    "fields": {
+        "produto": 84,
+        "numero_lote": "2505-28564",
+        "preco_compra": "0.00",
+        "fornecedor": "Agrichem",
+        "data_fabricacao": "2025-05-16",
+        "data_validade": "2030-05-15",
+        "quantidade_inicial": 330,
+        "quantidade_atual": 330,
+        "data_entrada": "2026-03-16T14:03:41.983Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 147,
+    "fields": {
+        "produto": 100,
+        "numero_lote": "045-25-10000",
+        "preco_compra": "0.00",
+        "fornecedor": "Lallemand",
+        "data_fabricacao": "2025-08-07",
+        "data_validade": "2026-02-07",
+        "quantidade_inicial": 1,
+        "quantidade_atual": 1,
+        "data_entrada": "2026-03-16T14:06:59.113Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 148,
+    "fields": {
+        "produto": 101,
+        "numero_lote": "2506130BR",
+        "preco_compra": "0.00",
+        "fornecedor": "corteva",
+        "data_fabricacao": "2025-06-13",
+        "data_validade": "2027-06-13",
+        "quantidade_inicial": 29,
+        "quantidade_atual": 21,
+        "data_entrada": "2026-03-16T14:08:18.486Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 149,
+    "fields": {
+        "produto": 102,
+        "numero_lote": "25E2887O47 mapa:13320",
+        "preco_compra": "0.00",
+        "fornecedor": "corteva",
+        "data_fabricacao": "2025-05-26",
+        "data_validade": "2028-05-25",
+        "quantidade_inicial": 12,
+        "quantidade_atual": 0,
+        "data_entrada": "2026-03-16T14:12:26.920Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ESGOTADO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 150,
+    "fields": {
+        "produto": 102,
+        "numero_lote": "25E2887O57 mapa:13320",
+        "preco_compra": "0.00",
+        "fornecedor": "corteva",
+        "data_fabricacao": "2025-05-27",
+        "data_validade": "2028-05-26",
+        "quantidade_inicial": 168,
+        "quantidade_atual": 117,
+        "data_entrada": "2026-03-16T14:13:14.671Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 153,
+    "fields": {
+        "produto": 104,
+        "numero_lote": "202452201",
+        "preco_compra": "0.00",
+        "fornecedor": "Prime",
+        "data_fabricacao": "2024-11-28",
+        "data_validade": "2026-10-09",
+        "quantidade_inicial": 195,
+        "quantidade_atual": 0,
+        "data_entrada": "2026-03-16T14:18:49.740Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ESGOTADO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 154,
+    "fields": {
+        "produto": 104,
+        "numero_lote": "202452240",
+        "preco_compra": "0.00",
+        "fornecedor": "Prime",
+        "data_fabricacao": "2024-11-29",
+        "data_validade": "2026-10-10",
+        "quantidade_inicial": 30,
+        "quantidade_atual": 0,
+        "data_entrada": "2026-03-16T14:19:16.047Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ESGOTADO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 155,
+    "fields": {
+        "produto": 104,
+        "numero_lote": "202452287",
+        "preco_compra": "0.00",
+        "fornecedor": "Prime",
+        "data_fabricacao": "2024-12-06",
+        "data_validade": "2026-10-11",
+        "quantidade_inicial": 100,
+        "quantidade_atual": 0,
+        "data_entrada": "2026-03-16T14:20:00.514Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ESGOTADO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 156,
+    "fields": {
+        "produto": 104,
+        "numero_lote": "202452352",
+        "preco_compra": "0.00",
+        "fornecedor": "Prime",
+        "data_fabricacao": "2024-11-29",
+        "data_validade": "2026-10-14",
+        "quantidade_inicial": 49,
+        "quantidade_atual": 0,
+        "data_entrada": "2026-03-16T14:20:40.109Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ESGOTADO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 157,
+    "fields": {
+        "produto": 104,
+        "numero_lote": "202453341",
+        "preco_compra": "0.00",
+        "fornecedor": "Prime",
+        "data_fabricacao": "2024-11-29",
+        "data_validade": "2026-11-18",
+        "quantidade_inicial": 84,
+        "quantidade_atual": 0,
+        "data_entrada": "2026-03-16T14:21:15.227Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ESGOTADO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 158,
+    "fields": {
+        "produto": 104,
+        "numero_lote": "202453545",
+        "preco_compra": "0.00",
+        "fornecedor": "Prime",
+        "data_fabricacao": "2024-12-27",
+        "data_validade": "2026-11-26",
+        "quantidade_inicial": 162,
+        "quantidade_atual": 0,
+        "data_entrada": "2026-03-16T14:21:56.402Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ESGOTADO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 159,
+    "fields": {
+        "produto": 104,
+        "numero_lote": "2148",
+        "preco_compra": "0.00",
+        "fornecedor": "Prime",
+        "data_fabricacao": "2024-10-14",
+        "data_validade": "2026-10-14",
+        "quantidade_inicial": 30,
+        "quantidade_atual": 0,
+        "data_entrada": "2026-03-16T14:24:22.561Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ESGOTADO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 160,
+    "fields": {
+        "produto": 105,
+        "numero_lote": "2507-28879",
+        "preco_compra": "0.00",
+        "fornecedor": "NORTOX",
+        "data_fabricacao": "2025-07-01",
+        "data_validade": "2029-08-19",
+        "quantidade_inicial": 4,
+        "quantidade_atual": 1,
+        "data_entrada": "2026-03-24T21:25:59.027Z",
+        "numero_nota_fiscal": null,
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 161,
+    "fields": {
+        "produto": 120,
+        "numero_lote": "15784",
+        "preco_compra": "0.00",
+        "fornecedor": "ALTECH",
+        "data_fabricacao": "2024-06-03",
+        "data_validade": "2027-06-03",
+        "quantidade_inicial": 20,
+        "quantidade_atual": 20,
+        "data_entrada": "2026-06-03T21:42:34.186Z",
+        "numero_nota_fiscal": "178745",
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.lote",
+    "pk": 162,
+    "fields": {
+        "produto": 120,
+        "numero_lote": "16478",
+        "preco_compra": "0.00",
+        "fornecedor": "ALTECH",
+        "data_fabricacao": "2024-06-03",
+        "data_validade": "2027-06-03",
+        "quantidade_inicial": 20,
+        "quantidade_atual": 20,
+        "data_entrada": "2026-06-03T21:46:53.654Z",
+        "numero_nota_fiscal": "177877",
+        "nota_fiscal": "",
+        "status": "ATIVO"
+    }
+},
+{
+    "model": "estoque.saidaestoque",
+    "pk": 10,
+    "fields": {
+        "produto": 96,
+        "quantidade": 1,
+        "motivo": "BERTRAM GRIEHL (Lote Manual: 006-25-01500 mapa:007907)",
+        "data": "2026-03-16T14:26:24.658Z",
+        "usuario": 6,
+        "valor_venda": "0.00",
+        "lote": null
+    }
+},
+{
+    "model": "estoque.saidaestoque",
+    "pk": 11,
+    "fields": {
+        "produto": 72,
+        "quantidade": 21,
+        "motivo": "Produtor Alcir Jose Baroni (Lote Manual: 008-25-12310 mapa:8418)",
+        "data": "2026-03-17T13:05:05.616Z",
+        "usuario": 6,
+        "valor_venda": "0.00",
+        "lote": null
+    }
+},
+{
+    "model": "estoque.saidaestoque",
+    "pk": 12,
+    "fields": {
+        "produto": 78,
+        "quantidade": 52,
+        "motivo": "Produtor Alcir Jose Baroni (Lote Manual: 5273-24)",
+        "data": "2026-03-17T13:05:40.536Z",
+        "usuario": 6,
+        "valor_venda": "0.00",
+        "lote": null
+    }
+},
+{
+    "model": "estoque.saidaestoque",
+    "pk": 13,
+    "fields": {
+        "produto": 91,
+        "quantidade": 4,
+        "motivo": "Produtor Alcir Jose Baroni (Lote Manual: 2453)",
+        "data": "2026-03-17T13:06:38.281Z",
+        "usuario": 6,
+        "valor_venda": "0.00",
+        "lote": null
+    }
+},
+{
+    "model": "estoque.saidaestoque",
+    "pk": 14,
+    "fields": {
+        "produto": 48,
+        "quantidade": 5,
+        "motivo": "Produtor Alcir Jose Baroni (Lote Manual: 2510-29597)",
+        "data": "2026-03-17T13:07:52.456Z",
+        "usuario": 6,
+        "valor_venda": "0.00",
+        "lote": null
+    }
+},
+{
+    "model": "estoque.saidaestoque",
+    "pk": 15,
+    "fields": {
+        "produto": 54,
+        "quantidade": 1,
+        "motivo": "Produtor Alcir Jose Baroni (Lote Manual: 250628654)",
+        "data": "2026-03-17T13:08:34.638Z",
+        "usuario": 6,
+        "valor_venda": "0.00",
+        "lote": null
+    }
+},
+{
+    "model": "estoque.saidaestoque",
+    "pk": 16,
+    "fields": {
+        "produto": 54,
+        "quantidade": 2,
+        "motivo": "Produtor Alcir Jose Baroni (Lote Manual: 250628654)",
+        "data": "2026-03-17T13:08:46.718Z",
+        "usuario": 6,
+        "valor_venda": "0.00",
+        "lote": null
+    }
+},
+{
+    "model": "estoque.saidaestoque",
+    "pk": 17,
+    "fields": {
+        "produto": 101,
+        "quantidade": 8,
+        "motivo": "Produtor Ronaldo de Almeida (Lote Manual: 2506130BR)",
+        "data": "2026-03-17T13:09:59.926Z",
+        "usuario": 6,
+        "valor_venda": "0.00",
+        "lote": null
+    }
+},
+{
+    "model": "estoque.saidaestoque",
+    "pk": 18,
+    "fields": {
+        "produto": 11,
+        "quantidade": 3,
+        "motivo": "Rical Vale do Anari (Lote Manual: 441-25-14440 mapa:23920)",
+        "data": "2026-03-17T13:11:32.545Z",
+        "usuario": 6,
+        "valor_venda": "0.00",
+        "lote": null
+    }
+},
+{
+    "model": "estoque.saidaestoque",
+    "pk": 19,
+    "fields": {
+        "produto": 92,
+        "quantidade": 5,
+        "motivo": "Rical Vale do Anari (Lote Manual: 117-25-43870 mapa:11409)",
+        "data": "2026-03-17T13:11:54.772Z",
+        "usuario": 6,
+        "valor_venda": "0.00",
+        "lote": null
+    }
+},
+{
+    "model": "estoque.saidaestoque",
+    "pk": 20,
+    "fields": {
+        "produto": 65,
+        "quantidade": 3,
+        "motivo": "Rical Vale do Anari (Lote Manual: 030-25-24490 mapa:18421)",
+        "data": "2026-03-17T13:12:16.116Z",
+        "usuario": 6,
+        "valor_venda": "0.00",
+        "lote": null
+    }
+},
+{
+    "model": "estoque.saidaestoque",
+    "pk": 21,
+    "fields": {
+        "produto": 61,
+        "quantidade": 2,
+        "motivo": "Rical Vale do Anari (Lote Manual: 004-25-42550 mapa:20023)",
+        "data": "2026-03-17T13:12:29.926Z",
+        "usuario": 6,
+        "valor_venda": "0.00",
+        "lote": null
+    }
+},
+{
+    "model": "estoque.saidaestoque",
+    "pk": 22,
+    "fields": {
+        "produto": 86,
+        "quantidade": 1,
+        "motivo": "Rical Vale do Anari (Lote Manual: 0065-25)",
+        "data": "2026-03-17T13:12:48.202Z",
+        "usuario": 6,
+        "valor_venda": "0.00",
+        "lote": null
+    }
+},
+{
+    "model": "estoque.saidaestoque",
+    "pk": 23,
+    "fields": {
+        "produto": 83,
+        "quantidade": 1,
+        "motivo": "Rical Vale do Anari (Lote Manual: 104-25-5000)",
+        "data": "2026-03-17T13:13:16.429Z",
+        "usuario": 6,
+        "valor_venda": "0.00",
+        "lote": null
+    }
+},
+{
+    "model": "estoque.saidaestoque",
+    "pk": 24,
+    "fields": {
+        "produto": 102,
+        "quantidade": 12,
+        "motivo": "Rical Fazenda (Lote Manual: 25E2887O47 mapa:13320)",
+        "data": "2026-03-17T13:22:53.984Z",
+        "usuario": 6,
+        "valor_venda": "0.00",
+        "lote": null
+    }
+},
+{
+    "model": "estoque.saidaestoque",
+    "pk": 25,
+    "fields": {
+        "produto": 102,
+        "quantidade": 13,
+        "motivo": "Rical Fazenda (Lote Manual: 25E2887O57 mapa:13320)",
+        "data": "2026-03-17T13:23:27.626Z",
+        "usuario": 6,
+        "valor_venda": "0.00",
+        "lote": null
+    }
+},
+{
+    "model": "estoque.saidaestoque",
+    "pk": 26,
+    "fields": {
+        "produto": 71,
+        "quantidade": 132,
+        "motivo": "Rical Fazenda (Lote Manual: 25A2887K64 mapa:28219)",
+        "data": "2026-03-17T13:23:54.679Z",
+        "usuario": 6,
+        "valor_venda": "0.00",
+        "lote": null
+    }
+},
+{
+    "model": "estoque.saidaestoque",
+    "pk": 27,
+    "fields": {
+        "produto": 84,
+        "quantidade": 10,
+        "motivo": "Rical Fazenda (Lote Manual: 2504-28430)",
+        "data": "2026-03-17T13:24:14.390Z",
+        "usuario": 6,
+        "valor_venda": "0.00",
+        "lote": null
+    }
+},
+{
+    "model": "estoque.saidaestoque",
+    "pk": 28,
+    "fields": {
+        "produto": 83,
+        "quantidade": 11,
+        "motivo": "Rical Fazenda (Lote Manual: 104-25-5000)",
+        "data": "2026-03-17T13:25:00.228Z",
+        "usuario": 6,
+        "valor_venda": "0.00",
+        "lote": null
+    }
+},
+{
+    "model": "estoque.saidaestoque",
+    "pk": 29,
+    "fields": {
+        "produto": 104,
+        "quantidade": 195,
+        "motivo": "Devolução Prime (Lote Manual: 202452201)",
+        "data": "2026-03-17T13:46:19.215Z",
+        "usuario": 6,
+        "valor_venda": "0.00",
+        "lote": null
+    }
+},
+{
+    "model": "estoque.saidaestoque",
+    "pk": 30,
+    "fields": {
+        "produto": 104,
+        "quantidade": 162,
+        "motivo": "Devolução Prime (Lote Manual: 202453545)",
+        "data": "2026-03-17T13:46:37.663Z",
+        "usuario": 6,
+        "valor_venda": "0.00",
+        "lote": null
+    }
+},
+{
+    "model": "estoque.saidaestoque",
+    "pk": 31,
+    "fields": {
+        "produto": 104,
+        "quantidade": 84,
+        "motivo": "Devolução Prime (Lote Manual: 202453341)",
+        "data": "2026-03-17T13:46:53.480Z",
+        "usuario": 6,
+        "valor_venda": "0.00",
+        "lote": null
+    }
+},
+{
+    "model": "estoque.saidaestoque",
+    "pk": 32,
+    "fields": {
+        "produto": 104,
+        "quantidade": 30,
+        "motivo": "Devolução Prime (Lote Manual: 202452240)",
+        "data": "2026-03-17T13:47:03.575Z",
+        "usuario": 6,
+        "valor_venda": "0.00",
+        "lote": null
+    }
+},
+{
+    "model": "estoque.saidaestoque",
+    "pk": 33,
+    "fields": {
+        "produto": 104,
+        "quantidade": 100,
+        "motivo": "Devolução Prime (Lote Manual: 202452287)",
+        "data": "2026-03-17T13:47:12.717Z",
+        "usuario": 6,
+        "valor_venda": "0.00",
+        "lote": null
+    }
+},
+{
+    "model": "estoque.saidaestoque",
+    "pk": 34,
+    "fields": {
+        "produto": 104,
+        "quantidade": 49,
+        "motivo": "Devolução Prime (Lote Manual: 202452352)",
+        "data": "2026-03-17T13:47:22.960Z",
+        "usuario": 6,
+        "valor_venda": "0.00",
+        "lote": null
+    }
+},
+{
+    "model": "estoque.saidaestoque",
+    "pk": 35,
+    "fields": {
+        "produto": 104,
+        "quantidade": 30,
+        "motivo": "Devolução Prime (Lote Manual: 2148)",
+        "data": "2026-03-17T13:47:31.185Z",
+        "usuario": 6,
+        "valor_venda": "0.00",
+        "lote": null
+    }
+},
+{
+    "model": "estoque.saidaestoque",
+    "pk": 36,
+    "fields": {
+        "produto": 80,
+        "quantidade": 30,
+        "motivo": "Valmir Leonardo (Lote Manual: 25I2887P40 mapa:14314)",
+        "data": "2026-03-17T18:25:07.220Z",
+        "usuario": 6,
+        "valor_venda": "0.00",
+        "lote": null
+    }
+},
+{
+    "model": "estoque.saidaestoque",
+    "pk": 37,
+    "fields": {
+        "produto": 102,
+        "quantidade": 5,
+        "motivo": "Produ (Lote Manual: 25E2887O57 mapa:13320)",
+        "data": "2026-03-17T18:25:44.183Z",
+        "usuario": 6,
+        "valor_venda": "0.00",
+        "lote": null
+    }
+},
+{
+    "model": "estoque.saidaestoque",
+    "pk": 38,
+    "fields": {
+        "produto": 78,
+        "quantidade": 20,
+        "motivo": "Produtor Altair Leonardo (Lote Manual: 5273-24)",
+        "data": "2026-03-24T20:48:33.232Z",
+        "usuario": 6,
+        "valor_venda": "0.00",
+        "lote": null
+    }
+},
+{
+    "model": "estoque.saidaestoque",
+    "pk": 41,
+    "fields": {
+        "produto": 105,
+        "quantidade": 2,
+        "motivo": "Produtor Altair Leonardo (Lote Manual: 2507-28879)",
+        "data": "2026-03-24T21:26:22.276Z",
+        "usuario": 6,
+        "valor_venda": "0.00",
+        "lote": null
+    }
+},
+{
+    "model": "estoque.saidaestoque",
+    "pk": 42,
+    "fields": {
+        "produto": 46,
+        "quantidade": 20,
+        "motivo": "Produtor Admilson Dovigo (Lote Manual: 0001-25 mapa:2799)",
+        "data": "2026-03-25T13:47:54.137Z",
+        "usuario": 6,
+        "valor_venda": "0.00",
+        "lote": null
+    }
+},
+{
+    "model": "estoque.saidaestoque",
+    "pk": 43,
+    "fields": {
+        "produto": 78,
+        "quantidade": 35,
+        "motivo": "Produtor Alcir Jose (Lote Manual: 5273-24)",
+        "data": "2026-03-27T14:36:31.134Z",
+        "usuario": 6,
+        "valor_venda": "0.00",
+        "lote": null
+    }
+},
+{
+    "model": "estoque.saidaestoque",
+    "pk": 44,
+    "fields": {
+        "produto": 62,
+        "quantidade": 20,
+        "motivo": "Produtor Alcir Jose (Lote Manual: 2408-27221)",
+        "data": "2026-03-27T14:36:47.483Z",
+        "usuario": 6,
+        "valor_venda": "0.00",
+        "lote": null
+    }
+},
+{
+    "model": "estoque.saidaestoque",
+    "pk": 45,
+    "fields": {
+        "produto": 52,
+        "quantidade": 100,
+        "motivo": "Produtor Valmir Leonardo (Lote Manual: 006-24-403200 Mapa:10023)",
+        "data": "2026-03-27T18:09:57.398Z",
+        "usuario": 6,
+        "valor_venda": "0.00",
+        "lote": null
+    }
+},
+{
+    "model": "estoque.saidaestoque",
+    "pk": 46,
+    "fields": {
+        "produto": 79,
+        "quantidade": 4,
+        "motivo": "Produtor Valmir Leonardo (Lote Manual: 25I2887K83)",
+        "data": "2026-03-27T18:10:14.674Z",
+        "usuario": 6,
+        "valor_venda": "0.00",
+        "lote": null
+    }
+},
+{
+    "model": "estoque.saidaestoque",
+    "pk": 47,
+    "fields": {
+        "produto": 63,
+        "quantidade": 13,
+        "motivo": "Produtor Alahyr Leonardo (Lote Manual: 302-25-18190 mapa:16220)",
+        "data": "2026-03-27T18:10:47.329Z",
+        "usuario": 6,
+        "valor_venda": "0.00",
+        "lote": null
+    }
+},
+{
+    "model": "estoque.saidaestoque",
+    "pk": 48,
+    "fields": {
+        "produto": 71,
+        "quantidade": 1,
+        "motivo": "86 Pedrinho Rack (Lote Manual: 25A2887K64 mapa:28219)",
+        "data": "2026-03-31T12:59:39.341Z",
+        "usuario": 6,
+        "valor_venda": "0.00",
+        "lote": null
+    }
+},
+{
+    "model": "estoque.saidaestoque",
+    "pk": 49,
+    "fields": {
+        "produto": 7,
+        "quantidade": 1,
+        "motivo": "86 Pedrinho Rack (Lote Manual: PC23117 mapa:16322)",
+        "data": "2026-03-31T12:59:58.944Z",
+        "usuario": 6,
+        "valor_venda": "0.00",
+        "lote": null
+    }
+},
+{
+    "model": "estoque.saidaestoque",
+    "pk": 50,
+    "fields": {
+        "produto": 7,
+        "quantidade": 2,
+        "motivo": "86 Pedrinho Rack (Lote Manual: PC23202 Mapa:16322)",
+        "data": "2026-03-31T13:00:14.559Z",
+        "usuario": 6,
+        "valor_venda": "0.00",
+        "lote": null
+    }
+},
+{
+    "model": "estoque.saidaestoque",
+    "pk": 51,
+    "fields": {
+        "produto": 49,
+        "quantidade": 4,
+        "motivo": "Transposição de estoque (Lote Manual: 013-25-129601 mapa:6117)",
+        "data": "2026-03-31T18:47:04.175Z",
+        "usuario": 6,
+        "valor_venda": "0.00",
+        "lote": null
+    }
+},
+{
+    "model": "estoque.saidaestoque",
+    "pk": 52,
+    "fields": {
+        "produto": 53,
+        "quantidade": 11,
+        "motivo": "PRODUTOR VOLMIR PALUDO (Lote Manual: 001-25-10561 mapa:07424)",
+        "data": "2026-04-01T21:20:20.531Z",
+        "usuario": 6,
+        "valor_venda": "0.00",
+        "lote": null
+    }
+},
+{
+    "model": "estoque.saidaestoque",
+    "pk": 54,
+    "fields": {
+        "produto": 102,
+        "quantidade": 25,
+        "motivo": "FAZENDA RICAL (Lote Manual: 25E2887O57 mapa:13320)",
+        "data": "2026-04-07T18:31:34.340Z",
+        "usuario": 6,
+        "valor_venda": "0.00",
+        "lote": null
+    }
+},
+{
+    "model": "estoque.saidaestoque",
+    "pk": 55,
+    "fields": {
+        "produto": 105,
+        "quantidade": 1,
+        "motivo": "Para uso na RRS (Lote Manual: 2507-28879)",
+        "data": "2026-04-10T14:36:11.357Z",
+        "usuario": 6,
+        "valor_venda": "0.00",
+        "lote": null
+    }
+},
+{
+    "model": "estoque.saidaestoque",
+    "pk": 56,
+    "fields": {
+        "produto": 102,
+        "quantidade": 8,
+        "motivo": "Produtor Specialista Agro (Lote Manual: 25E2887O57 mapa:13320)",
+        "data": "2026-04-10T14:36:58.073Z",
+        "usuario": 6,
+        "valor_venda": "0.00",
+        "lote": null
+    }
+},
+{
+    "model": "estoque.saidaestoque",
+    "pk": 57,
+    "fields": {
+        "produto": 96,
+        "quantidade": 2,
+        "motivo": "Jonatas irá carregar (Lote Manual: 007-25-01500 mapa:007907)",
+        "data": "2026-04-10T21:22:24.325Z",
+        "usuario": 6,
+        "valor_venda": "0.00",
+        "lote": null
+    }
+},
+{
+    "model": "estoque.saidaestoque",
+    "pk": 58,
+    "fields": {
+        "produto": 52,
+        "quantidade": 6,
+        "motivo": "Lucas Alisson (Lote Manual: 006-24-403200 Mapa:10023)",
+        "data": "2026-04-14T19:56:40.857Z",
+        "usuario": 6,
+        "valor_venda": "0.00",
+        "lote": null
+    }
+},
+{
+    "model": "estoque.saidaestoque",
+    "pk": 59,
+    "fields": {
+        "produto": 72,
+        "quantidade": 1,
+        "motivo": "para uso na rrs (Lote Manual: 036-25-14580 mapa:8418)",
+        "data": "2026-04-17T21:10:54.568Z",
+        "usuario": 6,
+        "valor_venda": "0.00",
+        "lote": null
+    }
+}
+]
