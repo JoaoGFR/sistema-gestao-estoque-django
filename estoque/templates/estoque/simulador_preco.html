@@ -1,0 +1,1092 @@
+{% extends 'estoque/base.html' %}
+{% load static %}
+{% load l10n %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row mb-4 align-items-center">
+        <div class="col">
+            <h1 class="h2 fw-bold text-dark mb-1">
+                <i class="bi bi-calculator-fill text-primary me-2"></i>Simulador de Preços e Margens
+            </h1>
+            <p class="text-muted mb-0">Simule preços de venda sugeridos e compare com preços praticados para calcular a margem de lucro líquida real.</p>
+        </div>
+        <div class="col-auto">
+            <a href="{% url 'lista_simulacoes' %}" class="btn btn-outline-primary rounded-pill shadow-sm fw-bold">
+                <i class="bi bi-bookmark-check me-1"></i> Ver Simulações Salvas
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- FORMULÁRIO DE ENTRADAS (PARÂMETROS) -->
+        <div class="col-lg-5">
+            <div class="card border-0 shadow-sm rounded-4 mb-4">
+                <div class="card-header bg-white border-0 pt-4 px-4 pb-2">
+                    <h5 class="card-title fw-bold text-dark mb-0">
+                        <i class="bi bi-sliders me-2 text-primary"></i>Parâmetros do Preço
+                    </h5>
+                </div>
+                <div class="card-body px-4 pb-4 pt-2">
+                    <form id="simuladorForm">
+                        <!-- Seleção do Produto -->
+                        <div class="mb-3">
+                            <label for="produtoSelect" class="form-label fw-semibold">Produto do Estoque</label>
+                            <select id="produtoSelect" class="form-select">
+                                <option value="">Selecione um produto para importar o custo...</option>
+                                {% for prod in produtos %}
+                                    <option value="{{ prod.id }}">{{ prod.nome }} (Saldo: {{ prod.saldo_total }} {{ prod.get_unidade_display }})</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text" id="infoProduto">Selecione um produto para carregar seu Preço Médio de Custo e estoque total.</div>
+                        </div>
+
+                        <div class="row mb-2">
+                            <!-- Preço de Custo -->
+                            <div class="col-md-6 mb-3 mb-md-0">
+                                <label for="precoCusto" class="form-label fw-semibold">Preço de Custo (Unitário)</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light text-muted fw-bold">R$</span>
+                                    <input type="number" step="0.01" min="0" id="precoCusto" class="form-control fw-bold" placeholder="0.00" required>
+                                </div>
+                                <div class="form-text">Preço base de compra.</div>
+                            </div>
+                            
+                            <!-- Quantidade do Estoque (Total) -->
+                            <div class="col-md-6">
+                                <label for="qtdLote" class="form-label fw-semibold">Qtd. em Estoque (Total)</label>
+                                <input type="number" min="0" id="qtdLote" class="form-control fw-bold text-center" value="0">
+                                <div class="form-text">Saldo total independente do lote.</div>
+                            </div>
+                        </div>
+
+                        <!-- Botão para Simular Compra Futura -->
+                        <div class="mb-3">
+                            <button type="button" class="btn btn-outline-secondary btn-sm w-100 rounded-3 d-flex align-items-center justify-content-center gap-1" id="btnToggleCompraFutura">
+                                <i class="bi bi-calendar-plus-fill text-primary"></i> <span>Adicionar Compra Futura</span>
+                            </button>
+                        </div>
+
+                        <!-- Seção Colapsável de Compra Futura -->
+                        <div class="collapse mb-3 p-3 bg-light rounded-4 border border-secondary border-opacity-10" id="collapseCompraFutura">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="fw-bold text-dark mb-0" style="font-size: 0.9rem;">
+                                    <i class="bi bi-cart-plus text-primary me-1"></i>Simulação de Compra Futura
+                                </h6>
+                                <button type="button" class="btn-close" style="font-size: 0.75rem;" id="btnCloseCompraFutura"></button>
+                            </div>
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <label for="precoFuturo" class="form-label small fw-semibold mb-1">Preço de Custo Futuro</label>
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text bg-white">R$</span>
+                                        <input type="number" step="0.01" min="0" id="precoFuturo" class="form-control" placeholder="0.00">
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <label for="qtdFutura" class="form-label small fw-semibold mb-1">Qtd. Compra Futura</label>
+                                    <input type="number" min="1" id="qtdFutura" class="form-control form-control-sm text-center" placeholder="Ex: 50">
+                                </div>
+                            </div>
+                            <div class="form-text mt-2 text-muted" style="font-size: 0.73rem;">
+                                Se preenchido, calcula a <strong>Média Ponderada</strong> entre o estoque atual e a compra planejada.
+                            </div>
+                        </div>
+
+                        <!-- Custos Adicionais -->
+                        <div class="row mb-3">
+                            <div class="col-md-6 mb-3 mb-md-0">
+                                <label for="freteCompra" class="form-label fw-semibold">Frete/Logística</label>
+                                <div class="input-group">
+                                    <input type="number" step="0.01" min="0" id="freteCompra" class="form-control" placeholder="0.00">
+                                    <select id="tipoFrete" class="form-select" style="max-width: 105px; font-size: 0.85rem;">
+                                        <option value="valor">R$ Unit.</option>
+                                        <option value="total">R$ Total</option>
+                                        <option value="percentual">% Custo</option>
+                                    </select>
+                                </div>
+                                <div class="form-text">"R$ Total" divide pelo lote total.</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="outrosCustos" class="form-label fw-semibold">Outros Custos / Emb.</label>
+                                <div class="input-group">
+                                    <input type="number" step="0.01" min="0" id="outrosCustos" class="form-control" placeholder="0.00">
+                                    <select id="tipoOutros" class="form-select" style="max-width: 105px; font-size: 0.85rem;">
+                                        <option value="valor">R$ Unit.</option>
+                                        <option value="total">R$ Total</option>
+                                        <option value="percentual">% Custo</option>
+                                    </select>
+                                </div>
+                                <div class="form-text">Embalagem, insumos, etc.</div>
+                            </div>
+                        </div>
+
+                        <!-- Alíquota de Impostos -->
+                        <div class="mb-3">
+                            <label for="aliquotaImposto" class="form-label fw-semibold d-flex justify-content-between align-items-center">
+                                <span>Alíquota de Impostos</span>
+                                <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" data-bs-toggle="modal" data-bs-target="#modalAliquota">
+                                    <i class="bi bi-plus-circle-fill"></i> Nova Alíquota
+                                </button>
+                            </label>
+                            <div class="input-group">
+                                <select id="aliquotaImposto" class="form-select">
+                                    <option value="0" data-percentual="0">Sem Impostos (0.00%)</option>
+                                    {% for aliq in aliquotas %}
+                                        <option value="{{ aliq.id }}" data-percentual="{{ aliq.percentual|unlocalize }}">{{ aliq.nome }} ({{ aliq.percentual }}%)</option>
+                                    {% endfor %}
+                                </select>
+                                <span class="input-group-text bg-light text-muted">%</span>
+                            </div>
+                            <div class="form-text">Imposto cobrado na venda.</div>
+                        </div>
+
+                        <!-- Margem de Lucro Desejada (Para cálculo do sugerido) -->
+                        <div class="mb-4">
+                            <label for="margemLucro" class="form-label fw-semibold">Margem de Lucro Desejada</label>
+                            <div class="input-group">
+                                <input type="number" step="0.01" min="0.01" max="99.99" id="margemLucro" class="form-control fw-bold text-success" placeholder="20.00" value="20.00" required>
+                                <span class="input-group-text bg-light text-muted fw-semibold">%</span>
+                            </div>
+                            <div class="form-text">Margem desejada para gerar o preço sugerido.</div>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <!-- PREÇO DE VENDA PRATICADO (SIMULAÇÃO MANUAL) -->
+                        <div class="mb-2 bg-light p-3 rounded-3 border border-secondary border-opacity-10">
+                            <label for="precoVenda" class="form-label fw-bold text-primary d-flex justify-content-between align-items-center">
+                                <span>Preço de Venda Simulado</span>
+                                <button type="button" class="btn btn-outline-primary btn-xs py-0.5 px-2 text-xs rounded" id="btnSyncSugerido" style="font-size: 0.75rem;">
+                                    <i class="bi bi-arrow-left-right"></i> Copiar Sugerido
+                                </button>
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-primary text-white fw-bold">R$</span>
+                                <input type="number" step="0.01" min="0.01" id="precoVenda" class="form-control fw-bold text-primary fs-5" placeholder="0.00">
+                            </div>
+                            <div class="form-text">Altere este campo para simular margens reais com base em outros preços.</div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- PAINEL DE RESULTADOS (CÁLCULOS) -->
+        <div class="col-lg-7">
+            <!-- Alternância de Metodologia -->
+            <div class="card border-0 shadow-sm rounded-4 mb-3">
+                <div class="card-body p-2 bg-light rounded-4">
+                    <div class="nav nav-pills nav-justified" id="metodoTab" role="tablist">
+                        <button class="nav-link active py-2 rounded-3 fw-bold shadow-sm" id="tab-inside" data-bs-toggle="tab" data-bs-target="#inside" type="button" role="tab" aria-selected="true">
+                            Markup Divisor (Preço por Dentro)
+                        </button>
+                        <button class="nav-link py-2 rounded-3 fw-bold" id="tab-cost" data-bs-toggle="tab" data-bs-target="#cost" type="button" role="tab" aria-selected="false">
+                            Markup Multiplicador (sobre Custo)
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RESULTADOS PRINCIPAIS (PREÇO SUGERIDO VS MARGEM REALIZADA) -->
+            <div class="row g-3 mb-4">
+                <!-- CARD 1: PREÇO SUGERIDO -->
+                <div class="col-md-6">
+                    <div class="card border-0 shadow-sm rounded-4 text-white overflow-hidden h-100" style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);">
+                        <div class="card-body p-4 text-center">
+                            <span class="badge bg-light text-primary fw-bold text-uppercase px-2.5 py-1.5 rounded-pill mb-2" style="font-size: 0.7rem;">Preço Sugerido</span>
+                            <h3 class="display-6 fw-extrabold mb-1" id="precoVendaSugerido">R$ 0,00</h3>
+                            <p class="mb-0 opacity-75 small" id="descMetodo">Cálculo por Dentro</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CARD 2: MARGEM REALIZADA -->
+                <div class="col-md-6">
+                    <div class="card border-0 shadow-sm rounded-4 text-white overflow-hidden h-100" id="cardMargemRealizada" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
+                        <div class="card-body p-4 text-center">
+                            <span class="badge bg-light text-success fw-bold text-uppercase px-2.5 py-1.5 rounded-pill mb-2" id="badgeMargem" style="font-size: 0.7rem;">Margem Realizada</span>
+                            <h3 class="display-6 fw-extrabold mb-1" id="margemLucroCalculada">0.0%</h3>
+                            <p class="mb-0 opacity-75 small" id="lucroLiquidoRS">Lucro: R$ 0,00</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ALERTA DE PREJUÍZO OU PARAMETROS INVÁLIDOS -->
+            <div class="alert alert-danger border-0 rounded-4 shadow-sm mb-4 d-none" id="alertaPrecoInvalido" role="alert">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                <strong>Erro de Parâmetros:</strong> A soma dos percentuais (<span id="somaPercentuais">0%</span>) impede o cálculo do Markup Divisor. Deve ser menor que 100%.
+            </div>
+
+            <div class="alert alert-danger border-0 rounded-4 shadow-sm mb-4 d-none" id="alertaPrejuizo" role="alert">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                <strong>Prejuízo Simulado:</strong> O preço praticado não cobre o custo e taxas. Prejuízo de <span id="prejuizoValor">R$ 0,00</span> por unidade.
+            </div>
+
+            <!-- DETALHAMENTO DE CUSTOS -->
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
+                <div class="card-body p-4 bg-white">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="fw-bold text-dark mb-0"><i class="bi bi-list-check text-primary me-2"></i>Detalhamento (Baseado no Preço Simulado)</h5>
+                        <span class="badge bg-light text-muted fw-normal" id="infoPontoEquilibrio">Ponto de Equilíbrio: R$ 0,00</span>
+                    </div>
+                    
+                    <div class="table-responsive">
+                        <table class="table align-middle">
+                            <tbody>
+                                <tr>
+                                    <td>
+                                        <div class="fw-semibold">Custo de Aquisição</div>
+                                        <small class="text-muted">Valor base do item</small>
+                                    </td>
+                                    <td class="text-end fw-semibold text-dark" id="detalheCustoBase">R$ 0,00</td>
+                                    <td class="text-end text-muted" style="width: 18%;" id="pctCustoBase">0%</td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <div class="fw-semibold">Frete & Custos Adicionais</div>
+                                        <small class="text-muted">Despesas agregadas ao custo (Unitário)</small>
+                                    </td>
+                                    <td class="text-end fw-semibold text-dark" id="detalheFreteOutros">R$ 0,00</td>
+                                    <td class="text-end text-muted" id="pctFreteOutros">0%</td>
+                                </tr>
+                                <tr class="bg-light">
+                                    <td class="fw-bold text-primary">Custo Efetivo Unitário</td>
+                                    <td class="text-end fw-extrabold text-primary" id="detalheCustoTotal">R$ 0,00</td>
+                                    <td class="text-end text-primary fw-bold" id="pctCustoTotal">0%</td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <div class="fw-semibold">Impostos sobre Venda</div>
+                                        <small class="text-muted" id="nomeImpostoDetalhe">Imposto selecionado</small>
+                                    </td>
+                                    <td class="text-end text-danger fw-semibold" id="detalheImposto">R$ 0,00</td>
+                                    <td class="text-end text-danger" id="pctImposto">0%</td>
+                                </tr>
+                                <tr class="table-success" id="linhaResultado">
+                                    <td class="fw-bold text-success" id="labelResultado">Lucro Líquido Realizado</td>
+                                    <td class="text-end fw-extrabold text-success" id="detalheLucro">R$ 0,00</td>
+                                    <td class="text-end text-success fw-bold" id="pctLucro">0%</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- GRÁFICO VISUAL DE COMPOSIÇÃO DE PREÇO -->
+                    <div class="mt-4 mb-4">
+                        <h6 class="fw-semibold text-dark mb-2">Composição do Preço de Venda Praticado (%)</h6>
+                        <div class="progress" style="height: 25px; border-radius: 8px;">
+                            <div class="progress-bar bg-primary" role="progressbar" style="width: 40%" id="barraProgressoCusto" data-bs-toggle="tooltip" title="Custo">Custo</div>
+                            <div class="progress-bar bg-danger" role="progressbar" style="width: 30%" id="barraProgressoImpostos" data-bs-toggle="tooltip" title="Impostos">Impostos</div>
+                            <div class="progress-bar bg-success" role="progressbar" style="width: 30%" id="barraProgressoLucro" data-bs-toggle="tooltip" title="Lucro">Lucro</div>
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <!-- Botão Salvar Simulação (NOVO) -->
+                    <div class="text-end">
+                        <button type="button" class="btn btn-success btn-lg w-100 rounded-3 shadow-sm fw-bold d-flex align-items-center justify-content-center gap-2" id="btnSalvarSimulacao">
+                            <i class="bi bi-bookmark-check-fill"></i> Salvar Simulação
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL CADASTRAR NOVA ALÍQUOTA -->
+<div class="modal fade" id="modalAliquota" tabindex="-1" aria-labelledby="modalAliquotaLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="modalAliquotaLabel">
+                    <i class="bi bi-percent text-primary me-2"></i>Gerenciar Alíquotas de Impostos
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <form id="formNovaAliquota">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="alert alert-info py-2" style="font-size: 0.85rem;">
+                        <i class="bi bi-info-circle-fill me-1"></i> As alíquotas salvas ficarão disponíveis para futuras simulações no sistema.
+                    </div>
+                    <div class="mb-3">
+                        <label for="id_nome_aliquota" class="form-label fw-semibold">Nome da Alíquota / Descrição</label>
+                        {{ form_aliquota.nome }}
+                        <div class="form-text">Ex: Simples Nacional (Faixa 1), ICMS 18%, etc.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="id_percentual_aliquota" class="form-label fw-semibold">Percentual (%)</label>
+                        <div class="input-group">
+                            {{ form_aliquota.percentual }}
+                            <span class="input-group-text">%</span>
+                        </div>
+                        <div class="form-text">Apenas números (ex: 12.00 ou 4.5).</div>
+                    </div>
+                    <div class="text-danger d-none mb-3" id="erroAliquota">
+                        <i class="bi bi-x-circle-fill me-1"></i> Preencha todos os campos corretamente.
+                    </div>
+                    
+                    <hr>
+                    <h6 class="fw-bold text-dark mb-2"><i class="bi bi-list-ul text-primary me-1"></i>Alíquotas Salvas</h6>
+                    <div class="list-group list-group-flush border rounded-3 overflow-hidden" id="listaAliquotasSalvas" style="max-height: 180px; overflow-y: auto;">
+                        {% for aliq in aliquotas %}
+                            <div class="list-group-item d-flex justify-content-between align-items-center py-2 px-3" data-aliquota-id="{{ aliq.id }}">
+                                <div>
+                                    <span class="fw-semibold text-dark">{{ aliq.nome }}</span>
+                                    <span class="badge bg-light text-secondary ms-1">{{ aliq.percentual }}%</span>
+                                </div>
+                                <button type="button" class="btn btn-link btn-sm text-danger p-0 border-0 btn-excluir-aliquota" data-id="{{ aliq.id }}" style="text-decoration: none;">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        {% empty %}
+                            <div class="list-group-item text-center py-3 text-muted" id="msgSemAliquota">Nenhuma alíquota salva.</div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
+                    <button type="submit" class="btn btn-primary" id="btnSalvarAliquota">
+                        <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                        Cadastrar Alíquota
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    let selectProduto = document.getElementById('produtoSelect');
+    let precoCustoInput = document.getElementById('precoCusto');
+    let qtdLoteInput = document.getElementById('qtdLote');
+    let freteCompraInput = document.getElementById('freteCompra');
+    let tipoFreteSelect = document.getElementById('tipoFrete');
+    let outrosCustosInput = document.getElementById('outrosCustos');
+    let tipoOutrosSelect = document.getElementById('tipoOutros');
+    let aliquotaSelect = document.getElementById('aliquotaImposto');
+    let margemLucroInput = document.getElementById('margemLucro');
+    let precoVendaInput = document.getElementById('precoVenda');
+    let btnSyncSugerido = document.getElementById('btnSyncSugerido');
+
+    // Elementos da Compra Futura
+    let btnToggleCompraFutura = document.getElementById('btnToggleCompraFutura');
+    let btnCloseCompraFutura = document.getElementById('btnCloseCompraFutura');
+    let collapseCompraFutura = document.getElementById('collapseCompraFutura');
+    let precoFuturoInput = document.getElementById('precoFuturo');
+    let qtdFuturaInput = document.getElementById('qtdFutura');
+
+    let currentMetodo = 'inside'; // default: markup divisor (inside)
+    let autoSyncActive = true;
+    let bsCollapseInstance = null;
+
+    // Inicializa o Collapse do Bootstrap para Compra Futura
+    if (collapseCompraFutura) {
+        bsCollapseInstance = new bootstrap.Collapse(collapseCompraFutura, { toggle: false });
+        
+        btnToggleCompraFutura.addEventListener('click', function() {
+            bsCollapseInstance.toggle();
+        });
+
+        btnCloseCompraFutura.addEventListener('click', function() {
+            bsCollapseInstance.hide();
+        });
+
+        collapseCompraFutura.addEventListener('hidden.bs.collapse', function () {
+            precoFuturoInput.value = '';
+            qtdFuturaInput.value = '';
+            calcularPreco();
+        });
+    }
+
+    // Inicialização do Tom Select no dropdown do produto
+    if (selectProduto) {
+        new TomSelect(selectProduto, {
+            create: false,
+            sortField: { field: "text", direction: "asc" },
+            placeholder: "Selecione um produto para importar o custo...",
+            onChange: function(val) {
+                if (val) {
+                    carregarInfoProduto(val);
+                } else {
+                    document.getElementById('infoProduto').innerHTML = 'Selecione um produto para carregar seu Preço Médio de Custo e estoque total.';
+                    document.getElementById('infoProduto').className = 'form-text';
+                }
+            }
+        });
+    }
+
+    // Monitorar a mudança de abas do método de cálculo
+    const tabInside = document.getElementById('tab-inside');
+    const tabCost = document.getElementById('tab-cost');
+    const descMetodo = document.getElementById('descMetodo');
+
+    tabInside.addEventListener('click', function() {
+        currentMetodo = 'inside';
+        tabInside.classList.add('active', 'shadow-sm');
+        tabCost.classList.remove('active', 'shadow-sm');
+        descMetodo.textContent = 'Calculado com base no Markup Divisor';
+        calcularPreco();
+    });
+
+    tabCost.addEventListener('click', function() {
+        currentMetodo = 'cost';
+        tabCost.classList.add('active', 'shadow-sm');
+        tabInside.classList.remove('active', 'shadow-sm');
+        descMetodo.textContent = 'Calculado com base no Markup Multiplicador';
+        calcularPreco();
+    });
+
+    // Sincronizar preços manualmente
+    btnSyncSugerido.addEventListener('click', function() {
+        autoSyncActive = true;
+        calcularPreco();
+    });
+
+    // Desativa sincronização automática quando o usuário altera manualmente o preço de venda
+    precoVendaInput.addEventListener('input', function() {
+        autoSyncActive = false;
+        calcularPreco();
+    });
+
+    // Função para carregar as informações do produto via AJAX
+    function carregarInfoProduto(produtoId) {
+        let infoDiv = document.getElementById('infoProduto');
+        infoDiv.innerHTML = '<span class="spinner-border spinner-border-sm text-secondary" role="status"></span> Buscando informações do estoque...';
+        infoDiv.className = 'form-text text-primary';
+
+        fetch(`/api/produto-preco/${produtoId}/`)
+            .then(response => {
+                if (!response.ok) throw new Error('Erro ao buscar produto');
+                return response.json();
+            })
+            .then(data => {
+                if (data.preco_medio > 0) {
+                    precoCustoInput.value = data.preco_medio.toFixed(2);
+                } else if (data.preco_custo_lote > 0) {
+                    precoCustoInput.value = data.preco_custo_lote.toFixed(2);
+                } else {
+                    precoCustoInput.value = '0.00';
+                }
+
+                qtdLoteInput.value = data.saldo_total; 
+                
+                infoDiv.innerHTML = `<i class="bi bi-check-circle-fill text-success"></i> Preço importado | Unidade: ${data.unidade} | Saldo Total em Estoque: <strong>${data.saldo_total} un.</strong>`;
+                infoDiv.className = 'form-text text-success';
+                
+                autoSyncActive = true;
+                calcularPreco();
+            })
+            .catch(err => {
+                infoDiv.innerHTML = `<i class="bi bi-x-circle-fill text-danger"></i> Erro ao carregar informações do estoque.`;
+                infoDiv.className = 'form-text text-danger';
+                console.error(err);
+            });
+    }
+
+    // Registra todos os eventos de digitação e alteração de parâmetros
+    const inputsToWatch = [
+        precoCustoInput, qtdLoteInput, freteCompraInput, outrosCustosInput,
+        margemLucroInput, precoFuturoInput, qtdFuturaInput
+    ];
+    inputsToWatch.forEach(input => {
+        input.addEventListener('input', function() {
+            if (input !== precoVendaInput) {
+                if (precoVendaInput.value === '') {
+                    autoSyncActive = true;
+                }
+            }
+            calcularPreco();
+        });
+    });
+
+    [tipoFreteSelect, tipoOutrosSelect, aliquotaSelect].forEach(select => {
+        select.addEventListener('change', calcularPreco);
+    });
+
+    // Formatação de valores monetários
+    function formatarMoeda(valor) {
+        return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    }
+
+    // CORE: Cálculo de Simulação de Preço
+    function calcularPreco() {
+        let precoCusto = parseFloat(precoCustoInput.value) || 0;
+        let qtdLote = parseFloat(qtdLoteInput.value) || 0;
+
+        // Dados da Compra Futura
+        let precoFuturo = parseFloat(precoFuturoInput.value) || 0;
+        let qtdFutura = parseFloat(qtdFuturaInput.value) || 0;
+
+        // Média ponderada de custo base
+        let custoBase = precoCusto;
+        let qtdTotalLote = qtdLote;
+        let isCompraFuturaAtiva = false;
+
+        if (qtdFutura > 0 && precoFuturo > 0) {
+            let valorEstoqueAtual = precoCusto * qtdLote;
+            let valorCompraFutura = precoFuturo * qtdFutura;
+            qtdTotalLote = qtdLote + qtdFutura;
+            
+            if (qtdTotalLote > 0) {
+                custoBase = (valorEstoqueAtual + valorCompraFutura) / qtdTotalLote;
+                isCompraFuturaAtiva = true;
+            }
+        }
+
+        let frete = parseFloat(freteCompraInput.value) || 0;
+        let outros = parseFloat(outrosCustosInput.value) || 0;
+        
+        let tipoFrete = tipoFreteSelect.value;
+        let tipoOutros = tipoOutrosSelect.value;
+
+        // Rateio de frete e custos adicionais
+        let freteValor = 0;
+        if (tipoFrete === 'valor') {
+            freteValor = frete;
+        } else if (tipoFrete === 'percentual') {
+            freteValor = custoBase * (frete / 100);
+        } else if (tipoFrete === 'total') {
+            freteValor = frete / (qtdTotalLote > 0 ? qtdTotalLote : 1);
+        }
+
+        let outrosValor = 0;
+        if (tipoOutros === 'valor') {
+            outrosValor = outros;
+        } else if (tipoOutros === 'percentual') {
+            outrosValor = custoBase * (outros / 100);
+        } else if (tipoOutros === 'total') {
+            outrosValor = outros / (qtdTotalLote > 0 ? qtdTotalLote : 1);
+        }
+
+        let custoEfetivo = custoBase + freteValor + outrosValor;
+
+        // Percentuais sobre Venda
+        let optionSelected = aliquotaSelect.options[aliquotaSelect.selectedIndex];
+        let impostoPct = parseFloat((optionSelected.getAttribute('data-percentual') || '0').toString().replace(',', '.')) || 0;
+        let margemDesejadaPct = parseFloat(margemLucroInput.value) || 0;
+
+        let totalEncargosVendaPct = impostoPct; // Comissão e taxas removidas
+        
+        let precoSugerido = 0;
+        let erroDiv = document.getElementById('alertaPrecoInvalido');
+        let divSugerido = document.getElementById('precoVendaSugerido');
+
+        erroDiv.classList.add('d-none');
+        divSugerido.classList.remove('text-muted');
+
+        if (precoCusto === 0) {
+            divSugerido.textContent = formatarMoeda(0);
+            document.getElementById('margemLucroCalculada').textContent = '0.0%';
+            document.getElementById('lucroLiquidoRS').textContent = 'Lucro: R$ 0,00';
+            document.getElementById('infoPontoEquilibrio').textContent = 'Ponto de Equilíbrio: R$ 0,00';
+            atualizarTabela(0, 0, 0, 0, 0, 0, 0, 0, false);
+            return;
+        }
+
+        // CÁLCULO DO PREÇO SUGERIDO (IMPOSTO "POR DENTRO" - GROSS UP)
+        if (currentMetodo === 'inside') {
+            // Para o Markup Divisor, a margem de lucro também é calculada sobre o preço final
+            let divisor = (100 - (impostoPct + margemDesejadaPct)) / 100;
+
+            if (divisor <= 0) {
+                erroDiv.classList.remove('d-none');
+                document.getElementById('somaPercentuais').textContent = (impostoPct + margemDesejadaPct).toFixed(2) + '%';
+                divSugerido.textContent = "Inválido";
+                divSugerido.classList.add('text-muted');
+                precoSugerido = 0;
+            } else {
+                precoSugerido = custoEfetivo / divisor;
+                precoSugerido = Math.round(precoSugerido * 100) / 100;
+            }
+        } else {
+            // Para o Markup Multiplicador, a margem de lucro incide sobre o custo, e o imposto é calculado "por dentro" (gross up)
+            let valorProdutoSemImposto = custoEfetivo * (1 + margemDesejadaPct / 100);
+            let divisorVenda = (100 - impostoPct) / 100;
+            
+            if (divisorVenda <= 0) {
+                erroDiv.classList.remove('d-none');
+                document.getElementById('somaPercentuais').textContent = impostoPct.toFixed(2) + '% (apenas impostos)';
+                divSugerido.textContent = "Inválido";
+                divSugerido.classList.add('text-muted');
+                precoSugerido = 0;
+            } else {
+                // valor_final = valor_produto / ((100 - aliquota_imposto) / 100)
+                precoSugerido = valorProdutoSemImposto / divisorVenda;
+                precoSugerido = Math.round(precoSugerido * 100) / 100;
+            }
+        }
+
+        if (precoSugerido > 0) {
+            divSugerido.textContent = formatarMoeda(precoSugerido);
+        }
+
+        // SINCRONIZAÇÃO COM PREÇO SIMULADO
+        if (autoSyncActive && precoSugerido > 0) {
+            precoVendaInput.value = precoSugerido.toFixed(2);
+        }
+
+        let precoPraticado = parseFloat(precoVendaInput.value) || precoSugerido || 0;
+
+        // CÁLCULOS SOBRE O PREÇO PRATICADO (IMPOSTO "POR DENTRO" - GROSS UP)
+        let divisorImposto = (100 - impostoPct) / 100;
+        let valorProdutoSemImposto = 0;
+        let valorImposto = 0;
+
+        if (divisorImposto === 0) {
+            valorProdutoSemImposto = 0;
+            valorImposto = precoPraticado;
+        } else {
+            // valor_final = valor_produto / ((100 - aliquota_imposto) / 100)
+            // logo, valor_produto = valor_final * ((100 - aliquota_imposto) / 100)
+            valorProdutoSemImposto = precoPraticado * divisorImposto;
+            valorProdutoSemImposto = Math.round(valorProdutoSemImposto * 100) / 100; // Arredondamento 2 casas
+            
+            // O imposto embutido será a diferença entre o valor_final e o valor_produto
+            valorImposto = precoPraticado - valorProdutoSemImposto;
+            valorImposto = Math.round(valorImposto * 100) / 100; // Arredondamento 2 casas
+        }
+
+        let lucroLiquido = valorProdutoSemImposto - custoEfetivo;
+        lucroLiquido = Math.round(lucroLiquido * 100) / 100; // Arredondamento 2 casas
+        
+        let margemRealizada = precoPraticado > 0 ? (lucroLiquido / precoPraticado) * 100 : 0;
+
+        // Ponto de Equilíbrio (Gross up do custo efetivo)
+        let precoMinimo = 0;
+        if (divisorImposto > 0) {
+            precoMinimo = custoEfetivo / divisorImposto;
+            precoMinimo = Math.round(precoMinimo * 100) / 100;
+        }
+
+        // Exibição de resultados
+        document.getElementById('margemLucroCalculada').textContent = margemRealizada.toFixed(1) + '%';
+        document.getElementById('lucroLiquidoRS').textContent = 'Lucro: ' + formatarMoeda(lucroLiquido);
+        document.getElementById('infoPontoEquilibrio').textContent = 'Ponto de Equilíbrio: ' + formatarMoeda(precoMinimo);
+
+        // Alerta de Prejuízo
+        let alertaPrejuizo = document.getElementById('alertaPrejuizo');
+        let cardMargem = document.getElementById('cardMargemRealizada');
+        let badgeMargem = document.getElementById('badgeMargem');
+
+        if (lucroLiquido < 0 && precoPraticado > 0) {
+            alertaPrejuizo.classList.remove('d-none');
+            document.getElementById('prejuizoValor').textContent = formatarMoeda(Math.abs(lucroLiquido));
+            cardMargem.style.background = 'linear-gradient(135deg, #cb2d3e 0%, #ef473a 100%)';
+            badgeMargem.className = 'badge bg-light text-danger fw-bold text-uppercase px-2.5 py-1.5 rounded-pill mb-2';
+        } else {
+            alertaPrejuizo.classList.add('d-none');
+            cardMargem.style.background = 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)';
+            badgeMargem.className = 'badge bg-light text-success fw-bold text-uppercase px-2.5 py-1.5 rounded-pill mb-2';
+        }
+
+        atualizarTabela(
+            custoBase, 
+            freteValor + outrosValor, 
+            custoEfetivo, 
+            valorImposto, 
+            impostoPct, 
+            lucroLiquido, 
+            margemRealizada,
+            precoPraticado,
+            isCompraFuturaAtiva
+        );
+    }
+
+    // Atualiza a tabela de custos detalhada e a barra de progresso visual
+    function atualizarTabela(custoBase, freteOutros, custoTotal, impostoVal, impostoPct, lucroVal, margemPct, precoVenda, isCompraFuturaAtiva) {
+        let labelCustoBase = document.getElementById('detalheCustoBase');
+        if (isCompraFuturaAtiva) {
+            labelCustoBase.innerHTML = `${formatarMoeda(custoBase)} <br><span class="badge bg-info text-white small fw-normal" style="font-size: 0.65rem;">Média Ponderada Simulada</span>`;
+        } else {
+            labelCustoBase.textContent = formatarMoeda(custoBase);
+        }
+
+        document.getElementById('detalheFreteOutros').textContent = formatarMoeda(freteOutros);
+        document.getElementById('detalheCustoTotal').textContent = formatarMoeda(custoTotal);
+        document.getElementById('detalheImposto').textContent = formatarMoeda(impostoVal);
+        document.getElementById('detalheLucro').textContent = formatarMoeda(lucroVal);
+
+        // Nomes amigáveis dos impostos na tabela
+        let optionSelected = aliquotaSelect.options[aliquotaSelect.selectedIndex];
+        document.getElementById('nomeImpostoDetalhe').textContent = optionSelected.text;
+
+        // Fração percentual de cada item em relação ao preço final praticado
+        let pctBase = precoVenda > 0 ? (custoBase / precoVenda) * 100 : 0;
+        let pctFreteOutros = precoVenda > 0 ? (freteOutros / precoVenda) * 100 : 0;
+        let pctTotal = precoVenda > 0 ? (custoTotal / precoVenda) * 100 : 0;
+        let pctImpostoCalc = precoVenda > 0 ? (impostoVal / precoVenda) * 100 : 0;
+
+        document.getElementById('pctCustoBase').textContent = pctBase.toFixed(1) + '%';
+        document.getElementById('pctFreteOutros').textContent = pctFreteOutros.toFixed(1) + '%';
+        document.getElementById('pctCustoTotal').textContent = pctTotal.toFixed(1) + '%';
+        document.getElementById('pctImposto').textContent = pctImpostoCalc.toFixed(1) + '%';
+        document.getElementById('pctLucro').textContent = margemPct.toFixed(1) + '%';
+
+        // Atualizar estilos de resultado da tabela
+        let linhaResultado = document.getElementById('linhaResultado');
+        let labelResultado = document.getElementById('labelResultado');
+        let detalheLucro = document.getElementById('detalheLucro');
+        let pctLucro = document.getElementById('pctLucro');
+
+        if (lucroVal < 0) {
+            linhaResultado.className = 'table-danger';
+            labelResultado.className = 'fw-bold text-danger';
+            labelResultado.textContent = 'Prejuízo Líquido Realizado';
+            detalheLucro.className = 'text-end fw-extrabold text-danger';
+            pctLucro.className = 'text-end text-danger fw-bold';
+        } else {
+            linhaResultado.className = 'table-success';
+            labelResultado.className = 'fw-bold text-success';
+            labelResultado.textContent = 'Lucro Líquido Realizado';
+            detalheLucro.className = 'text-end fw-extrabold text-success';
+            pctLucro.className = 'text-end text-success fw-bold';
+        }
+
+        // Atualizar barra de progresso visual
+        let barraCusto = document.getElementById('barraProgressoCusto');
+        let barraImpostos = document.getElementById('barraProgressoImpostos');
+        let barraLucro = document.getElementById('barraProgressoLucro');
+
+        if (precoVenda > 0) {
+            let wCusto = pctTotal;
+            let wImpostos = pctImpostoCalc;
+            let wLucro = margemPct;
+
+            if (wLucro < 0) {
+                wLucro = 0;
+                wCusto = 100 - wImpostos;
+            }
+
+            barraCusto.style.width = wCusto.toFixed(1) + '%';
+            barraCusto.textContent = wCusto > 12 ? 'Custo: ' + wCusto.toFixed(0) + '%' : wCusto.toFixed(0) + '%';
+
+            barraImpostos.style.width = wImpostos.toFixed(1) + '%';
+            barraImpostos.textContent = wImpostos > 12 ? 'Imposto: ' + wImpostos.toFixed(0) + '%' : wImpostos.toFixed(0) + '%';
+
+            barraLucro.style.width = wLucro.toFixed(1) + '%';
+            barraLucro.textContent = wLucro > 12 ? 'Lucro: ' + wLucro.toFixed(0) + '%' : wLucro.toFixed(0) + '%';
+
+            barraCusto.className = "progress-bar bg-primary";
+            if (lucroVal < 0) {
+                barraLucro.style.width = '0%';
+                barraCusto.className = "progress-bar bg-danger";
+                barraCusto.textContent = "Prejuízo! Preço praticado abaixo do custo total";
+            }
+        } else {
+            barraCusto.style.width = '0%';
+            barraImpostos.style.width = '0%';
+            barraLucro.style.width = '0%';
+            barraCusto.textContent = '';
+            barraImpostos.textContent = '';
+            barraLucro.textContent = '';
+        }
+    }
+
+    // Inicialização da simulação
+    calcularPreco();
+
+    // AJAX para Criar Nova Alíquota no Modal
+    let formNovaAliquota = document.getElementById('formNovaAliquota');
+    let btnSalvar = document.getElementById('btnSalvarAliquota');
+    let erroDiv = document.getElementById('erroAliquota');
+
+    formNovaAliquota.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        let spinner = btnSalvar.querySelector('.spinner-border');
+        btnSalvar.disabled = true;
+        spinner.classList.remove('d-none');
+        erroDiv.classList.add('d-none');
+
+        let formData = new FormData(formNovaAliquota);
+
+        fetch("{% url 'criar_aliquota_api' %}", {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(data => { throw new Error(data.message || 'Erro ao cadastrar') });
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.status === 'success') {
+                let option = document.createElement('option');
+                option.value = data.id;
+                option.setAttribute('data-percentual', data.percentual);
+                option.textContent = `${data.nome} (${data.percentual.toFixed(2).replace('.', ',')}%)`;
+                aliquotaSelect.appendChild(option);
+                
+                aliquotaSelect.value = data.id;
+                
+                // Remove placeholder se existir
+                let msgSem = document.getElementById('msgSemAliquota');
+                if (msgSem) {
+                    msgSem.remove();
+                }
+
+                // Adiciona na lista do Modal
+                let listaAliquotasSalvas = document.getElementById('listaAliquotasSalvas');
+                if (listaAliquotasSalvas) {
+                    let newRow = document.createElement('div');
+                    newRow.className = 'list-group-item d-flex justify-content-between align-items-center py-2 px-3';
+                    newRow.setAttribute('data-aliquota-id', data.id);
+                    newRow.innerHTML = `
+                        <div>
+                            <span class="fw-semibold text-dark">${data.nome}</span>
+                            <span class="badge bg-light text-secondary ms-1">${data.percentual.toFixed(2).replace('.', ',')}%</span>
+                        </div>
+                        <button type="button" class="btn btn-link btn-sm text-danger p-0 border-0 btn-excluir-aliquota" data-id="${data.id}" style="text-decoration: none;">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    `;
+                    listaAliquotasSalvas.appendChild(newRow);
+                }
+                
+                let modalEl = document.getElementById('modalAliquota');
+                let modal = bootstrap.Modal.getInstance(modalEl);
+                modal.hide();
+
+                formNovaAliquota.reset();
+                calcularPreco();
+            } else {
+                erroDiv.textContent = data.message || "Erro ao cadastrar alíquota.";
+                erroDiv.classList.remove('d-none');
+            }
+        })
+        .catch(err => {
+            erroDiv.textContent = err.message || "Erro de conexão.";
+            erroDiv.classList.remove('d-none');
+            console.error(err);
+        })
+        .finally(() => {
+            btnSalvar.disabled = false;
+            spinner.classList.add('d-none');
+        });
+    });
+
+    // EVENTO EXCLUIR ALÍQUOTA (DELEGAÇÃO DE EVENTOS)
+    let listaAliquotasSalvas = document.getElementById('listaAliquotasSalvas');
+    if (listaAliquotasSalvas) {
+        listaAliquotasSalvas.addEventListener('click', function(e) {
+            let btnExcluir = e.target.closest('.btn-excluir-aliquota');
+            if (btnExcluir) {
+                let id = btnExcluir.getAttribute('data-id');
+                if (confirm("Deseja realmente excluir esta alíquota de imposto?")) {
+                    btnExcluir.disabled = true;
+                    btnExcluir.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+                    
+                    fetch(`/api/aliquotas/excluir/${id}/`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': '{{ csrf_token }}',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+                            return response.json().then(data => { throw new Error(data.message || 'Erro ao excluir') });
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (data.status === 'success') {
+                            // Remove do select do simulador
+                            let optionToRemove = aliquotaSelect.querySelector(`option[value="${id}"]`);
+                            if (optionToRemove) {
+                                optionToRemove.remove();
+                            }
+                            
+                            // Remove da lista do modal
+                            let rowToRemove = listaAliquotasSalvas.querySelector(`[data-aliquota-id="${id}"]`);
+                            if (rowToRemove) {
+                                rowToRemove.remove();
+                            }
+                            
+                            // Verifica se ficou vazia
+                            if (listaAliquotasSalvas.querySelectorAll('.list-group-item:not(#msgSemAliquota)').length === 0) {
+                                if (!document.getElementById('msgSemAliquota')) {
+                                    let emptyDiv = document.createElement('div');
+                                    emptyDiv.id = 'msgSemAliquota';
+                                    emptyDiv.className = 'list-group-item text-center py-3 text-muted';
+                                    emptyDiv.textContent = 'Nenhuma alíquota salva.';
+                                    listaAliquotasSalvas.appendChild(emptyDiv);
+                                }
+                            }
+                            
+                            // Reseta o valor selecionado se era a que foi excluída
+                            if (aliquotaSelect.value === id) {
+                                aliquotaSelect.value = '0';
+                            }
+                            calcularPreco();
+                        } else {
+                            alert(data.message || 'Erro ao excluir.');
+                            btnExcluir.disabled = false;
+                            btnExcluir.innerHTML = '<i class="bi bi-trash"></i>';
+                        }
+                    })
+                    .catch(err => {
+                        alert(err.message || 'Erro de conexão.');
+                        btnExcluir.disabled = false;
+                        btnExcluir.innerHTML = '<i class="bi bi-trash"></i>';
+                        console.error(err);
+                    });
+                }
+            }
+        });
+    }
+
+    // EVENTO SALVAR SIMULAÇÃO
+    let btnSalvarSimulacao = document.getElementById('btnSalvarSimulacao');
+    if (btnSalvarSimulacao) {
+        btnSalvarSimulacao.addEventListener('click', function() {
+            let produtoId = selectProduto.value;
+            if (!produtoId) {
+                alert("Por favor, selecione um produto antes de salvar a simulação.");
+                return;
+            }
+
+            let precoCusto = parseFloat(precoCustoInput.value) || 0;
+            let qtdLote = parseFloat(qtdLoteInput.value) || 0;
+            let precoFuturo = parseFloat(precoFuturoInput.value) || 0;
+            let qtdFutura = parseFloat(qtdFuturaInput.value) || 0;
+            
+            let frete = parseFloat(freteCompraInput.value) || 0;
+            let tipoFrete = tipoFreteSelect.value;
+            let outros = parseFloat(outrosCustosInput.value) || 0;
+            let tipoOutros = tipoOutrosSelect.value;
+            
+            let optionSelected = aliquotaSelect.options[aliquotaSelect.selectedIndex];
+            let impostoPct = parseFloat((optionSelected.getAttribute('data-percentual') || '0').toString().replace(',', '.')) || 0;
+            let impostoNome = optionSelected.textContent;
+            
+            let margemDesejada = parseFloat(margemLucroInput.value) || 0;
+            let precoVendaPraticado = parseFloat(precoVendaInput.value) || 0;
+
+            let freteValor = 0;
+            let qtdTotalLote = qtdLote + (qtdFutura > 0 && precoFuturo > 0 ? qtdFutura : 0);
+            let custoBase = precoCusto;
+            if (qtdFutura > 0 && precoFuturo > 0 && qtdTotalLote > 0) {
+                custoBase = ((precoCusto * qtdLote) + (precoFuturo * qtdFutura)) / qtdTotalLote;
+            }
+            
+            if (tipoFrete === 'valor') {
+                freteValor = frete;
+            } else if (tipoFrete === 'percentual') {
+                freteValor = custoBase * (frete / 100);
+            } else if (tipoFrete === 'total') {
+                freteValor = frete / (qtdTotalLote > 0 ? qtdTotalLote : 1);
+            }
+
+            let outrosValor = 0;
+            if (tipoOutros === 'valor') {
+                outrosValor = outros;
+            } else if (tipoOutros === 'percentual') {
+                outrosValor = custoBase * (outros / 100);
+            } else if (tipoOutros === 'total') {
+                outrosValor = outros / (qtdTotalLote > 0 ? qtdTotalLote : 1);
+            }
+
+            let custoEfetivo = custoBase + freteValor + outrosValor;
+
+            let precoSugerido = 0;
+            if (currentMetodo === 'inside') {
+                let divisor = (100 - (impostoPct + margemDesejada)) / 100;
+                if (divisor > 0) {
+                    precoSugerido = custoEfetivo / divisor;
+                }
+            } else {
+                let divisorVenda = (100 - impostoPct) / 100;
+                if (divisorVenda > 0) {
+                    precoSugerido = (custoEfetivo * (1 + margemDesejada / 100)) / divisorVenda;
+                }
+            }
+            precoSugerido = Math.round(precoSugerido * 100) / 100;
+
+            let divisorImposto = (100 - impostoPct) / 100;
+            let valorProdutoSemImposto = divisorImposto === 0 ? 0 : precoVendaPraticado * divisorImposto;
+            valorProdutoSemImposto = Math.round(valorProdutoSemImposto * 100) / 100;
+            let lucroLiquido = valorProdutoSemImposto - custoEfetivo;
+            lucroLiquido = Math.round(lucroLiquido * 100) / 100;
+            let margemRealizada = precoVendaPraticado > 0 ? (lucroLiquido / precoVendaPraticado) * 100 : 0;
+
+            let payload = {
+                produto_id: parseInt(produtoId),
+                preco_custo: precoCusto,
+                quantidade_estoque: parseInt(qtdLote),
+                preco_custo_futuro: precoFuturoInput.value !== '' ? parseFloat(precoFuturoInput.value) : '',
+                quantidade_futura: qtdFuturaInput.value !== '' ? parseInt(qtdFuturaInput.value) : '',
+                frete_valor: frete,
+                tipo_frete: tipoFrete,
+                outros_valor: outros,
+                tipo_outros: tipoOutros,
+                aliquota_nome: impostoNome,
+                aliquota_percentual: impostoPct,
+                margem_desejada: margemDesejada,
+                metodo: currentMetodo,
+                preco_sugerido: precoSugerido,
+                preco_praticado: precoVendaPraticado,
+                lucro_liquido: lucroLiquido,
+                margem_realizada: margemRealizada
+            };
+
+            btnSalvarSimulacao.disabled = true;
+            btnSalvarSimulacao.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Salvando...';
+
+            fetch("{% url 'salvar_simulacao_api' %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => { throw new Error(data.message || 'Erro ao salvar') });
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.status === 'success') {
+                    let alertDiv = document.createElement('div');
+                    alertDiv.className = 'alert alert-success alert-dismissible fade show shadow position-fixed bottom-0 end-0 m-3 z-3';
+                    alertDiv.style.minWidth = '300px';
+                    alertDiv.innerHTML = `
+                        <i class="bi bi-check-circle-fill me-2"></i> ${data.message}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    `;
+                    document.body.appendChild(alertDiv);
+                    
+                    setTimeout(() => {
+                        let bsAlert = new bootstrap.Alert(alertDiv);
+                        bsAlert.close();
+                    }, 4000);
+                } else {
+                    alert(data.message || 'Erro ao salvar simulação.');
+                }
+            })
+            .catch(err => {
+                alert(err.message || 'Erro de conexão.');
+                console.error(err);
+            })
+            .finally(() => {
+                btnSalvarSimulacao.disabled = false;
+                btnSalvarSimulacao.innerHTML = '<i class="bi bi-bookmark-check-fill"></i> Salvar Simulação';
+            });
+        });
+    }
+});
+</script>
+{% endblock %}

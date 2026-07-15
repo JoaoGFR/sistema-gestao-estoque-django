@@ -7,9 +7,12 @@
         <p class="text-muted">Crie, restaure e baixe cópias de segurança de todo o banco de dados da JGTECH.</p>
     </div>
     <div class="col-md-4 text-end">
-        <a href="{% url 'criar_backup' %}" class="btn btn-primary btn-lg shadow-sm">
-            <i class="bi bi-cloud-download"></i> Gerar Novo Backup
-        </a>
+        <form action="{% url 'criar_backup' %}" method="post" class="d-inline">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-primary btn-lg shadow-sm">
+                <i class="bi bi-cloud-download"></i> Gerar Novo Backup
+            </button>
+        </form>
     </div>
 </div>
 

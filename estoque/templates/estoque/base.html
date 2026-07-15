@@ -15,18 +15,40 @@
     <style>
         body { font-family: 'Inter', sans-serif; }
         .navbar-nav .nav-link {
-            transition: all 0.2s;
-            font-size: 0.95rem; /* Levemente menor para caber melhor */
+            transition: all 0.2s ease-in-out;
+            font-size: 0.95rem;
+            padding: 0.5rem 0.8rem;
         }
         .navbar-nav .nav-link:hover {
-            transform: translateY(-1px); /* Efeito sutil ao passar o mouse */
+            transform: translateY(-1px);
             filter: brightness(1.2);
         }
         /* Ajuste fino para alinhar ícones e textos */
         .nav-item-content {
             display: flex;
             align-items: center;
-            gap: 6px; /* Espaço entre ícone e texto */
+            gap: 6px;
+        }
+        /* Dropdowns modernos */
+        .dropdown-menu-dark {
+            background: rgba(33, 37, 41, 0.95) !important;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            border-radius: 12px;
+            padding: 0.5rem;
+        }
+        .dropdown-item {
+            border-radius: 8px;
+            padding: 0.5rem 1rem;
+            transition: all 0.15s ease-in-out;
+        }
+        .dropdown-item:hover {
+            background-color: rgba(255, 255, 255, 0.1) !important;
+            transform: translateX(3px);
+        }
+        .dropdown-toggle::after {
+            vertical-align: middle;
+            margin-left: 0.35em;
         }
     </style>
   </head>
@@ -43,87 +65,124 @@
         </button>
 
         <div class="collapse navbar-collapse" id="navbarMain">
-            
-            <ul class="navbar-nav me-auto mb-2 mb-lg-0 align-items-lg-center"> {% if user.is_authenticated %}
+                       <ul class="navbar-nav me-auto mb-2 mb-lg-0 align-items-lg-center">
+                {% if user.is_authenticated %}
                     
+                    <!-- Início -->
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'dashboard' %}">
+                        <a class="nav-link text-light-emphasis" href="{% url 'dashboard' %}">
                             <div class="nav-item-content">
                                 <i class="bi bi-speedometer2"></i> Início
                             </div>
                         </a>
                     </li>
 
-                    <li class="nav-item border-start border-secondary mx-2 d-none d-lg-block" style="height: 20px;"></li> <li class="nav-item">
-                        <a class="nav-link fw-bold text-info" href="{% url 'criar_produto' %}">
-                            <div class="nav-item-content">
-                                <i class="bi bi-plus-circle-fill"></i> Novo Item
+                    <!-- Cadastros Dropdown -->
+                    <li class="nav-item dropdown ms-lg-2">
+                        <a class="nav-link dropdown-toggle text-info fw-semibold" href="#" id="navbarCadastros" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <div class="nav-item-content d-inline-flex">
+                                <i class="bi bi-folder2-open"></i> Cadastros
                             </div>
                         </a>
+                        <ul class="dropdown-menu dropdown-menu-dark border-0 shadow-lg mt-2" aria-labelledby="navbarCadastros">
+                            <li>
+                                <a class="dropdown-item py-2" href="{% url 'criar_produto' %}">
+                                    <i class="bi bi-plus-circle text-info me-2"></i> Novo Produto
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item py-2" href="{% url 'lista_produtos' %}">
+                                    <i class="bi bi-tags text-muted me-2"></i> Ver Produtos
+                                </a>
+                            </li>
+                        </ul>
                     </li>
 
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'lista_produtos' %}">
-                            <div class="nav-item-content">
-                                <i class="bi bi-tags"></i> Produtos
+                    <!-- Movimentações Dropdown -->
+                    <li class="nav-item dropdown ms-lg-2">
+                        <a class="nav-link dropdown-toggle text-success fw-semibold" href="#" id="navbarMovimentacoes" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <div class="nav-item-content d-inline-flex">
+                                <i class="bi bi-arrow-down-up"></i> Movimentações
                             </div>
                         </a>
-                    </li>
-                    
-                    <li class="nav-item">
-                        <a class="nav-link text-success" href="{% url 'lista_lotes' %}">
-                            <div class="nav-item-content">
-                                <i class="bi bi-box-arrow-in-down"></i> Entradas
-                            </div>
-                        </a>
-                    </li>
-
-                    <li class="nav-item">
-                        <a class="nav-link text-warning" href="{% url 'lista_emprestimos' %}">
-                            <div class="nav-item-content">
-                                <i class="bi bi-person-badge"></i> Empréstimos
-                            </div>
-                        </a>
-                    </li>
-
-                    <li class="nav-item">
-                        <a class="nav-link text-danger" href="{% url 'lista_saidas' %}">
-                            <div class="nav-item-content">
-                                <i class="bi bi-box-arrow-right"></i> Baixas
-                            </div>
-                        </a>
+                        <ul class="dropdown-menu dropdown-menu-dark border-0 shadow-lg mt-2" aria-labelledby="navbarMovimentacoes">
+                            <li>
+                                <a class="dropdown-item py-2" href="{% url 'lista_lotes' %}">
+                                    <i class="bi bi-box-arrow-in-down text-success me-2"></i> Entradas / Lotes
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item py-2" href="{% url 'lista_emprestimos' %}">
+                                    <i class="bi bi-person-badge text-warning me-2"></i> Empréstimos
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item py-2" href="{% url 'lista_saidas' %}">
+                                    <i class="bi bi-box-arrow-right text-danger me-2"></i> Baixas / Saídas
+                                </a>
+                            </li>
+                        </ul>
                     </li>
 
-                    <li class="nav-item border-start border-secondary mx-2 d-none d-lg-block" style="height: 20px;"></li> <li class="nav-item">
-                        <a class="nav-link text-primary fw-bold" href="{% url 'relatorios_gerais' %}">
+                    <!-- Preços & Simulações Dropdown -->
+                    <li class="nav-item dropdown ms-lg-2">
+                        <a class="nav-link dropdown-toggle text-warning fw-semibold" href="#" id="navbarPrecos" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <div class="nav-item-content d-inline-flex">
+                                <i class="bi bi-calculator"></i> Preços & Margens
+                            </div>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-dark border-0 shadow-lg mt-2" aria-labelledby="navbarPrecos">
+                            <li>
+                                <a class="dropdown-item py-2" href="{% url 'simulador_preco' %}">
+                                    <i class="bi bi-calculator text-warning me-2"></i> Simulador de Preço
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item py-2" href="{% url 'lista_simulacoes' %}">
+                                    <i class="bi bi-bookmark-check text-info me-2"></i> Simulações Salvas
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+
+                    <!-- Relatórios -->
+                    <li class="nav-item ms-lg-2">
+                        <a class="nav-link text-primary fw-semibold" href="{% url 'relatorios_gerais' %}">
                             <div class="nav-item-content">
                                 <i class="bi bi-file-earmark-bar-graph"></i> Relatórios
                             </div>
                         </a>
                     </li>
 
-                    {% if user.userprofile.e_dono %}
-                        <li class="nav-item ms-lg-2">
-                            <a class="nav-link text-light" href="{% url 'lista_funcionarios' %}">
-                                <div class="nav-item-content">
-                                    <i class="bi bi-people-fill"></i> Equipe
+                    <!-- Gerenciamento Dropdown -->
+                    {% if user.userprofile.e_dono or user.is_superuser %}
+                        <li class="nav-item dropdown ms-lg-2">
+                            <a class="nav-link dropdown-toggle text-light fw-semibold" href="#" id="navbarAdmin" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <div class="nav-item-content d-inline-flex">
+                                    <i class="bi bi-gear-fill"></i> Gerenciamento
                                 </div>
                             </a>
+                            <ul class="dropdown-menu dropdown-menu-dark border-0 shadow-lg mt-2" aria-labelledby="navbarAdmin">
+                                {% if user.userprofile.e_dono %}
+                                    <li>
+                                        <a class="dropdown-item py-2" href="{% url 'lista_funcionarios' %}">
+                                            <i class="bi bi-people-fill text-info me-2"></i> Equipe / Funcionários
+                                        </a>
+                                    </li>
+                                {% endif %}
+                                {% if user.is_superuser %}
+                                    <li>
+                                        <a class="dropdown-item py-2" href="{% url 'painel_backups' %}">
+                                            <i class="bi bi-shield-lock-fill text-warning me-2"></i> Painel de Backups
+                                        </a>
+                                    </li>
+                                {% endif %}
+                            </ul>
                         </li>
                     {% endif %}
 
                 {% endif %}
             </ul>
-
-             {% if user.is_superuser %}
-                 <li class="nav-item ms-lg-2">
-                     <a class="nav-link text-warning fw-bold" href="{% url 'painel_backups' %}">
-                         <div class="nav-item-content">
-                <i class="bi bi-shield-lock-fill"></i> Painel Admin
-            </div>
-        </a>
-    </li>
-                {% endif %}
 
             <ul class="navbar-nav ms-auto align-items-center gap-3">
                 {% if user.is_authenticated %}

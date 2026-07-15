@@ -46,11 +46,27 @@
                         </div>
                     </div>
 
-                    <h6 class="text-muted border-bottom pb-2 mb-3 mt-3">Detalhes Adicionais</h6>
+                    <h6 class="text-muted border-bottom pb-2 mb-3 mt-3">Origem e Documentos</h6>
                     <div class="row">
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-4 mb-3">
                             {{ form.fornecedor|as_crispy_field }}
                         </div>
+                        <div class="col-md-4 mb-3">
+                            {{ form.numero_nota_fiscal|as_crispy_field }}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            {{ form.nota_fiscal|as_crispy_field }}
+                            {% if lote.nota_fiscal %}
+                                <div class="mt-2">
+                                    <a href="{{ lote.nota_fiscal.url }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-file-earmark-pdf-fill"></i> Ver NF Atual
+                                    </a>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
                         <div class="col-md-6 mb-3">
                             {{ form.data_fabricacao|as_crispy_field }}
                         </div>

@@ -61,7 +61,7 @@
                     <td class="text-muted small">{{ saida.motivo }}</td>
                     
                     <td class="text-end">
-                        {% if user.is_superuser %} <form action="{% url 'excluir_saida' saida.pk %}" method="post" class="d-inline" onsubmit="return confirm('🚨 ATENÇÃO CRÍTICA: Deseja realmente cancelar e excluir esta baixa? A quantidade de {{ saida.quantidade }} un. retornará exatamente para o Lote correspondente no estoque.');">
+                        {% if user.userprofile.e_dono or user.is_superuser %} <form action="{% url 'excluir_saida' saida.pk %}" method="post" class="d-inline" onsubmit="return confirm('🚨 ATENÇÃO CRÍTICA: Deseja realmente cancelar e excluir esta baixa? A quantidade de {{ saida.quantidade }} un. retornará exatamente para o Lote correspondente no estoque.');">
                                 {% csrf_token %}
                                 <button type="submit" class="btn btn-sm btn-outline-danger" data-bs-toggle="tooltip" title="Cancelar e Devolver ao Estoque">
                                     <i class="bi bi-trash"></i>

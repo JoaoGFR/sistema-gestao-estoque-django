@@ -9,6 +9,18 @@
                 <h4 class="mb-0">Acesso Restrito</h4>
             </div>
             <div class="card-body p-4">
+                {# [SEGURANÇA M1] Exibe mensagem de bloqueio do django-axes após tentativas excessivas #}
+                {% if form.non_field_errors %}
+                    <div class="alert alert-danger d-flex align-items-center gap-2" role="alert">
+                        <i class="bi bi-shield-lock-fill fs-5"></i>
+                        <div>
+                            {% for error in form.non_field_errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endif %}
+
                 <form method="post">
                     {% csrf_token %}
                     

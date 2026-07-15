@@ -33,7 +33,9 @@
             <thead>
                 <tr>
                     <th>Produto</th>
+                    <th>SKU</th>
                     <th>Lote</th>
+                    <th>Fabricação</th>
                     <th>Validade</th>
                     <th class="text-end">Custo Unit.</th>
                     <th class="text-center">Qtd Atual</th>
@@ -44,7 +46,9 @@
                 {% for lote in lotes %}
                 <tr>
                     <td>{{ lote.produto.nome }}</td>
+                    <td>{{ lote.produto.sku|default:"-" }}</td>
                     <td>{{ lote.numero_lote }}</td>
+                    <td>{{ lote.data_fabricacao|date:"d/m/y"|default:"-" }}</td>
                     <td>{{ lote.data_validade|date:"d/m/y"|default:"-" }}</td>
                     <td class="text-end">R$ {{ lote.preco_compra|floatformat:2 }}</td>
                     <td class="text-center fw-bold">{{ lote.quantidade_atual }}</td>
@@ -54,7 +58,7 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="6" class="text-center py-4">Estoque zerado.</td>
+                    <td colspan="8" class="text-center py-4">Estoque zerado.</td>
                 </tr>
                 {% endfor %}
             </tbody>

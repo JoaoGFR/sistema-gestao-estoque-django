@@ -4,11 +4,9 @@ services:
     image: postgres:15
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    # AQUI ESTÁ A MUDANÇA: Lê as variáveis do arquivo .env
     env_file:
       - .env
     restart: always
-    # Verifica se o banco está pronto
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U jgtech_user -d jgtech_db"]
       interval: 5s
@@ -17,20 +15,23 @@ services:
 
   # Serviço do Site (Django)
   web:
+    # Usa a imagem publicada no Docker Hub — não faz build no servidor
+    image: joaogfro/sistema-estoque:1.6.1
     restart: always
-    build: .
-    command: python manage.py runserver 0.0.0.0:8000
-    volumes:
-      - .:/app
+    # Roda migrate automaticamente antes de iniciar o servidor.
+    # Isso garante que as tabelas do django-axes (e qualquer migration futura)
+    # existam no banco antes de qualquer requisição chegar.
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             python manage.py collectstatic --noinput &&
+             gunicorn setup.wsgi:application --bind 0.0.0.0:8000 --workers 3"
     ports:
       - "8000:8000"
-    # Só inicia quando o banco estiver 'Saudável'
     depends_on:
       db:
         condition: service_healthy
-    # AQUI ESTÁ A MUDANÇA: Também lê do .env
     env_file:
       - .env
 
 volumes:
-  postgres_data:
+  postgres_data:

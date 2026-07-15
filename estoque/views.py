@@ -11,7 +11,7 @@ from datetime import timedelta
 from django.db import transaction
 from django.http import JsonResponse
 from django.utils.text import slugify
-from .models import Produto, Emprestimo, SaidaEstoque, Empresa, UserProfile, Lote, Categoria, Localizacao
+from .models import Produto, Emprestimo, SaidaEstoque, Empresa, UserProfile, Lote, Categoria, Localizacao, AliquotaImposto, SimulacaoPreco
 from django.core.paginator import Paginator
 from django.db.models.functions import Coalesce
 from django.db import transaction
@@ -22,7 +22,7 @@ from itertools import chain
 from operator import attrgetter
 from django.db.models import ProtectedError
 from .models import Produto, Emprestimo, SaidaEstoque, Empresa, UserProfile, Lote
-from .forms import ProdutoForm, EmprestimoForm, SaidaEstoqueForm, CadastroSaaSForm, FuncionarioForm, LoteForm
+from .forms import ProdutoForm, EmprestimoForm, SaidaEstoqueForm, CadastroSaaSForm, FuncionarioForm, LoteForm, AliquotaImpostoForm
 import os
 from django.conf import settings
 from django.core.management import call_command
@@ -430,7 +430,10 @@ def lista_emprestimos(request):
 @login_required
 @transaction.atomic
 def devolver_item(request, pk):
-    emprestimo = get_object_or_404(Emprestimo, pk=pk)
+    # [SEGURANÇA M4] Filtra pelo empresa do usuário para prevenir IDOR —
+    # impede que um usuário de outra empresa devolva empréstimos que não são seus.
+    empresa = get_empresa_usuario(request.user)
+    emprestimo = get_object_or_404(Emprestimo, pk=pk, produto__empresa=empresa)
     
     if request.method == 'POST':
         if not emprestimo.devolvido:
@@ -661,9 +664,6 @@ def editar_lote(request, pk):
                 
     else:
         form = LoteForm(request.user, instance=lote)
-        
-       
-        form.fields['produto'].disabled = True 
 
     return render(request, 'estoque/editar_lote.html', {'form': form, 'lote': lote})
 
@@ -732,8 +732,8 @@ def excluir_entrada(request, pk):
 @transaction.atomic
 def excluir_saida(request, pk):
     try:
-        if not request.user.is_superuser:
-            messages.error(request, "Acesso restrito ao administrador do sistema.")
+        if not (request.user.is_superuser or (hasattr(request.user, 'userprofile') and request.user.userprofile.e_dono)):
+            messages.error(request, "Acesso negado. Apenas o administrador ou o dono podem excluir registros.")
             return redirect('dashboard')
 
         empresa = get_empresa_usuario(request.user)
@@ -876,6 +876,10 @@ def criar_backup(request):
         messages.error(request, "Acesso restrito ao administrador do sistema.")
         return redirect('dashboard')
 
+    # [SEGURANÇA] Apenas aceita POST para evitar disparo acidental via link GET
+    if request.method != 'POST':
+        return redirect('painel_backups')
+
     pasta_backups = os.path.join(settings.BASE_DIR, 'backups')
     os.makedirs(pasta_backups, exist_ok=True)
 
@@ -901,33 +905,226 @@ def baixar_backup(request, filename):
         messages.error(request, "Acesso restrito ao administrador do sistema.")
         return redirect('dashboard')
 
-    filepath = os.path.join(settings.BASE_DIR, 'backups', filename)
+    # [SEGURANÇA C1] Sanitização de Path Traversal: resolve o caminho real e
+    # garante que o arquivo está estritamente dentro da pasta de backups.
+    pasta_backups = os.path.realpath(os.path.join(settings.BASE_DIR, 'backups'))
+    filepath = os.path.realpath(os.path.join(pasta_backups, filename))
+
+    if not filepath.startswith(pasta_backups + os.sep):
+        raise Http404("Arquivo inválido ou acesso negado.")
+
     if os.path.exists(filepath):
-        response = FileResponse(open(filepath, 'rb'), as_attachment=True, filename=filename)
+        response = FileResponse(open(filepath, 'rb'), as_attachment=True, filename=os.path.basename(filepath))
         return response
     else:
-        messages.error(request, "Arquivo não encontrado.")
-        return redirect('painel_backups')
+        raise Http404("Arquivo de backup não encontrado.")
 
 @login_required
 def excluir_backup(request, filename):
     if request.method == 'POST' and request.user.is_superuser:
-        filepath = os.path.join(settings.BASE_DIR, 'backups', filename)
+        # [SEGURANÇA C1] Sanitização de Path Traversal
+        pasta_backups = os.path.realpath(os.path.join(settings.BASE_DIR, 'backups'))
+        filepath = os.path.realpath(os.path.join(pasta_backups, filename))
+
+        if not filepath.startswith(pasta_backups + os.sep):
+            raise Http404("Arquivo inválido ou acesso negado.")
+
         if os.path.exists(filepath):
             os.remove(filepath)
-            messages.success(request, f"Backup '{filename}' excluído permanentemente.")
+            messages.success(request, f"Backup '{os.path.basename(filepath)}' excluído permanentemente.")
     return redirect('painel_backups')
 
 @login_required
 def restaurar_backup(request, filename):
     if request.method == 'POST' and request.user.is_superuser:
-        filepath = os.path.join(settings.BASE_DIR, 'backups', filename)
+        # [SEGURANÇA C1] Sanitização de Path Traversal
+        pasta_backups = os.path.realpath(os.path.join(settings.BASE_DIR, 'backups'))
+        filepath = os.path.realpath(os.path.join(pasta_backups, filename))
+
+        if not filepath.startswith(pasta_backups + os.sep):
+            raise Http404("Arquivo inválido ou acesso negado.")
+
         if os.path.exists(filepath):
             try:
                 # Injeta os dados do arquivo de volta no banco
                 call_command('loaddata', filepath)
-                messages.success(request, f"O sistema foi restaurado com sucesso usando o arquivo '{filename}'.")
+                messages.success(request, f"O sistema foi restaurado com sucesso usando o arquivo '{os.path.basename(filepath)}'.")
             except Exception as e:
                 messages.error(request, f"Erro crítico ao restaurar banco de dados: {str(e)}")
         
     return redirect('painel_backups')
+
+
+@login_required
+def simulador_preco(request):
+    empresa = get_empresa_usuario(request.user)
+    if not empresa:
+        return redirect('dashboard')
+    
+    produtos = Produto.objects.filter(empresa=empresa).order_by('nome')
+    aliquotas = AliquotaImposto.objects.filter(empresa=empresa).order_by('nome')
+    form_aliquota = AliquotaImpostoForm()
+    
+    return render(request, 'estoque/simulador_preco.html', {
+        'produtos': produtos,
+        'aliquotas': aliquotas,
+        'form_aliquota': form_aliquota
+    })
+
+
+@login_required
+def criar_aliquota_api(request):
+    if request.method == 'POST':
+        empresa = get_empresa_usuario(request.user)
+        if not empresa:
+            return JsonResponse({'status': 'error', 'message': 'Empresa não encontrada.'}, status=400)
+            
+        form = AliquotaImpostoForm(request.POST)
+        if form.is_valid():
+            aliquota = form.save(commit=False)
+            aliquota.empresa = empresa
+            aliquota.save()
+            return JsonResponse({
+                'id': aliquota.id,
+                'nome': aliquota.nome,
+                'percentual': float(aliquota.percentual),
+                'status': 'success'
+            })
+        else:
+            errors = form.errors.as_json()
+            return JsonResponse({'status': 'error', 'message': 'Dados inválidos.', 'errors': errors}, status=400)
+            
+    return JsonResponse({'status': 'error', 'message': 'Método inválido.'}, status=400)
+
+
+@login_required
+def api_produto_preco(request, pk):
+    try:
+        empresa = get_empresa_usuario(request.user)
+        produto = Produto.objects.get(pk=pk, empresa=empresa)
+        
+        # Get last purchase price as helper parameter
+        ultimo_lote = Lote.objects.filter(produto=produto, status='ATIVO').order_by('-data_entrada').first()
+        preco_custo_lote = float(ultimo_lote.preco_compra) if ultimo_lote else 0.0
+        qtd_ultimo_lote = ultimo_lote.quantidade_inicial if ultimo_lote else 0
+        
+        return JsonResponse({
+            'id': produto.id,
+            'nome': produto.nome,
+            'preco_medio': float(produto.preco_medio),
+            'preco_custo_lote': preco_custo_lote,
+            'saldo_total': float(produto.saldo_total),
+            'unidade': produto.get_unidade_display(),
+            'qtd_ultimo_lote': qtd_ultimo_lote
+        })
+    except Produto.DoesNotExist:
+        return JsonResponse({'error': 'Produto não encontrado'}, status=404)
+
+
+@login_required
+def lista_simulacoes(request):
+    empresa = get_empresa_usuario(request.user)
+    query = request.GET.get('q', '')
+    
+    simulacoes = SimulacaoPreco.objects.filter(empresa=empresa)
+    if query:
+        simulacoes = simulacoes.filter(produto__nome__icontains=query)
+        
+    simulacoes = simulacoes.select_related('produto').order_by('-data_criacao')
+    
+    # Paginação (15 itens por página)
+    paginator = Paginator(simulacoes, 15)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    return render(request, 'estoque/lista_simulacoes.html', {
+        'page_obj': page_obj,
+        'query': query
+    })
+
+
+@login_required
+def salvar_simulacao_api(request):
+    if request.method == 'POST':
+        empresa = get_empresa_usuario(request.user)
+        if not empresa:
+            return JsonResponse({'status': 'error', 'message': 'Empresa não encontrada.'}, status=400)
+
+        try:
+            data = json.loads(request.body)
+            produto_id = data.get('produto_id')
+            if not produto_id:
+                return JsonResponse({'status': 'error', 'message': 'Selecione um produto.'}, status=400)
+
+            produto = get_object_or_404(Produto, id=produto_id, empresa=empresa)
+
+            # [SEGURANÇA B4] Conversão segura de valores numéricos.
+            # Evita que strings malformadas causem exceções com detalhes técnicos expostos.
+            def _parse_decimal(val, default=0):
+                try:
+                    return float(val)
+                except (TypeError, ValueError):
+                    return default
+
+            def _parse_optional_decimal(val):
+                if val is None or val == '':
+                    return None
+                try:
+                    return float(val)
+                except (TypeError, ValueError):
+                    return None
+
+            simulacao = SimulacaoPreco.objects.create(
+                empresa=empresa,
+                produto=produto,
+                preco_custo=_parse_decimal(data.get('preco_custo')),
+                quantidade_estoque=_parse_decimal(data.get('quantidade_estoque')),
+                preco_custo_futuro=_parse_optional_decimal(data.get('preco_custo_futuro')),
+                quantidade_futura=_parse_optional_decimal(data.get('quantidade_futura')),
+                frete_valor=_parse_decimal(data.get('frete_valor')),
+                tipo_frete=data.get('tipo_frete', 'valor'),
+                outros_valor=_parse_decimal(data.get('outros_valor')),
+                tipo_outros=data.get('tipo_outros', 'valor'),
+                aliquota_nome=data.get('aliquota_nome', 'Sem Imposto'),
+                aliquota_percentual=_parse_decimal(data.get('aliquota_percentual')),
+                margem_desejada=_parse_decimal(data.get('margem_desejada')),
+                metodo=data.get('metodo', 'inside'),
+                preco_sugerido=_parse_decimal(data.get('preco_sugerido')),
+                preco_praticado=_parse_decimal(data.get('preco_praticado')),
+                lucro_liquido=_parse_decimal(data.get('lucro_liquido')),
+                margem_realizada=_parse_decimal(data.get('margem_realizada')),
+            )
+
+            return JsonResponse({'status': 'success', 'message': 'Simulação salva com sucesso!', 'id': simulacao.id})
+        except json.JSONDecodeError:
+            return JsonResponse({'status': 'error', 'message': 'Payload JSON inválido.'}, status=400)
+        except Exception:
+            return JsonResponse({'status': 'error', 'message': 'Erro interno ao salvar a simulação.'}, status=500)
+
+    return JsonResponse({'status': 'error', 'message': 'Método inválido.'}, status=400)
+
+
+@login_required
+def excluir_simulacao(request, pk):
+    empresa = get_empresa_usuario(request.user)
+    simulacao = get_object_or_404(SimulacaoPreco, pk=pk, empresa=empresa)
+    if request.method == 'POST':
+        nome_produto = simulacao.produto.nome
+        simulacao.delete()
+        messages.success(request, f"Simulação do produto '{nome_produto}' excluída.")
+    return redirect('lista_simulacoes')
+
+
+@login_required
+def excluir_aliquota_api(request, pk):
+    if request.method == 'POST':
+        empresa = get_empresa_usuario(request.user)
+        if not empresa:
+            return JsonResponse({'status': 'error', 'message': 'Empresa não encontrada.'}, status=400)
+        
+        aliquota = get_object_or_404(AliquotaImposto, pk=pk, empresa=empresa)
+        nome_aliquota = aliquota.nome
+        aliquota.delete()
+        return JsonResponse({'status': 'success', 'message': f"Alíquota '{nome_aliquota}' excluída com sucesso!"})
+        
+    return JsonResponse({'status': 'error', 'message': 'Método inválido.'}, status=400)

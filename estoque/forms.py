@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth.models import User
-from .models import Produto, Emprestimo, SaidaEstoque, Lote, UserProfile, Categoria, Localizacao
+from .models import Produto, Emprestimo, SaidaEstoque, Lote, UserProfile, Categoria, Localizacao, AliquotaImposto
 from django.utils.text import slugify
 import re
 
@@ -75,6 +75,10 @@ class LoteForm(forms.ModelForm):
         if user and hasattr(user, 'userprofile'):
              self.fields['produto'].queryset = Produto.objects.filter(empresa=user.userprofile.empresa)
         
+        # Disable product field when editing an existing batch (Lote)
+        if self.instance and self.instance.pk:
+            self.fields['produto'].disabled = True
+
         # Campos opcionais no HTML
         self.fields['numero_lote'].required = False
         self.fields['data_validade'].required = False
@@ -207,3 +211,12 @@ class FuncionarioForm(forms.ModelForm):
             raise forms.ValidationError("O usuário deve conter apenas letras minúsculas e números (sem acentos, espaços ou símbolos).")
         
         return username_limpo
+
+class AliquotaImpostoForm(forms.ModelForm):
+    class Meta:
+        model = AliquotaImposto
+        fields = ['nome', 'percentual']
+        widgets = {
+            'nome': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ex: Simples Nacional, ICMS...'}),
+            'percentual': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'placeholder': '0.00'}),
+        }

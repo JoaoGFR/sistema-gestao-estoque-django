@@ -48,3 +48,9 @@ Thumbs.db
 # Ignora logs ou dados se você mapear volumes locais no futuro
 docker-compose.override.yml
 postgres_data/
+
+# --- Backups do Sistema ---
+# [SEGURANÇA B5] Arquivos de backup contêm todos os dados do banco.
+# Nunca devem ser versionados no Git.
+backups/
+*.json.bak

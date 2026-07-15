@@ -147,3 +147,50 @@ class Emprestimo(models.Model):
 
     def __str__(self):
         return f"{self.produto.nome} - {self.solicitante} ({self.quantidade})"
+
+# 10. ALÍQUOTA DE IMPOSTO
+class AliquotaImposto(models.Model):
+    empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE)
+    nome = models.CharField(max_length=100, verbose_name="Nome do Imposto/Regime")
+    percentual = models.DecimalField(max_digits=5, decimal_places=2, verbose_name="Alíquota (%)")
+
+    def __str__(self):
+        return f"{self.nome} ({self.percentual}%)"
+
+# 11. SIMULAÇÃO DE PREÇO SALVA
+class SimulacaoPreco(models.Model):
+    empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE)
+    produto = models.ForeignKey(Produto, on_delete=models.CASCADE)
+    
+    # Parâmetros de Entrada
+    preco_custo = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Preço de Custo")
+    quantidade_estoque = models.IntegerField(default=0, verbose_name="Quantidade no Estoque")
+    
+    # Dados da Compra Futura (Opcional)
+    preco_custo_futuro = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name="Preço de Custo Futuro")
+    quantidade_futura = models.IntegerField(null=True, blank=True, verbose_name="Quantidade da Compra Futura")
+    
+    # Custos Adicionais
+    frete_valor = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name="Frete")
+    tipo_frete = models.CharField(max_length=15, default='valor', verbose_name="Tipo de Frete")
+    outros_valor = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name="Outros Custos")
+    tipo_outros = models.CharField(max_length=15, default='valor', verbose_name="Tipo de Outros Custos")
+    
+    # Alíquota
+    aliquota_nome = models.CharField(max_length=100, verbose_name="Nome do Imposto")
+    aliquota_percentual = models.DecimalField(max_digits=5, decimal_places=2, verbose_name="Alíquota (%)")
+    
+    # Parâmetros Calculados
+    margem_desejada = models.DecimalField(max_digits=5, decimal_places=2, verbose_name="Margem Desejada (%)")
+    metodo = models.CharField(max_length=10, default='inside', verbose_name="Método (Markup)")
+    
+    # Resultados
+    preco_sugerido = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Preço Sugerido")
+    preco_praticado = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Preço Praticado")
+    lucro_liquido = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Lucro Líquido (R$)")
+    margem_realizada = models.DecimalField(max_digits=5, decimal_places=2, verbose_name="Margem Realizada (%)")
+    
+    data_criacao = models.DateTimeField(auto_now_add=True, verbose_name="Data de Simulação")
+
+    def __str__(self):
+        return f"Simulação: {self.produto.nome} - R$ {self.preco_praticado} ({self.margem_realizada}%)"
