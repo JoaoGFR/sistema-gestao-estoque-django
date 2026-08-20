@@ -285,11 +285,20 @@
 
                     <hr>
 
-                    <!-- Botão Salvar Simulação (NOVO) -->
-                    <div class="text-end">
-                        <button type="button" class="btn btn-success btn-lg w-100 rounded-3 shadow-sm fw-bold d-flex align-items-center justify-content-center gap-2" id="btnSalvarSimulacao">
-                            <i class="bi bi-bookmark-check-fill"></i> Salvar Simulação
-                        </button>
+                    <hr class="d-print-none">
+
+                    <!-- Botões de Ação (NOVO) -->
+                    <div class="row g-2 d-print-none mt-3">
+                        <div class="col-md-6">
+                            <button type="button" class="btn btn-danger btn-lg w-100 rounded-3 shadow-sm fw-bold d-flex align-items-center justify-content-center gap-2" id="btnGerarPDF">
+                                <i class="bi bi-file-earmark-pdf-fill"></i> Gerar PDF
+                            </button>
+                        </div>
+                        <div class="col-md-6">
+                            <button type="button" class="btn btn-success btn-lg w-100 rounded-3 shadow-sm fw-bold d-flex align-items-center justify-content-center gap-2" id="btnSalvarSimulacao">
+                                <i class="bi bi-bookmark-check-fill"></i> Salvar Simulação
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -841,15 +850,28 @@ document.addEventListener("DOMContentLoaded", function() {
                     let newRow = document.createElement('div');
                     newRow.className = 'list-group-item d-flex justify-content-between align-items-center py-2 px-3';
                     newRow.setAttribute('data-aliquota-id', data.id);
-                    newRow.innerHTML = `
-                        <div>
-                            <span class="fw-semibold text-dark">${data.nome}</span>
-                            <span class="badge bg-light text-secondary ms-1">${data.percentual.toFixed(2).replace('.', ',')}%</span>
-                        </div>
-                        <button type="button" class="btn btn-link btn-sm text-danger p-0 border-0 btn-excluir-aliquota" data-id="${data.id}" style="text-decoration: none;">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    `;
+                    
+                    let leftDiv = document.createElement('div');
+                    let spanNome = document.createElement('span');
+                    spanNome.className = 'fw-semibold text-dark';
+                    spanNome.textContent = data.nome;
+                    
+                    let spanBadge = document.createElement('span');
+                    spanBadge.className = 'badge bg-light text-secondary ms-1';
+                    spanBadge.textContent = `${Number(data.percentual).toFixed(2).replace('.', ',')}%`;
+                    
+                    leftDiv.appendChild(spanNome);
+                    leftDiv.appendChild(spanBadge);
+                    
+                    let btnExcluir = document.createElement('button');
+                    btnExcluir.type = 'button';
+                    btnExcluir.className = 'btn btn-link btn-sm text-danger p-0 border-0 btn-excluir-aliquota';
+                    btnExcluir.setAttribute('data-id', data.id);
+                    btnExcluir.style.textDecoration = 'none';
+                    btnExcluir.innerHTML = '<i class="bi bi-trash"></i>';
+                    
+                    newRow.appendChild(leftDiv);
+                    newRow.appendChild(btnExcluir);
                     listaAliquotasSalvas.appendChild(newRow);
                 }
                 
@@ -1085,6 +1107,49 @@ document.addEventListener("DOMContentLoaded", function() {
                 btnSalvarSimulacao.disabled = false;
                 btnSalvarSimulacao.innerHTML = '<i class="bi bi-bookmark-check-fill"></i> Salvar Simulação';
             });
+        });
+    }
+
+    // EVENTO GERAR PDF
+    let btnGerarPDF = document.getElementById('btnGerarPDF');
+    if (btnGerarPDF) {
+        btnGerarPDF.addEventListener('click', function() {
+            let produtoId = selectProduto.value;
+            if (!produtoId) {
+                alert("Por favor, selecione um produto antes de gerar o PDF da simulação.");
+                return;
+            }
+            
+            let precoCusto = parseFloat(precoCustoInput.value) || 0;
+            let qtdLote = parseFloat(qtdLoteInput.value) || 0;
+            let precoFuturo = precoFuturoInput.value !== '' ? parseFloat(precoFuturoInput.value) : '';
+            let qtdFutura = qtdFuturaInput.value !== '' ? parseFloat(qtdFuturaInput.value) : '';
+            
+            let frete = parseFloat(freteCompraInput.value) || 0;
+            let tipoFrete = tipoFreteSelect.value;
+            let outros = parseFloat(outrosCustosInput.value) || 0;
+            let tipoOutros = tipoOutrosSelect.value;
+            
+            let aliquotaId = aliquotaSelect.value;
+            let margemDesejada = parseFloat(margemLucroInput.value) || 0;
+            let precoVendaPraticado = parseFloat(precoVendaInput.value) || 0;
+
+            let url = `{% url 'simulador_pdf' %}` +
+                      `?produto_id=${produtoId}` +
+                      `&preco_custo=${precoCusto}` +
+                      `&quantidade_estoque=${qtdLote}` +
+                      `&preco_custo_futuro=${precoFuturo}` +
+                      `&quantidade_futura=${qtdFutura}` +
+                      `&frete_valor=${frete}` +
+                      `&tipo_frete=${tipoFrete}` +
+                      `&outros_valor=${outros}` +
+                      `&tipo_outros=${tipoOutros}` +
+                      `&aliquota_id=${aliquotaId}` +
+                      `&margem_desejada=${margemDesejada}` +
+                      `&metodo=${currentMetodo}` +
+                      `&preco_praticado=${precoVendaPraticado}`;
+
+            window.open(url, '_blank');
         });
     }
 });

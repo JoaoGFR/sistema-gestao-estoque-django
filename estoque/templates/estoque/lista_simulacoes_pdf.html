@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relatório Consolidado de Simulações de Preço</title>
+    <!-- Bootstrap CSS para grid e tipografia básica -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #ffffff;
+            color: #333333;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+
+        /* Simulação de página A4 paisagem (ideal para tabelas largas) */
+        .a4-container {
+            width: 297mm;
+            min-height: 210mm;
+            padding: 15mm;
+            margin: 10px auto;
+            border: 1px solid #d3d3d3;
+            border-radius: 5px;
+            background: #ffffff;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+
+        .border-dashed-bottom {
+            border-bottom: 2px dashed #e9ecef;
+        }
+
+        .section-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #1e3c72;
+            text-transform: uppercase;
+            border-bottom: 2px solid #1e3c72;
+            padding-bottom: 5px;
+            margin-bottom: 15px;
+        }
+
+        .summary-card {
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+            background-color: #f8f9fa;
+        }
+
+        .badge-margin {
+            font-size: 0.8rem;
+            padding: 4px 8px;
+            border-radius: 50px;
+            font-weight: 700;
+            display: inline-block;
+        }
+
+        .bg-lucro-badge {
+            background-color: #d1e7dd;
+            color: #0f5132;
+        }
+
+        .bg-prejuizo-badge {
+            background-color: #f8d7da;
+            color: #842029;
+        }
+
+        /* Configurações de impressão paisagem */
+        @media print {
+            @page {
+                size: A4 landscape;
+                margin: 10mm;
+            }
+            body {
+                background: none !important;
+                color: #000000 !important;
+            }
+            .a4-container {
+                width: 100% !important;
+                min-height: auto !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                border: none !important;
+                box-shadow: none !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Botões de Ação na Tela -->
+    <div class="container text-center my-3 no-print">
+        <button onclick="window.print();" class="btn btn-primary fw-bold shadow-sm rounded-pill px-4">
+            <i class="bi bi-printer-fill me-1"></i> Imprimir / Salvar PDF
+        </button>
+        <button onclick="window.close();" class="btn btn-outline-secondary rounded-pill px-4 ms-2">
+            Fechar Janela
+        </button>
+    </div>
+
+    <div class="a4-container">
+        
+        <!-- CABEÇALHO DO RELATÓRIO -->
+        <div class="row align-items-center pb-3 mb-3 border-dashed-bottom">
+            <div class="col-8">
+                <h3 class="fw-extrabold text-primary mb-0 d-flex align-items-center gap-2" style="letter-spacing: -0.5px;">
+                    <i class="bi bi-bookmark-check-fill fs-4"></i> JGTECH ESTOQUE
+                </h3>
+                <span class="text-muted fw-semibold" style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px;">
+                    Relatório Consolidado de Simulações de Preços
+                </span>
+            </div>
+            <div class="col-4 text-end">
+                <span class="fw-bold d-block text-dark text-uppercase" style="font-size: 0.95rem;">{{ empresa.nome|default:"JGTECH" }}</span>
+                {% if empresa.cnpj %}
+                    <small class="text-muted d-block" style="font-size: 0.75rem;">CNPJ: {{ empresa.cnpj }}</small>
+                {% endif %}
+                <small class="text-muted d-block" style="font-size: 0.75rem;">Gerado em: {{ data_emissao|date:"d/m/Y H:i" }}</small>
+            </div>
+        </div>
+
+        <!-- CARDS DE RESUMO DO RELATÓRIO -->
+        <div class="row g-2 mb-3">
+            <div class="col-3">
+                <div class="p-2 text-center summary-card">
+                    <span class="info-label text-uppercase text-muted d-block" style="font-size: 0.65rem; letter-spacing: 0.5px;">Total de Simulações</span>
+                    <h5 class="fw-bold text-dark mt-1 mb-0">{{ total_simulacoes }}</h5>
+                </div>
+            </div>
+            <div class="col-3">
+                <div class="p-2 text-center summary-card">
+                    <span class="info-label text-uppercase text-muted d-block" style="font-size: 0.65rem; letter-spacing: 0.5px;">Qtd. Total de Itens</span>
+                    <h5 class="fw-bold text-primary mt-1 mb-0">{{ total_itens }} <small class="fs-6 fw-normal text-muted">un.</small></h5>
+                </div>
+            </div>
+            <div class="col-3">
+                <div class="p-2 text-center summary-card">
+                    <span class="info-label text-uppercase text-muted d-block" style="font-size: 0.65rem; letter-spacing: 0.5px;">Média de Margem</span>
+                    <h5 class="fw-bold text-info mt-1 mb-0">{{ media_margem|floatformat:1 }}%</h5>
+                </div>
+            </div>
+            <div class="col-3">
+                <div class="p-2 text-center summary-card">
+                    <span class="info-label text-uppercase text-muted d-block" style="font-size: 0.65rem; letter-spacing: 0.5px;">Lucro Prosp. Lote Total</span>
+                    <h5 class="fw-bold {% if total_lucro_lote < 0 %}text-danger{% else %}text-success{% endif %} mt-1 mb-0">
+                        R$ {{ total_lucro_lote|floatformat:2 }}
+                    </h5>
+                </div>
+            </div>
+        </div>
+
+        <!-- TABELA COM DETALHAMENTOS DE SIMULAÇÕES -->
+        <div>
+            <table class="table table-bordered table-striped table-sm align-middle mb-0" style="font-size: 0.82rem;">
+                <thead class="table-light">
+                    <tr class="text-center">
+                        <th class="text-start ps-2" style="width: 19%;">Produto</th>
+                        <th style="width: 11%;">Qtd. (Itens)</th>
+                        <th style="width: 9%;">Data</th>
+                        <th style="width: 11%;">Parâmetros (Markup / Imposto)</th>
+                        <th class="text-end">Custo Base</th>
+                        <th class="text-end">Frete / Outros</th>
+                        <th class="text-end fw-semibold text-primary">Custo Efetivo</th>
+                        <th class="text-end">Preço Sugerido</th>
+                        <th class="text-end fw-bold text-dark">Preço Simulado</th>
+                        <th class="text-end">Lucro Líq. (Un. / Lote)</th>
+                        <th class="text-center pe-2" style="width: 8%;">Margem</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sim in simulacoes %}
+                    <tr>
+                        <td class="ps-2 fw-semibold">
+                            {{ sim.produto.nome }}
+                            {% if sim.produto.sku %}
+                                <br><small class="text-muted" style="font-size: 0.7rem;">SKU: {{ sim.produto.sku }}</small>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <span class="fw-bold text-dark">{{ sim.quantidade_total }} un.</span>
+                            <div style="font-size: 0.68rem;" class="text-muted">
+                                Est.: {{ sim.quantidade_estoque }}
+                                {% if sim.quantidade_futura %}
+                                    <span class="text-info">| Fut.: {{ sim.quantidade_futura }}</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td class="text-center">{{ sim.data_criacao|date:"d/m/Y H:i" }}</td>
+                        <td class="text-center">
+                            <span class="badge bg-light text-dark border" style="font-size: 0.7rem;">
+                                {% if sim.metodo == 'inside' %}Divisor{% else %}Multipl.{% endif %}
+                            </span>
+                            <br>
+                            <small class="text-muted">{{ sim.aliquota_nome }} ({{ sim.aliquota_percentual }}%)</small>
+                        </td>
+                        <td class="text-end">R$ {{ sim.preco_custo|floatformat:2 }}</td>
+                        <td class="text-end">
+                            R$ {{ sim.frete_valor|default:0|floatformat:2 }}
+                            <br>
+                            <small class="text-muted" style="font-size: 0.7rem;">+ R$ {{ sim.outros_valor|default:0|floatformat:2 }}</small>
+                        </td>
+                        <td class="text-end fw-semibold text-primary">
+                            R$ {{ sim.custo_efetivo|floatformat:2 }}
+                        </td>
+                        <td class="text-end">R$ {{ sim.preco_sugerido|floatformat:2 }}</td>
+                        <td class="text-end fw-bold text-dark">R$ {{ sim.preco_praticado|floatformat:2 }}</td>
+                        <td class="text-end fw-semibold {% if sim.lucro_liquido < 0 %}text-danger{% else %}text-success{% endif %}">
+                            R$ {{ sim.lucro_liquido|floatformat:2 }}
+                            <br>
+                            <small class="text-muted" style="font-size: 0.68rem;">Lote: R$ {{ sim.lucro_total_lote|floatformat:2 }}</small>
+                        </td>
+                        <td class="text-center pe-2">
+                            <span class="badge-margin {% if sim.lucro_liquido < 0 %}bg-prejuizo-badge{% else %}bg-lucro-badge{% endif %}">
+                                {{ sim.margem_realizada|floatformat:1 }}%
+                            </span>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="11" class="text-center py-4 text-muted">Nenhuma simulação salva encontrada para este filtro.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                {% if simulacoes %}
+                <tfoot class="table-light fw-bold border-top" style="font-size: 0.82rem;">
+                    <tr>
+                        <td class="ps-2">TOTAL ({{ total_simulacoes }} simulações)</td>
+                        <td class="text-center text-primary">{{ total_itens }} un.</td>
+                        <td colspan="7"></td>
+                        <td class="text-end {% if total_lucro_lote < 0 %}text-danger{% else %}text-success{% endif %}">
+                            R$ {{ total_lucro_lote|floatformat:2 }}
+                        </td>
+                        <td class="text-center text-muted">{{ media_margem|floatformat:1 }}% méd.</td>
+                    </tr>
+                </tfoot>
+                {% endif %}
+            </table>
+        </div>
+
+        <!-- RODAPÉ -->
+        <div class="w-100 mt-4 pt-3" style="font-size: 0.75rem; border-top: 1px solid #dee2e6;">
+            <div class="row">
+                <div class="col-6 text-muted">
+                    Relatório gerado pelo usuário: <strong>{{ user.username }}</strong>
+                </div>
+                <div class="col-6 text-end text-muted">
+                    JGTECH Estoque &bull; Gestão de Preços e Margens de Venda
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Script para disparar a janela de impressão no carregamento -->
+    <script>
+        window.onload = function() {
+            window.print();
+        };
+    </script>
+</body>
+</html>

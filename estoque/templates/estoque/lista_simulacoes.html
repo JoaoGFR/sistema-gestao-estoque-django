@@ -10,7 +10,10 @@
             </h1>
             <p class="text-muted mb-0">Histórico de simulações realizadas no sistema para análise de rentabilidade.</p>
         </div>
-        <div class="col-auto">
+        <div class="col-auto d-flex gap-2">
+            <a href="{% url 'lista_simulacoes_pdf' %}{% if query %}?q={{ query }}{% endif %}" target="_blank" class="btn btn-outline-danger rounded-pill shadow-sm fw-bold">
+                <i class="bi bi-file-earmark-pdf-fill me-1"></i> Gerar Relatório PDF
+            </a>
             <a href="{% url 'simulador_preco' %}" class="btn btn-primary rounded-pill shadow-sm fw-bold">
                 <i class="bi bi-calculator me-1"></i> Nova Simulação
             </a>

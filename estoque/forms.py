@@ -1,5 +1,6 @@
 from django import forms
 from django.contrib.auth.models import User
+from django.contrib.auth.password_validation import validate_password
 from .models import Produto, Emprestimo, SaidaEstoque, Lote, UserProfile, Categoria, Localizacao, AliquotaImposto
 from django.utils.text import slugify
 import re
@@ -158,10 +159,18 @@ class SaidaEstoqueForm(forms.ModelForm):
 
     def __init__(self, user=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if user:
+        if user and hasattr(user, 'userprofile'):
             self.fields['produto'].queryset = Produto.objects.filter(empresa=user.userprofile.empresa)
             self.fields['lote_especifico'].queryset = Lote.objects.filter(produto__empresa=user.userprofile.empresa, status='ATIVO')
             self.fields['lote_especifico'].widget.attrs.update({'class': 'form-select'})
+
+    def clean(self):
+        cleaned_data = super().clean()
+        produto = cleaned_data.get('produto')
+        lote_especifico = cleaned_data.get('lote_especifico')
+        if lote_especifico and produto and lote_especifico.produto_id != produto.id:
+            self.add_error('lote_especifico', 'O lote selecionado não pertence ao produto informado.')
+        return cleaned_data
 
 class CadastroSaaSForm(forms.Form):
     nome_completo = forms.CharField(max_length=100, widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Seu nome'}))
@@ -174,6 +183,12 @@ class CadastroSaaSForm(forms.Form):
         if User.objects.filter(email=email).exists():
             raise forms.ValidationError("Este e-mail já está cadastrado.")
         return email
+
+    def clean_senha(self):
+        senha = self.cleaned_data.get('senha')
+        if senha:
+            validate_password(senha)
+        return senha
 
 class FuncionarioForm(forms.ModelForm):
     password = forms.CharField(widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Senha inicial'}))
@@ -201,6 +216,12 @@ class FuncionarioForm(forms.ModelForm):
         if User.objects.filter(email=email).exists():
             raise forms.ValidationError("Este e-mail já está em uso.")
         return email
+
+    def clean_password(self):
+        password = self.cleaned_data.get('password')
+        if password:
+            validate_password(password)
+        return password
 
     def clean_username(self):
         username = self.cleaned_data.get('username')

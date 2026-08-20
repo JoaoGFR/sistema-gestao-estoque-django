@@ -59,11 +59,13 @@ urlpatterns = [
     path('simulador/', views.simulador_preco, name='simulador_preco'),
     path('api/aliquotas/criar/', views.criar_aliquota_api, name='criar_aliquota_api'),
     path('api/produto-preco/<int:pk>/', views.api_produto_preco, name='api_produto_preco'),
+    path('simulador/pdf/', views.simulador_pdf, name='simulador_pdf'),
 
     # --- SIMULAÇÕES SALVAS ---
     path('simulacoes/', views.lista_simulacoes, name='lista_simulacoes'),
     path('api/simulacoes/salvar/', views.salvar_simulacao_api, name='salvar_simulacao_api'),
     path('simulacoes/excluir/<int:pk>/', views.excluir_simulacao, name='excluir_simulacao'),
+    path('simulacoes/pdf/', views.lista_simulacoes_pdf, name='lista_simulacoes_pdf'),
 
     # --- EXCLUIR ALÍQUOTA ---
     path('api/aliquotas/excluir/<int:pk>/', views.excluir_aliquota_api, name='excluir_aliquota_api'),

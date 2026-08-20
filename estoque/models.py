@@ -192,5 +192,40 @@ class SimulacaoPreco(models.Model):
     
     data_criacao = models.DateTimeField(auto_now_add=True, verbose_name="Data de Simulação")
 
+    @property
+    def quantidade_total(self):
+        return (self.quantidade_estoque or 0) + (self.quantidade_futura or 0)
+
+    @property
+    def lucro_total_lote(self):
+        return float(self.lucro_liquido or 0) * self.quantidade_total
+
+    @property
+    def custo_efetivo(self):
+        custo_base = float(self.preco_custo or 0)
+        qtd_est = self.quantidade_estoque or 0
+        qtd_fut = self.quantidade_futura or 0
+        qtd_tot = self.quantidade_total
+        
+        if self.preco_custo_futuro and qtd_fut > 0 and qtd_tot > 0:
+            custo_base = ((float(self.preco_custo or 0) * qtd_est) + (float(self.preco_custo_futuro or 0) * qtd_fut)) / qtd_tot
+            
+        frete_val = float(self.frete_valor or 0)
+        outros_val = float(self.outros_valor or 0)
+        
+        frete_unit = frete_val
+        if self.tipo_frete == 'percentual':
+            frete_unit = custo_base * (frete_val / 100.0)
+        elif self.tipo_frete == 'total':
+            frete_unit = frete_val / (qtd_tot if qtd_tot > 0 else 1.0)
+
+        outros_unit = outros_val
+        if self.tipo_outros == 'percentual':
+            outros_unit = custo_base * (outros_val / 100.0)
+        elif self.tipo_outros == 'total':
+            outros_unit = outros_val / (qtd_tot if qtd_tot > 0 else 1.0)
+            
+        return custo_base + frete_unit + outros_unit
+
     def __str__(self):
         return f"Simulação: {self.produto.nome} - R$ {self.preco_praticado} ({self.margem_realizada}%)"

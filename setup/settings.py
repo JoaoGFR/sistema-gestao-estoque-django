@@ -9,11 +9,31 @@ import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
-SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-chave-temporaria-dev')
+# Carrega variáveis do arquivo .env local em desenvolvimento se existir
+env_file = BASE_DIR / '.env'
+if env_file.exists():
+    try:
+        with open(env_file, encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#') and '=' in line:
+                    k, v = line.split('=', 1)
+                    k = k.strip()
+                    v = v.strip().strip("'\"")
+                    if k and k not in os.environ:
+                        os.environ[k] = v
+    except Exception:
+        pass
 
 
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
+
+SECRET_KEY = os.getenv('SECRET_KEY')
+if not SECRET_KEY:
+    if DEBUG:
+        SECRET_KEY = 'django-insecure-chave-temporaria-dev'
+    else:
+        raise ValueError("A variável de ambiente SECRET_KEY é obrigatória em ambiente de produção!")
 
 
 allowed_hosts_env = os.getenv('ALLOWED_HOSTS', '')
@@ -34,6 +54,9 @@ CSRF_TRUSTED_ORIGINS = [
     'http://192.168.0.7:8000', 
     'https://*.vercel.app',    
 ]
+
+# Informa ao Django que está atrás do proxy reverso HTTPS da Vercel
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 
 CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
@@ -85,6 +108,17 @@ AXES_RESET_ON_SUCCESS = True    # Reseta o contador após login bem-sucedido
 AXES_LOCKOUT_TEMPLATE = None    # Usa o comportamento padrão de retornar 403
 AXES_ENABLE_ADMIN = True        # Permite gerenciar bloqueios pelo admin Django
 
+def get_client_ip(request):
+    """Extrai o IP real do cliente atrás do proxy da Vercel para evitar DoS global"""
+    if request:
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            return x_forwarded_for.split(',')[0].strip()
+        return request.META.get('HTTP_X_REAL_IP') or request.META.get('REMOTE_ADDR')
+    return None
+
+AXES_CLIENT_IP_CALLABLE = get_client_ip
+
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
@@ -113,12 +147,19 @@ db_host = os.getenv('DB_HOST')
 db_port = os.getenv('DB_PORT')
 
 
-if database_url and database_url.startswith("postgres://"):
-    database_url = database_url.replace("postgres://", "postgresql://", 1)
+import sys
 
-if database_url:
+if 'test' in sys.argv and not database_url:
     DATABASES = {
-        'default': dj_database_url.parse(database_url, conn_max_age=600, ssl_require=True)
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': ':memory:',
+        }
+    }
+elif database_url:
+    # conn_max_age=0 para evitar exaustão de pool de conexões no ambiente serverless
+    DATABASES = {
+        'default': dj_database_url.parse(database_url, conn_max_age=0, ssl_require=True)
     }
 elif db_host:
     DATABASES = {
@@ -181,9 +222,7 @@ LOGOUT_REDIRECT_URL = 'login'
 # [SEGURANÇA B1] Headers de Segurança HTTP
 # Divididos em dois grupos:
 #   GRUPO 1 — Seguros em qualquer ambiente (HTTP ou HTTPS): sempre ativos em produção.
-#   GRUPO 2 — Exigem HTTPS: ativados apenas quando HTTPS_ENABLED=True no .env.
-#             ⚠️  Intranet HTTP: mantenha HTTPS_ENABLED=False (padrão).
-#                 Se ativar com HTTP, o login vai travar (cookies secure bloqueados).
+#   GRUPO 2 — Exigem HTTPS: ativados em produção na Vercel ou quando HTTPS_ENABLED=True.
 # ---------------------------------------------------------------------------
 
 # --- GRUPO 1: Ativos em produção (HTTP e HTTPS) ---
@@ -198,9 +237,9 @@ if not DEBUG:
     SESSION_COOKIE_HTTPONLY = True
     CSRF_COOKIE_HTTPONLY = True
 
-# --- GRUPO 2: Apenas quando HTTPS estiver ativo no servidor ---
-# Para ativar: adicione HTTPS_ENABLED=True no .env do servidor de produção.
-HTTPS_ENABLED = os.getenv('HTTPS_ENABLED', 'False') == 'True'
+# --- GRUPO 2: Quando HTTPS estiver ativo no servidor ---
+IS_VERCEL = os.getenv('VERCEL') == '1' or 'VERCEL' in os.environ
+HTTPS_ENABLED = os.getenv('HTTPS_ENABLED', 'False') == 'True' or IS_VERCEL
 
 if not DEBUG and HTTPS_ENABLED:
     # Força o browser a usar HTTPS por 1 ano (HSTS)
@@ -208,6 +247,6 @@ if not DEBUG and HTTPS_ENABLED:
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
 
-    # Cookies só trafegam via HTTPS — NUNCA ativar sem SSL real!
+    # Cookies só trafegam via HTTPS
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True

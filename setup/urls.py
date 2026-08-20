@@ -12,9 +12,6 @@ urlpatterns = [
     
   
     path('', include('estoque.urls')), 
-
-    path('admin/', admin.site.urls),
-    
 ]
 
 from django.views.static import serve

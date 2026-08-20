@@ -281,7 +281,9 @@ def registrar_saida(request):
             # FLUXO 1: SAÍDA MANUAL (LOTE ESPECÍFICO)
             # -----------------------------------------------------------------
             if lote_escolhido:
-                if lote_escolhido.quantidade_atual < qtd_solicitada:
+                if lote_escolhido.produto != produto:
+                    error_message = "O lote selecionado não pertence ao produto informado."
+                elif lote_escolhido.quantidade_atual < qtd_solicitada:
                     error_message = f"O Lote {lote_escolhido.numero_lote} só tem {lote_escolhido.quantidade_atual} unidades. Você pediu {qtd_solicitada}."
                 else:
                     lote_escolhido.quantidade_atual -= qtd_solicitada
@@ -632,12 +634,8 @@ def editar_lote(request, pk):
     if not request.user.userprofile.e_dono:
         messages.error(request, "Apenas administradores podem editar lançamentos passados.")
         return redirect('lista_lotes')
-    lote = get_object_or_404(Lote, pk=pk)
     empresa = get_empresa_usuario(request.user)
-
-    if lote.produto.empresa != empresa:
-        return redirect('lista_lotes')
-
+    lote = get_object_or_404(Lote, pk=pk, produto__empresa=empresa)
 
     qtd_inicial_antiga = lote.quantidade_inicial
 
@@ -850,20 +848,24 @@ def painel_backups(request):
         return redirect('dashboard')
 
     pasta_backups = os.path.join(settings.BASE_DIR, 'backups')
-    os.makedirs(pasta_backups, exist_ok=True) # Cria a pasta se não existir
+    try:
+        os.makedirs(pasta_backups, exist_ok=True)
+    except OSError:
+        pass
 
     # Lista todos os arquivos .json na pasta
     arquivos = []
-    for filename in os.listdir(pasta_backups):
-        if filename.endswith('.json'):
-            filepath = os.path.join(pasta_backups, filename)
-            tamanho_mb = os.path.getsize(filepath) / (1024 * 1024)
-            data_modificacao = datetime.fromtimestamp(os.path.getmtime(filepath))
-            arquivos.append({
-                'nome': filename,
-                'tamanho': f"{tamanho_mb:.2f} MB",
-                'data': data_modificacao
-            })
+    if os.path.exists(pasta_backups):
+        for filename in os.listdir(pasta_backups):
+            if filename.endswith('.json'):
+                filepath = os.path.join(pasta_backups, filename)
+                tamanho_mb = os.path.getsize(filepath) / (1024 * 1024)
+                data_modificacao = datetime.fromtimestamp(os.path.getmtime(filepath))
+                arquivos.append({
+                    'nome': filename,
+                    'tamanho': f"{tamanho_mb:.2f} MB",
+                    'data': data_modificacao
+                })
     
     # Ordena do mais recente para o mais antigo
     arquivos.sort(key=lambda x: x['data'], reverse=True)
@@ -881,19 +883,21 @@ def criar_backup(request):
         return redirect('painel_backups')
 
     pasta_backups = os.path.join(settings.BASE_DIR, 'backups')
-    os.makedirs(pasta_backups, exist_ok=True)
-
+    
     # Gera um nome de arquivo com a data e hora atual
     data_atual = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     nome_arquivo = f"backup_jgtech_{data_atual}.json"
     caminho_arquivo = os.path.join(pasta_backups, nome_arquivo)
 
     try:
+        os.makedirs(pasta_backups, exist_ok=True)
         # Extrai os dados do banco, excluindo tabelas de permissão padrão que causam conflito
         with open(caminho_arquivo, 'w', encoding='utf-8') as f:
             call_command('dumpdata', exclude=['contenttypes', 'auth.Permission'], format='json', indent=4, stdout=f)
         
         messages.success(request, f"Backup '{nome_arquivo}' criado com sucesso!")
+    except OSError as e:
+        messages.error(request, f"O ambiente serverless não permite gravação de arquivos em disco local ({str(e)}). Utilize os backups automáticos gerenciados do seu banco de dados PostgreSQL.")
     except Exception as e:
         messages.error(request, f"Erro ao criar backup: {str(e)}")
 
@@ -1128,3 +1132,170 @@ def excluir_aliquota_api(request, pk):
         return JsonResponse({'status': 'success', 'message': f"Alíquota '{nome_aliquota}' excluída com sucesso!"})
         
     return JsonResponse({'status': 'error', 'message': 'Método inválido.'}, status=400)
+
+
+@login_required
+def simulador_pdf(request):
+    empresa = get_empresa_usuario(request.user)
+    
+    # 1. Recuperar parâmetros
+    produto_id = request.GET.get('produto_id')
+    preco_custo = float(request.GET.get('preco_custo', 0) or 0)
+    quantidade_estoque = float(request.GET.get('quantidade_estoque', 0) or 0)
+    
+    preco_custo_futuro = request.GET.get('preco_custo_futuro')
+    preco_custo_futuro = float(preco_custo_futuro) if (preco_custo_futuro and preco_custo_futuro != '') else None
+    
+    quantidade_futura = request.GET.get('quantidade_futura')
+    quantidade_futura = float(quantidade_futura) if (quantidade_futura and quantidade_futura != '') else None
+    
+    frete_valor = float(request.GET.get('frete_valor', 0) or 0)
+    tipo_frete = request.GET.get('tipo_frete', 'valor')
+    outros_valor = float(request.GET.get('outros_valor', 0) or 0)
+    tipo_outros = request.GET.get('tipo_outros', 'valor')
+    
+    aliquota_id = request.GET.get('aliquota_id', '0')
+    margem_desejada = float(request.GET.get('margem_desejada', 0) or 0)
+    metodo = request.GET.get('metodo', 'inside')
+    preco_praticado = float(request.GET.get('preco_praticado', 0) or 0)
+
+    # 2. Buscar Produto
+    produto = get_object_or_404(Produto, id=produto_id, empresa=empresa) if produto_id else None
+
+    # 3. Cálculos da Simulação (Python)
+    # Custo ponderado
+    custo_base = preco_custo
+    qtd_total_lote = quantidade_estoque
+    is_compra_futura = False
+    if preco_custo_futuro and quantidade_futura and quantidade_futura > 0:
+        qtd_total_lote = quantidade_estoque + quantidade_futura
+        if qtd_total_lote > 0:
+            custo_base = ((preco_custo * quantidade_estoque) + (preco_custo_futuro * quantidade_futura)) / qtd_total_lote
+            is_compra_futura = True
+            
+    # Rateio Frete
+    frete_unit = 0.0
+    if tipo_frete == 'valor':
+        frete_unit = frete_valor
+    elif tipo_frete == 'percentual':
+        frete_unit = custo_base * (frete_valor / 100.0)
+    elif tipo_frete == 'total':
+        frete_unit = frete_valor / (qtd_total_lote if qtd_total_lote > 0 else 1.0)
+
+    # Rateio Outros
+    outros_unit = 0.0
+    if tipo_outros == 'valor':
+        outros_unit = outros_valor
+    elif tipo_outros == 'percentual':
+        outros_unit = custo_base * (outros_valor / 100.0)
+    elif tipo_outros == 'total':
+        outros_unit = outros_valor / (qtd_total_lote if qtd_total_lote > 0 else 1.0)
+
+    custo_efetivo = custo_base + frete_unit + outros_unit
+
+    # Alíquota de imposto
+    imposto_pct = 0.0
+    aliquota_nome = "Sem Impostos"
+    if aliquota_id != '0' and aliquota_id != '':
+        aliq = get_object_or_404(AliquotaImposto, id=aliquota_id, empresa=empresa)
+        imposto_pct = float(aliq.percentual)
+        aliquota_nome = aliq.nome
+
+    # Preço Sugerido
+    preco_sugerido = 0.0
+    if metodo == 'inside':
+        divisor = (100.0 - (imposto_pct + margem_desejada)) / 100.0
+        if divisor > 0:
+            preco_sugerido = custo_efetivo / divisor
+    else:
+        divisor_venda = (100.0 - imposto_pct) / 100.0
+        if divisor_venda > 0:
+            preco_sugerido = (custo_efetivo * (1.0 + margem_desejada / 100.0)) / divisor_venda
+    preco_sugerido = round(preco_sugerido, 2)
+
+    # Preço praticado cálculos
+    divisor_imposto = (100.0 - imposto_pct) / 100.0
+    valor_produto_sem_imposto = 0.0
+    valor_imposto = 0.0
+    if divisor_imposto == 0:
+        valor_imposto = preco_praticado
+    else:
+        valor_produto_sem_imposto = round(preco_praticado * divisor_imposto, 2)
+        valor_imposto = round(preco_praticado - valor_produto_sem_imposto, 2)
+
+    lucro_liquido = round(valor_produto_sem_imposto - custo_efetivo, 2)
+    margem_realizada = (lucro_liquido / preco_praticado * 100.0) if preco_praticado > 0 else 0.0
+    
+    # Prospecção de lucro total do lote
+    lucro_total_lote = lucro_liquido * qtd_total_lote
+    
+    # Ponto de Equilíbrio
+    preco_minimo = (custo_efetivo / divisor_imposto) if divisor_imposto > 0 else 0.0
+    preco_minimo = round(preco_minimo, 2)
+
+    return render(request, 'estoque/simulador_pdf.html', {
+        'empresa': empresa,
+        'produto': produto,
+        'preco_custo': preco_custo,
+        'quantidade_estoque': quantidade_estoque,
+        'preco_custo_futuro': preco_custo_futuro,
+        'quantidade_futura': quantidade_futura,
+        'frete_valor': frete_valor,
+        'tipo_frete': tipo_frete,
+        'outros_valor': outros_valor,
+        'tipo_outros': tipo_outros,
+        'aliquota_nome': aliquota_nome,
+        'aliquota_percentual': imposto_pct,
+        'margem_desejada': margem_desejada,
+        'metodo': metodo,
+        'custo_base': custo_base,
+        'frete_unit': frete_unit,
+        'outros_unit': outros_unit,
+        'custo_efetivo': custo_efetivo,
+        'preco_sugerido': preco_sugerido,
+        'preco_praticado': preco_praticado,
+        'valor_imposto': valor_imposto,
+        'lucro_liquido': lucro_liquido,
+        'margem_realizada': margem_realizada,
+        'lucro_total_lote': lucro_total_lote,
+        'qtd_total_lote': qtd_total_lote,
+        'preco_minimo': preco_minimo,
+        'data_emissao': timezone.now()
+    })
+
+
+@login_required
+def lista_simulacoes_pdf(request):
+    empresa = get_empresa_usuario(request.user)
+    query = request.GET.get('q', '')
+    
+    simulacoes = SimulacaoPreco.objects.filter(empresa=empresa)
+    if query:
+        simulacoes = simulacoes.filter(produto__nome__icontains=query)
+        
+    simulacoes = simulacoes.select_related('produto').order_by('-data_criacao')
+    
+    # Calcular estatísticas básicas para o resumo do relatório
+    total_simulacoes = simulacoes.count()
+    total_itens = sum(s.quantidade_total for s in simulacoes)
+    
+    margens = [float(s.margem_realizada) for s in simulacoes]
+    media_margem = sum(margens) / len(margens) if margens else 0.0
+    
+    lucros = [float(s.lucro_liquido) for s in simulacoes]
+    total_lucro_potencial = sum(lucros)
+    
+    lucros_lote = [s.lucro_total_lote for s in simulacoes]
+    total_lucro_lote = sum(lucros_lote)
+    
+    return render(request, 'estoque/lista_simulacoes_pdf.html', {
+        'empresa': empresa,
+        'simulacoes': simulacoes,
+        'query': query,
+        'total_simulacoes': total_simulacoes,
+        'total_itens': total_itens,
+        'media_margem': media_margem,
+        'total_lucro_potencial': total_lucro_potencial,
+        'total_lucro_lote': total_lucro_lote,
+        'data_emissao': timezone.now()
+    })
