@@ -62,7 +62,7 @@ def cadastro_saas(request):
                 empresa=nova_empresa,
                 e_dono=True
             )
-            login(request, novo_usuario)
+            login(request, novo_usuario, backend='django.contrib.auth.backends.ModelBackend')
             messages.success(request, f"Bem-vindo, {novo_usuario.first_name}! Sua conta foi criada.")
             return redirect('dashboard')
     else:

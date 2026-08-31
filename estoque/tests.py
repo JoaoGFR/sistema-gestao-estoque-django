@@ -70,6 +70,17 @@ class SecurityAuditTestCase(TestCase):
         })
         self.assertTrue(form.is_valid())
 
+    def test_cadastro_saas_post_success(self):
+        response = self.client.post('/assinar/', data={
+            'nome_completo': 'Usuário Teste Cadastro',
+            'email': 'cadastro_teste@empresa.com',
+            'senha': 'StrongPassword123!',
+            'nome_empresa': 'Empresa Nova Teste'
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(response, '/dashboard/')
+        self.assertTrue(User.objects.filter(email='cadastro_teste@empresa.com').exists())
+
     def test_saida_estoque_rejects_mismatched_batch(self):
         from .models import Lote, UserProfile
         from .forms import SaidaEstoqueForm
