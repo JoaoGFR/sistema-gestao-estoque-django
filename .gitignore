@@ -15,7 +15,7 @@ db.sqlite3-journal
 local_settings.py
 
 # --- Arquivos Estáticos e Mídia (Gerados automaticamente) ---
-staticfiles/
+# staticfiles/ (permitido para deploy com WhiteNoise na Vercel)
 media/
 assets/
 
