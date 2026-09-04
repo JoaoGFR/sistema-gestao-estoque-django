@@ -3,6 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth import login, logout
 from django.contrib.auth.models import User 
 from django.contrib import messages
+from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Sum, F, Q, Case, When, IntegerField
 from django.db.models.functions import Coalesce
@@ -26,7 +27,8 @@ from .forms import ProdutoForm, EmprestimoForm, SaidaEstoqueForm, CadastroSaaSFo
 import os
 from django.conf import settings
 from django.core.management import call_command
-from django.http import FileResponse, Http404
+from django.http import FileResponse, Http404, HttpResponse
+import io
 from django.contrib import messages
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
@@ -44,8 +46,17 @@ def landing_page(request):
 
 def cadastro_saas(request):
     if request.method == 'POST':
+        # [SEGURANÇA] Rate limiting por IP: máximo de 5 cadastros por hora para evitar flooding/DoS
+        ip_cliente = request.META.get('HTTP_X_FORWARDED_FOR', '').split(',')[0].strip() or request.META.get('REMOTE_ADDR')
+        chave_cache = f"rate_limit_cadastro_{ip_cliente}"
+        tentativas = cache.get(chave_cache, 0)
+        if tentativas >= 5:
+            messages.error(request, "Muitas tentativas de cadastro a partir deste endereço IP. Aguarde uma hora antes de tentar novamente.")
+            return render(request, 'estoque/cadastro_saas.html', {'form': CadastroSaaSForm()})
+
         form = CadastroSaaSForm(request.POST)
         if form.is_valid():
+            cache.set(chave_cache, tentativas + 1, timeout=3600)
             nova_empresa = Empresa.objects.create(
                 nome=form.cleaned_data['nome_empresa'],
                 cnpj=None,   
@@ -281,6 +292,8 @@ def registrar_saida(request):
             # FLUXO 1: SAÍDA MANUAL (LOTE ESPECÍFICO)
             # -----------------------------------------------------------------
             if lote_escolhido:
+                # [SEGURANÇA] select_for_update() para travar a linha do lote e evitar race condition
+                lote_escolhido = Lote.objects.select_for_update().get(id=lote_escolhido.id)
                 if lote_escolhido.produto != produto:
                     error_message = "O lote selecionado não pertence ao produto informado."
                 elif lote_escolhido.quantidade_atual < qtd_solicitada:
@@ -308,7 +321,8 @@ def registrar_saida(request):
                 if produto.saldo_total < qtd_solicitada:
                     error_message = f"Saldo Insuficiente! Total disponível: {produto.saldo_total}"
                 else:
-                    lotes = Lote.objects.filter(
+                    # [SEGURANÇA] select_for_update() garante consistência em concorrência
+                    lotes = Lote.objects.select_for_update().filter(
                         produto=produto, 
                         status='ATIVO', 
                         quantidade_atual__gt=0
@@ -376,8 +390,8 @@ def registrar_emprestimo(request):
             if estoque_total < qtd_solicitada:
                 messages.error(request, f"Estoque insuficiente! Disponível: {estoque_total}. Solicitado: {qtd_solicitada}.")
             else:
-                # 2. ALGORITMO FIFO
-                lotes_disponiveis = Lote.objects.filter(
+                # 2. ALGORITMO FIFO (COM SELECT_FOR_UPDATE PARA CONCORRÊNCIA)
+                lotes_disponiveis = Lote.objects.select_for_update().filter(
                     produto=produto, 
                     status='ATIVO', 
                     quantidade_atual__gt=0,
@@ -840,12 +854,23 @@ def relatorio_movimentacoes(request):
 
 # -> MÓDULO DE BACKUPS
 
+def _is_serverless():
+    """Detecta se o sistema está rodando em um ambiente serverless (ex: Vercel)."""
+    return bool(os.environ.get('VERCEL'))
+
 @login_required
 def painel_backups(request):
     
     if not request.user.is_superuser:
         messages.error(request, "Acesso restrito ao administrador do sistema.")
         return redirect('dashboard')
+
+    # No ambiente serverless o disco é somente-leitura — não há lista de arquivos.
+    if _is_serverless():
+        return render(request, 'estoque/painel_backups.html', {
+            'arquivos': [],
+            'modo_serverless': True,
+        })
 
     pasta_backups = os.path.join(settings.BASE_DIR, 'backups')
     try:
@@ -870,7 +895,7 @@ def painel_backups(request):
     # Ordena do mais recente para o mais antigo
     arquivos.sort(key=lambda x: x['data'], reverse=True)
 
-    return render(request, 'estoque/painel_backups.html', {'arquivos': arquivos})
+    return render(request, 'estoque/painel_backups.html', {'arquivos': arquivos, 'modo_serverless': False})
 
 @login_required
 def criar_backup(request):
@@ -882,11 +907,29 @@ def criar_backup(request):
     if request.method != 'POST':
         return redirect('painel_backups')
 
-    pasta_backups = os.path.join(settings.BASE_DIR, 'backups')
-    
-    # Gera um nome de arquivo com a data e hora atual
     data_atual = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     nome_arquivo = f"backup_jgtech_{data_atual}.json"
+
+    # ------------------------------------------------------------------
+    # MODO SERVERLESS (ex: Vercel): gera o backup em memória e entrega
+    # diretamente como download, sem tentar gravar nada no disco.
+    # ------------------------------------------------------------------
+    if _is_serverless():
+        try:
+            buffer = io.StringIO()
+            call_command('dumpdata', exclude=['contenttypes', 'auth.Permission'], format='json', indent=4, stdout=buffer)
+            conteudo = buffer.getvalue()
+            response = HttpResponse(conteudo, content_type='application/json')
+            response['Content-Disposition'] = f'attachment; filename="{nome_arquivo}"'
+            return response
+        except Exception as e:
+            messages.error(request, f"Erro ao gerar backup: {str(e)}")
+            return redirect('painel_backups')
+
+    # ------------------------------------------------------------------
+    # MODO LOCAL (ex: servidor Portainer/Docker): salva no disco como antes.
+    # ------------------------------------------------------------------
+    pasta_backups = os.path.join(settings.BASE_DIR, 'backups')
     caminho_arquivo = os.path.join(pasta_backups, nome_arquivo)
 
     try:
@@ -897,7 +940,7 @@ def criar_backup(request):
         
         messages.success(request, f"Backup '{nome_arquivo}' criado com sucesso!")
     except OSError as e:
-        messages.error(request, f"O ambiente serverless não permite gravação de arquivos em disco local ({str(e)}). Utilize os backups automáticos gerenciados do seu banco de dados PostgreSQL.")
+        messages.error(request, f"Erro ao gravar arquivo no disco: {str(e)}")
     except Exception as e:
         messages.error(request, f"Erro ao criar backup: {str(e)}")
 

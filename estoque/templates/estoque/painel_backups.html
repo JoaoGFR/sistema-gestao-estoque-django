@@ -17,11 +17,23 @@
 </div>
 
 <div class="alert alert-warning shadow-sm">
-    <i class="bi bi-exclamation-triangle-fill"></i> <strong>Aviso Importante:</strong> Após gerar um backup, sempre clique em "Baixar" para salvar uma cópia segura no seu computador.
+    <i class="bi bi-exclamation-triangle-fill"></i> <strong>Aviso Importante:</strong>
+    {% if modo_serverless %}
+        No ambiente em nuvem (Vercel), o backup é gerado e baixado diretamente. Clique em "Gerar Novo Backup" e o arquivo será salvo automaticamente no seu computador.
+    {% else %}
+        Após gerar um backup, sempre clique em "Baixar" para salvar uma cópia segura no seu computador.
+    {% endif %}
 </div>
 
 <div class="card shadow-sm">
     <div class="card-body">
+        {% if modo_serverless %}
+        <div class="text-center py-5 text-muted">
+            <i class="bi bi-cloud-check fs-1 d-block mb-2 text-primary"></i>
+            <p>Você está no ambiente em nuvem (Vercel).<br>
+            O backup é gerado e baixado diretamente — não há arquivos armazenados no servidor.</p>
+        </div>
+        {% else %}
         <table class="table table-hover align-middle">
             <thead class="table-light">
                 <tr>
@@ -35,7 +47,7 @@
                 {% for arquivo in arquivos %}
                 <tr>
                     <td class="fw-bold text-success"><i class="bi bi-filetype-json"></i> {{ arquivo.nome }}</td>
-                    <td>{{ arquivo.data|date:"d/m/Y às H:i" }}</td>
+                    <td>{{ arquivo.data|date:"d/m/Y \u00e0s H:i" }}</td>
                     <td>{{ arquivo.tamanho }}</td>
                     <td class="text-end">
                         
@@ -43,7 +55,7 @@
                             <i class="bi bi-download"></i> Baixar
                         </a>
 
-                        <form action="{% url 'restaurar_backup' arquivo.nome %}" method="post" class="d-inline" onsubmit="return confirm('⚠️ ATENÇÃO EXTREMA: Restaurar um backup vai SOBRESCREVER os dados atuais. O sistema voltará exatamente para o momento em que este backup foi feito. Tem certeza?');">
+                        <form action="{% url 'restaurar_backup' arquivo.nome %}" method="post" class="d-inline" onsubmit="return confirm('\u26a0\ufe0f ATEN\u00c7\u00c3O EXTREMA: Restaurar um backup vai SOBRESCREVER os dados atuais. O sistema voltar\u00e1 exatamente para o momento em que este backup foi feito. Tem certeza?');">
                             {% csrf_token %}
                             <button type="submit" class="btn btn-sm btn-outline-warning ms-1" data-bs-toggle="tooltip" title="Restaurar Sistema">
                                 <i class="bi bi-arrow-counterclockwise"></i> Restaurar
@@ -68,6 +80,7 @@
                 {% endfor %}
             </tbody>
         </table>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

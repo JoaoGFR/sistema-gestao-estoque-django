@@ -28,20 +28,25 @@ if env_file.exists():
 
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
-# Fallback seguro para evitar crash de inicialização na Vercel se a variável não estiver no painel
-SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-jgtech-sistema-estoque-vercel-chave-segura-2026-prod')
+# [SEGURANÇA] Validação da SECRET_KEY
+SECRET_KEY = os.getenv('SECRET_KEY')
+if not SECRET_KEY:
+    if not DEBUG:
+        import warnings
+        warnings.warn("ALERTA DE SEGURANÇA: SECRET_KEY não definida no ambiente de produção! Configure-a no painel do servidor.")
+    SECRET_KEY = 'django-insecure-jgtech-sistema-estoque-vercel-chave-segura-2026-prod'
 
 
-allowed_hosts_env = os.getenv('ALLOWED_HOSTS', '')
+# [SEGURANÇA] ALLOWED_HOSTS restrito aos domínios e IPs legítimos (sem wildcard '*')
 ALLOWED_HOSTS = [
     '127.0.0.1', 
     'localhost',
     '192.168.0.7', 
     '.vercel.app', 
-    '*',
 ]
+allowed_hosts_env = os.getenv('ALLOWED_HOSTS', '')
 if allowed_hosts_env:
-    ALLOWED_HOSTS.extend(allowed_hosts_env.split(','))
+    ALLOWED_HOSTS.extend([h.strip() for h in allowed_hosts_env.split(',') if h.strip()])
 
 
 
