@@ -8,3 +8,4 @@ dj-database-url
 crispy-bootstrap5
 django-crispy-forms
 django-axes
+requests

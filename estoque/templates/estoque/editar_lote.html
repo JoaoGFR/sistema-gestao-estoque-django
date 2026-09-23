@@ -3,79 +3,99 @@
 
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-md-8">
-        <div class="card shadow border-warning">
-            <div class="card-header bg-warning text-dark">
-                <h4 class="mb-0"><i class="bi bi-pencil-square"></i> Editar Lançamento (Lote)</h4>
+    <div class="col-12 col-md-10 col-lg-8">
+        <div class="card shadow border-0 rounded-3">
+            <div class="card-header bg-warning text-dark py-3 d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-2">
+                <h5 class="mb-0 fw-bold d-flex align-items-center gap-2">
+                    <i class="bi bi-pencil-square"></i> Editar Entrada (Lote #{{ lote.numero_lote|default:lote.id }})
+                </h5>
+                <span class="badge bg-dark text-white fs-6 text-truncate" style="max-width: 250px;">
+                    <i class="bi bi-box-seam me-1"></i>{{ lote.produto.nome }}
+                </span>
             </div>
-            <div class="card-body">
+            <div class="card-body p-3 p-md-4">
                 
-                <div class="alert alert-info">
-                    <i class="bi bi-info-circle-fill"></i> <strong>Atenção:</strong> 
-                    Ao alterar a "Quantidade Inicial", o sistema recalculará automaticamente o saldo atual deste lote, mantendo o histórico de vendas já realizadas.
+                <div class="alert alert-info border-0 rounded-3 mb-4 shadow-sm">
+                    <div class="d-flex align-items-start gap-2">
+                        <i class="bi bi-info-circle-fill fs-5 text-info mt-1"></i>
+                        <div class="small">
+                            <strong>Informação sobre o estoque:</strong><br>
+                            Ao alterar a <em>Quantidade Inicial</em>, o saldo atual do lote será recalculado proporcionalmente (Saldo Atual: <strong>{{ lote.quantidade_atual }} {{ lote.produto.get_unidade_display }}</strong>).
+                        </div>
+                    </div>
                 </div>
 
                 <form method="post" enctype="multipart/form-data">
                     {% csrf_token %}
                     
                     {% if form.errors %}
-                        <div class="alert alert-danger">Verifique os erros abaixo.</div>
+                        <div class="alert alert-danger rounded-3 shadow-sm mb-3">
+                            <i class="bi bi-exclamation-triangle-fill me-1"></i> Verifique os erros no formulário abaixo.
+                        </div>
                     {% endif %}
 
-                    <h6 class="text-muted border-bottom pb-2 mb-3">Dados do Item</h6>
-                    <div class="row">
-                        <div class="col-md-8 mb-3">
+                    <!-- SEÇÃO 1: ITEM E CUSTO -->
+                    <h6 class="text-secondary fw-bold text-uppercase small border-bottom pb-2 mb-3">
+                        <i class="bi bi-box-seam me-1 text-warning"></i> 1. Item e Custo
+                    </h6>
+                    <div class="row g-3 mb-3">
+                        <div class="col-12 col-md-6">
                             {{ form.produto|as_crispy_field }}
                         </div>
-                        <div class="col-md-4 mb-3">
-                            {{ form.numero_lote|as_crispy_field }}
+                        <div class="col-12 col-sm-6 col-md-3">
+                            {{ form.quantidade_inicial|as_crispy_field }}
+                        </div>
+                        <div class="col-12 col-sm-6 col-md-3">
+                            {{ form.preco_compra|as_crispy_field }}
                         </div>
                     </div>
 
-                    <h6 class="text-muted border-bottom pb-2 mb-3 mt-3">Quantidades e Valores</h6>
-                    <div class="row">
-                        <div class="col-md-4 mb-3">
-                            {{ form.quantidade_inicial|as_crispy_field }}
-                            <small class="text-muted">Alterar isso afeta o saldo atual.</small>
+                    <!-- SEÇÃO 2: RASTREABILIDADE (LOTE E DATAS) -->
+                    <h6 class="text-secondary fw-bold text-uppercase small border-bottom pb-2 mb-3 mt-4">
+                        <i class="bi bi-calendar-range me-1 text-warning"></i> 2. Rastreabilidade (Lote, Fabricação e Validade)
+                    </h6>
+                    <div class="row g-3 mb-3">
+                        <div class="col-12 col-md-4">
+                            {{ form.numero_lote|as_crispy_field }}
                         </div>
-                        <div class="col-md-4 mb-3">
-                            {{ form.preco_compra|as_crispy_field }}
+                        <div class="col-12 col-sm-6 col-md-4">
+                            {{ form.data_fabricacao|as_crispy_field }}
                         </div>
-                        <div class="col-md-4 mb-3">
+                        <div class="col-12 col-sm-6 col-md-4">
                             {{ form.data_validade|as_crispy_field }}
                         </div>
                     </div>
 
-                    <h6 class="text-muted border-bottom pb-2 mb-3 mt-3">Origem e Documentos</h6>
-                    <div class="row">
-                        <div class="col-md-4 mb-3">
+                    <!-- SEÇÃO 3: ORIGEM E DOCUMENTOS -->
+                    <h6 class="text-secondary fw-bold text-uppercase small border-bottom pb-2 mb-3 mt-4">
+                        <i class="bi bi-file-earmark-text me-1 text-warning"></i> 3. Origem e Documentos
+                    </h6>
+                    <div class="row g-3 mb-3">
+                        <div class="col-12 col-md-4">
                             {{ form.fornecedor|as_crispy_field }}
                         </div>
-                        <div class="col-md-4 mb-3">
+                        <div class="col-12 col-md-4">
                             {{ form.numero_nota_fiscal|as_crispy_field }}
                         </div>
-                        <div class="col-md-4 mb-3">
+                        <div class="col-12 col-md-4">
                             {{ form.nota_fiscal|as_crispy_field }}
                             {% if lote.nota_fiscal %}
                                 <div class="mt-2">
-                                    <a href="{{ lote.nota_fiscal.url }}" target="_blank" class="btn btn-sm btn-outline-primary">
-                                        <i class="bi bi-file-earmark-pdf-fill"></i> Ver NF Atual
+                                    <a href="{{ lote.nota_fiscal.url }}" target="_blank" class="btn btn-sm btn-outline-primary w-100">
+                                        <i class="bi bi-file-earmark-pdf-fill me-1"></i> Ver NF Atual
                                     </a>
                                 </div>
                             {% endif %}
                         </div>
                     </div>
-                    
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            {{ form.data_fabricacao|as_crispy_field }}
-                        </div>
-                    </div>
 
-                    <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
-                        <a href="{% url 'lista_lotes' %}" class="btn btn-secondary me-md-2">Cancelar</a>
-                        <button type="submit" class="btn btn-warning fw-bold">
-                            <i class="bi bi-check-lg"></i> Salvar Alterações
+                    <!-- BOTÕES RESPONSIVOS -->
+                    <div class="d-flex flex-column-reverse flex-sm-row justify-content-sm-end gap-2 mt-4 pt-3 border-top">
+                        <a href="{% url 'lista_lotes' %}" class="btn btn-outline-secondary w-100 w-sm-auto py-2 px-4">
+                            <i class="bi bi-arrow-left me-1"></i> Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-warning fw-bold w-100 w-sm-auto py-2 px-4 shadow-sm">
+                            <i class="bi bi-check-lg me-1"></i> Salvar Alterações
                         </button>
                     </div>
                 </form>

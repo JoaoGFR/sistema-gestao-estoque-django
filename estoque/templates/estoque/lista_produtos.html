@@ -1,157 +1,341 @@
 {% extends 'estoque/base.html' %}
 
 {% block content %}
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-    <h1 class="h2">Controle de Estoque</h1>
-    <div class="btn-toolbar mb-2 mb-md-0">
-        <a href="{% url 'criar_produto' %}" class="btn btn-primary shadow-sm">
-            <i class="bi bi-plus-lg"></i> Novo Item
-        </a>
-    </div>
-</div>
+<div class="container-fluid py-2">
 
-<div class="card mb-4 shadow-sm">
-    <div class="card-body">
-        <form method="get" class="row g-2 align-items-center">
-            
-            <div class="col-md-5">
-                <div class="input-group">
-                    <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
-                    <input type="text" name="q" class="form-control border-start-0" placeholder="Buscar por nome, SKU ou EAN..." value="{{ query|default:'' }}">
+    <!-- Topo da Página com Breadcrumb e Ações -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 pb-2 border-bottom">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}" class="text-decoration-none">Início</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Estoque Geral</li>
+                </ol>
+            </nav>
+            <h2 class="h3 fw-bold mb-0 text-dark d-flex align-items-center gap-2">
+                <i class="bi bi-boxes text-primary"></i> Controle de Estoque Geral
+            </h2>
+        </div>
+        <div class="d-flex flex-wrap gap-2 mt-2 mt-md-0">
+            <a href="{% url 'tabela_precos' %}" class="btn btn-outline-success shadow-sm">
+                <i class="bi bi-tags-fill me-1"></i> Tabela de Preços (PDV)
+            </a>
+            <a href="{% url 'entrada_estoque' %}" class="btn btn-outline-primary shadow-sm">
+                <i class="bi bi-box-arrow-in-down me-1"></i> Nova Entrada / Lote
+            </a>
+            <a href="{% url 'criar_produto' %}" class="btn btn-primary shadow-sm fw-semibold">
+                <i class="bi bi-plus-lg me-1"></i> Novo Produto
+            </a>
+        </div>
+    </div>
+
+    <!-- Cards de Métricas do Estoque Geral -->
+    <div class="row g-3 mb-4">
+        <!-- Total de Produtos Ativos -->
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="card border-0 shadow-sm rounded-3 p-3 bg-white border-start border-4 border-primary h-100">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-muted small text-uppercase fw-semibold">Itens Ativos no Estoque</div>
+                        <h3 class="fw-bold mb-0 text-dark mt-1">{{ total_ativos }}</h3>
+                        <small class="text-muted">Total de cadastros: {{ total_produtos }}</small>
+                    </div>
+                    <div class="bg-primary-subtle text-primary p-3 rounded-circle">
+                        <i class="bi bi-box-seam-fill fs-4"></i>
+                    </div>
                 </div>
             </div>
+        </div>
 
-            <div class="col-md-3">
-                <select name="categoria" class="form-select" onchange="this.form.submit()">
-                    <option value="">Todas as Categorias</option>
-                    {% for cat in categorias %}
-                        <option value="{{ cat.id }}" {% if categoria_selecionada == cat.id %}selected{% endif %}>
-                            {{ cat.nome }}
-                        </option>
+        <!-- Itens Destinados à Venda (PDV) -->
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="card border-0 shadow-sm rounded-3 p-3 bg-white border-start border-4 border-success h-100">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-muted small text-uppercase fw-semibold">Destinados à Venda (PDV)</div>
+                        <h3 class="fw-bold mb-0 text-success mt-1">{{ total_venda }}</h3>
+                        <a href="?tipo=venda" class="text-decoration-none small text-success fw-semibold">Filtrar itens de venda &rarr;</a>
+                    </div>
+                    <div class="bg-success-subtle text-success p-3 rounded-circle">
+                        <i class="bi bi-cart-check-fill fs-4"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Insumos e Uso Interno -->
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="card border-0 shadow-sm rounded-3 p-3 bg-white border-start border-4 border-secondary h-100">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-muted small text-uppercase fw-semibold">Insumos / Uso Interno</div>
+                        <h3 class="fw-bold mb-0 text-secondary mt-1">{{ total_insumo }}</h3>
+                        <a href="?tipo=insumo" class="text-decoration-none small text-secondary fw-semibold">Filtrar insumos &rarr;</a>
+                    </div>
+                    <div class="bg-secondary-subtle text-secondary p-3 rounded-circle">
+                        <i class="bi bi-shield-lock-fill fs-4"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alerta de Estoque Crítico -->
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="card border-0 shadow-sm rounded-3 p-3 bg-white border-start border-4 border-danger h-100">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-muted small text-uppercase fw-semibold">Estoque Crítico / Reposição</div>
+                        <h3 class="fw-bold mb-0 text-danger mt-1">{{ total_critico }}</h3>
+                        <a href="?filtro=critico" class="text-decoration-none small text-danger fw-semibold">Ver itens em alerta &rarr;</a>
+                    </div>
+                    <div class="bg-danger-subtle text-danger p-3 rounded-circle">
+                        <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pílulas de Filtro Rápido de Navegação -->
+    <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
+        <!-- Todos os Ativos -->
+        <a href="?status=ativos{% if query %}&q={{ query }}{% endif %}{% if categoria_selecionada %}&categoria={{ categoria_selecionada }}{% endif %}" 
+           class="btn btn-sm {% if filtro_status == 'ativos' and not filtro_tipo and not filtro_critico %}btn-primary{% else %}btn-outline-secondary bg-white{% endif %} rounded-pill px-3 shadow-sm">
+            <i class="bi bi-boxes me-1"></i> Todos Ativos ({{ total_ativos }})
+        </a>
+
+        <!-- Itens de Venda -->
+        <a href="?tipo=venda{% if query %}&q={{ query }}{% endif %}{% if categoria_selecionada %}&categoria={{ categoria_selecionada }}{% endif %}" 
+           class="btn btn-sm {% if filtro_tipo == 'venda' %}btn-success text-white{% else %}btn-outline-success bg-white{% endif %} rounded-pill px-3 shadow-sm">
+            <i class="bi bi-tag-fill me-1"></i> Apenas Venda ({{ total_venda }})
+        </a>
+
+        <!-- Insumos / Interno -->
+        <a href="?tipo=insumo{% if query %}&q={{ query }}{% endif %}{% if categoria_selecionada %}&categoria={{ categoria_selecionada }}{% endif %}" 
+           class="btn btn-sm {% if filtro_tipo == 'insumo' %}btn-secondary text-white{% else %}btn-outline-secondary bg-white{% endif %} rounded-pill px-3 shadow-sm">
+            <i class="bi bi-shield-lock me-1"></i> Apenas Insumos ({{ total_insumo }})
+        </a>
+
+        <!-- Crítico -->
+        <a href="?filtro=critico{% if query %}&q={{ query }}{% endif %}{% if categoria_selecionada %}&categoria={{ categoria_selecionada }}{% endif %}" 
+           class="btn btn-sm {% if filtro_critico == 'critico' %}btn-danger text-white{% else %}btn-outline-danger bg-white{% endif %} rounded-pill px-3 shadow-sm">
+            <i class="bi bi-exclamation-triangle-fill me-1"></i> Estoque Crítico ({{ total_critico }})
+        </a>
+
+        <!-- Inativos -->
+        <a href="?status=inativos{% if query %}&q={{ query }}{% endif %}{% if categoria_selecionada %}&categoria={{ categoria_selecionada }}{% endif %}" 
+           class="btn btn-sm {% if filtro_status == 'inativos' %}btn-dark text-white{% else %}btn-outline-dark bg-white{% endif %} rounded-pill px-3 shadow-sm">
+            Inativos ({{ total_inativos }})
+        </a>
+
+        <!-- Limpar Filtros -->
+        {% if query or filtro_critico or filtro_tipo or categoria_selecionada or filtro_status != 'ativos' %}
+            <a href="{% url 'lista_produtos' %}" class="btn btn-sm btn-outline-danger rounded-pill px-3 ms-auto shadow-sm">
+                <i class="bi bi-x-circle me-1"></i> Limpar Filtros
+            </a>
+        {% endif %}
+    </div>
+
+    <!-- Barra de Pesquisa e Filtro de Categoria -->
+    <div class="card border-0 shadow-sm rounded-3 mb-4">
+        <div class="card-body p-3">
+            <form method="get" class="row g-2 align-items-center">
+                <input type="hidden" name="status" value="{{ filtro_status }}">
+                {% if filtro_tipo %}<input type="hidden" name="tipo" value="{{ filtro_tipo }}">{% endif %}
+                {% if filtro_critico %}<input type="hidden" name="filtro" value="{{ filtro_critico }}">{% endif %}
+
+                <!-- Campo de Busca -->
+                <div class="col-12 col-md-6">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
+                        <input type="text" name="q" class="form-control border-start-0" 
+                               placeholder="Buscar por nome do item, código SKU ou código de barras EAN..." 
+                               value="{{ query|default:'' }}">
+                    </div>
+                </div>
+
+                <!-- Dropdown de Categorias -->
+                <div class="col-12 col-sm-6 col-md-4">
+                    <select name="categoria" class="form-select" onchange="this.form.submit()">
+                        <option value="">Todas as Categorias</option>
+                        {% for cat in categorias %}
+                            <option value="{{ cat.id }}" {% if categoria_selecionada == cat.id %}selected{% endif %}>
+                                {{ cat.nome }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Botão Filtrar -->
+                <div class="col-12 col-sm-6 col-md-2">
+                    <button type="submit" class="btn btn-primary w-100 fw-semibold">
+                        <i class="bi bi-funnel me-1"></i> Filtrar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tabela Principal de Produtos -->
+    <div class="card border-0 shadow-sm rounded-3">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3" style="min-width: 250px;">Produto / Identificação</th>
+                        <th>Categoria</th>
+                        <th>Finalidade</th>
+                        <th>Rastreio</th>
+                        <th class="text-center">Saldo em Estoque</th>
+                        <th class="text-end">Custo Médio</th>
+                        <th class="text-end pe-3" style="width: 140px;">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in page_obj %}
+                        <tr>
+                            <!-- Produto / Identificação -->
+                            <td class="ps-3">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="fw-bold text-dark fs-6">{{ item.nome }}</span>
+                                    {% if not item.ativo %}
+                                        <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle" style="font-size: 0.7rem;">Inativo</span>
+                                    {% endif %}
+                                </div>
+                                <div class="d-flex flex-wrap gap-2 align-items-center mt-1 text-muted small" style="font-size: 0.78rem;">
+                                    {% if item.sku %}
+                                        <span><i class="bi bi-hash"></i> SKU: <strong>{{ item.sku }}</strong></span>
+                                    {% endif %}
+                                    {% if item.ean %}
+                                        <span><i class="bi bi-upc-scan"></i> {{ item.ean }}</span>
+                                    {% endif %}
+                                    {% if item.localizacao %}
+                                        <span><i class="bi bi-geo-alt"></i> {{ item.localizacao.nome }}</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+
+                            <!-- Categoria -->
+                            <td>
+                                {% if item.categoria %}
+                                    <span class="badge bg-light text-dark border">{{ item.categoria.nome }}</span>
+                                {% else %}
+                                    <span class="text-muted small">-</span>
+                                {% endif %}
+                            </td>
+
+                            <!-- Finalidade: Venda vs Insumo -->
+                            <td>
+                                {% if item.disponivel_venda %}
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1" title="Item com preço sugerido no PDV">
+                                        <i class="bi bi-cart-check-fill me-1"></i> Venda: R$ {{ item.preco_venda|floatformat:2 }}
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" title="Item mantido para insumo ou uso interno">
+                                        <i class="bi bi-shield-lock me-1"></i> Insumo / Interno
+                                    </span>
+                                {% endif %}
+                            </td>
+
+                            <!-- Rastreabilidade: Lote e Validade -->
+                            <td>
+                                {% if item.controla_lote %}
+                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1" title="Controla número de lote e datas de validade">
+                                        <i class="bi bi-boxes me-1"></i> Por Lote
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-light text-muted border px-2 py-1" title="Entradas com lote padrão GERAL">
+                                        Lote Geral
+                                    </span>
+                                {% endif %}
+                            </td>
+
+                            <!-- Saldo em Estoque -->
+                            <td class="text-center">
+                                {% if item.qtd_real <= item.estoque_minimo %}
+                                    <span class="badge bg-danger text-white rounded-pill px-3 py-2 shadow-sm" title="Estoque abaixo ou no limite mínimo (Mín: {{ item.estoque_minimo }})">
+                                        <i class="bi bi-exclamation-triangle-fill me-1"></i> {{ item.qtd_real }} {{ item.get_unidade_display }}
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-success text-white rounded-pill px-3 py-2">
+                                        {{ item.qtd_real }} {{ item.get_unidade_display }}
+                                    </span>
+                                {% endif %}
+                            </td>
+
+                            <!-- Custo Médio Unitário -->
+                            <td class="text-end font-monospace text-dark fw-semibold">
+                                R$ {{ item.preco_medio|floatformat:2 }}
+                            </td>
+
+                            <!-- Ações -->
+                            <td class="text-end pe-3">
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{% url 'historico_produto' item.id %}" class="btn btn-outline-info" title="Histórico de Movimentações">
+                                        <i class="bi bi-clock-history"></i>
+                                    </a>
+                                    <a href="{% url 'editar_produto' item.id %}" class="btn btn-outline-primary" title="Editar Produto">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    {% if not item.ativo %}
+                                        <form method="POST" action="{% url 'alternar_status_produto' item.id %}" class="d-inline">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-outline-success" title="Reativar Produto">
+                                                <i class="bi bi-check2-circle"></i>
+                                            </button>
+                                        </form>
+                                    {% endif %}
+                                    <a href="{% url 'excluir_produto' item.id %}" class="btn btn-outline-danger" title="Inativar ou Excluir">
+                                        <i class="bi bi-trash"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center py-5 text-muted">
+                                <i class="bi bi-box-seam fs-1 d-block mb-2 text-secondary"></i>
+                                <h5>Nenhum produto encontrado</h5>
+                                <p class="small mb-3">Tente ajustar seus termos de busca ou filtros selecionados.</p>
+                                <a href="{% url 'criar_produto' %}" class="btn btn-primary btn-sm">
+                                    <i class="bi bi-plus-lg me-1"></i> Cadastrar Novo Produto
+                                </a>
+                            </td>
+                        </tr>
                     {% endfor %}
-                </select>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Paginação -->
+        {% if page_obj.has_other_pages %}
+            <div class="card-footer bg-white py-3 border-0">
+                <nav aria-label="Paginação do Estoque">
+                    <ul class="pagination justify-content-center mb-0">
+                        {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if query %}&q={{ query }}{% endif %}{% if filtro_status %}&status={{ filtro_status }}{% endif %}{% if filtro_tipo %}&tipo={{ filtro_tipo }}{% endif %}{% if filtro_critico %}&filtro={{ filtro_critico }}{% endif %}{% if categoria_selecionada %}&categoria={{ categoria_selecionada }}{% endif %}">
+                                    Anterior
+                                </a>
+                            </li>
+                        {% endif %}
+
+                        <li class="page-item disabled">
+                            <span class="page-link">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+                        </li>
+
+                        {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if query %}&q={{ query }}{% endif %}{% if filtro_status %}&status={{ filtro_status }}{% endif %}{% if filtro_tipo %}&tipo={{ filtro_tipo }}{% endif %}{% if filtro_critico %}&filtro={{ filtro_critico }}{% endif %}{% if categoria_selecionada %}&categoria={{ categoria_selecionada }}{% endif %}">
+                                    Próxima
+                                </a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
             </div>
-
-            <div class="col-md-4 text-end">
-                {% if filtro_critico %}
-                    <a href="{% url 'lista_produtos' %}" class="btn btn-secondary">
-                        <i class="bi bi-list-ul"></i> Ver Todos
-                    </a>
-                {% else %}
-                    <a href="?filtro=critico" class="btn btn-outline-danger">
-                        <i class="bi bi-exclamation-triangle-fill"></i> Estoque Crítico
-                    </a>
-                {% endif %}
-                
-                <button type="submit" class="btn btn-primary">Filtrar</button>
-            </div>
-        </form>
+        {% endif %}
     </div>
-</div>
 
-<div class="card shadow-sm">
-    <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
-            <thead class="table-light">
-                <tr>
-                    <th>Nome do Produto</th>
-                    <th>Categoria</th>
-                    <th>Localização</th>
-                    <th class="text-center">Estoque</th>
-                    <th>Preço Médio</th>
-                    <th class="text-end">Ações</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for item in page_obj %}
-                <tr>
-                    <td>
-                        <div class="fw-bold">{{ item.nome }}</div>
-                        <small class="text-muted" style="font-size: 0.75rem;">
-                            SKU: {{ item.sku|default:"-" }}
-                        </small>
-                    </td>
-                    
-                    <td>
-                        {% if item.categoria %}
-                            <span class="badge bg-light text-dark border">{{ item.categoria.nome }}</span>
-                        {% else %}
-                            <span class="text-muted">-</span>
-                        {% endif %}
-                    </td>
-                    
-                    <td>
-                        {% if item.localizacao %}
-                            <i class="bi bi-geo-alt text-secondary"></i> {{ item.localizacao.nome }}
-                        {% else %}
-                            <span class="text-muted">-</span>
-                        {% endif %}
-                    </td>
-                    
-                    <td class="text-center">
-                        {% if item.qtd_real <= item.estoque_minimo %}
-                            <span class="badge bg-danger rounded-pill" title="Abaixo do Mínimo! (Min: {{ item.estoque_minimo }})">
-                                {{ item.qtd_real }} {{ item.get_unidade_display }}
-                            </span>
-                        {% else %}
-                            <span class="badge bg-success rounded-pill">
-                                {{ item.qtd_real }} {{ item.get_unidade_display }}
-                            </span>
-                        {% endif %}
-                    </td>
-                    
-                    <td>
-                        <span class="text-primary fw-bold">R$ {{ item.preco_medio|floatformat:2 }}</span>
-                    </td>
-                    
-                    <td class="text-end">
-                        <div class="btn-group">
-                            <a href="{% url 'historico_produto' item.id %}" class="btn btn-sm btn-info text-white" title="Histórico">
-                                <i class="bi bi-clock-history"></i>
-                            </a>
-                            <a href="{% url 'editar_produto' item.id %}" class="btn btn-sm btn-outline-primary" title="Editar">
-                                <i class="bi bi-pencil"></i>
-                            </a>
-                            <a href="{% url 'excluir_produto' item.id %}" class="btn btn-sm btn-outline-danger" title="Excluir" onclick="return confirm('Tem certeza que deseja excluir este item?');">
-                                <i class="bi bi-trash"></i>
-                            </a>
-                        </div>
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="6" class="text-center py-5 text-muted">
-                        <i class="bi bi-box-seam fs-1 d-block mb-2"></i>
-                        Nenhum produto encontrado.
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    
-    {% if page_obj.has_other_pages %}
-    <div class="card-footer bg-white d-flex justify-content-center">
-        <nav>
-            <ul class="pagination mb-0">
-                {% if page_obj.has_previous %}
-                    <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}&q={{ query|default:'' }}&filtro={{ filtro_critico|default:'' }}&categoria={{ categoria_selecionada|default:'' }}">&laquo;</a>
-                    </li>
-                {% endif %}
-
-                <li class="page-item active">
-                    <span class="page-link">{{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
-                </li>
-
-                {% if page_obj.has_next %}
-                    <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.next_page_number }}&q={{ query|default:'' }}&filtro={{ filtro_critico|default:'' }}&categoria={{ categoria_selecionada|default:'' }}">&raquo;</a>
-                    </li>
-                {% endif %}
-            </ul>
-        </nav>
-    </div>
-    {% endif %}
 </div>
 {% endblock %}

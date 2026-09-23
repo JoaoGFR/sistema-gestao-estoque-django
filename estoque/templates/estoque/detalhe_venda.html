@@ -1,0 +1,474 @@
+{% extends 'estoque/base.html' %}
+
+{% block title %}Venda {{ venda.codigo_venda }} | JGTECH Estoque{% endblock %}
+
+{% block content %}
+<div class="container py-4" style="max-width: 900px;">
+
+    <!-- Barra Superior (Não impressa) -->
+    <div class="d-flex justify-content-between align-items-center mb-4 d-print-none">
+        <a href="{% url 'lista_vendas' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left"></i> Voltar às Vendas
+        </a>
+        <div class="d-flex gap-2">
+            <button type="button" class="btn btn-dark shadow-sm" onclick="imprimirCupomTermico()">
+                <i class="bi bi-printer-fill me-1"></i> Imprimir Cupom Térmico (80mm)
+            </button>
+            {% if venda.status == 'CONCLUIDA' and user.userprofile.e_dono or user.is_superuser %}
+                <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#modalCancelarVenda">
+                    <i class="bi bi-x-circle me-1"></i> Cancelar Venda
+                </button>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Comprovante da Venda em Tela (Ocultado estritamente na Impressão para não sair em formato A4) -->
+    <div class="card border-0 shadow-sm rounded-3 d-print-none">
+        <div class="card-body p-4 p-md-5">
+
+            <!-- Cabeçalho da Empresa & Venda -->
+            <div class="row align-items-center border-bottom pb-4 mb-4">
+                <div class="col-8">
+                    <h3 class="fw-bold mb-0 text-dark">{{ venda.empresa.nome }}</h3>
+                    {% if venda.empresa.cnpj %}
+                        <div class="text-muted small">CNPJ: {{ venda.empresa.cnpj }}</div>
+                    {% endif %}
+                    <div class="text-muted small">Comprovante de Venda & Operação Comercial</div>
+                </div>
+                <div class="col-4 text-end">
+                    <span class="badge bg-primary fs-6 px-3 py-2 mb-1 d-inline-block">{{ venda.codigo_venda }}</span>
+                    <div class="text-muted small">{{ venda.data_venda|date:"d/m/Y H:i" }}</div>
+                </div>
+            </div>
+
+            <!-- Dados do Cliente e Operador -->
+            <div class="row g-3 mb-4">
+                <div class="col-12 col-md-6">
+                    <div class="p-3 bg-light rounded-3 h-100">
+                        <span class="text-muted small fw-semibold text-uppercase d-block mb-1">Cliente</span>
+                        {% if venda.cliente %}
+                            <h5 class="fw-bold text-dark mb-1">
+                                <a href="{% url 'detalhe_cliente' venda.cliente.pk %}" class="text-dark text-decoration-none d-print-none">
+                                    {{ venda.cliente.nome }}
+                                </a>
+                                <span class="d-none d-print-inline">{{ venda.cliente.nome }}</span>
+                            </h5>
+                            {% if venda.cliente.cpf_cnpj %}
+                                <div class="text-muted small">CPF/CNPJ: {{ venda.cliente.cpf_cnpj }}</div>
+                            {% endif %}
+                            {% if venda.cliente.telefone %}
+                                <div class="text-muted small">Contato: {{ venda.cliente.telefone }}</div>
+                            {% endif %}
+                        {% else %}
+                            <h5 class="fw-bold text-dark mb-0">Consumidor Final</h5>
+                            <div class="text-muted small">Venda Avulsa / Balcão</div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-12 col-md-6">
+                    <div class="p-3 bg-light rounded-3 h-100">
+                        <span class="text-muted small fw-semibold text-uppercase d-block mb-1">Informações da Operação</span>
+                        <div class="small mb-1">
+                            <span class="text-muted">Vendedor / Operador:</span> 
+                            <strong>{{ venda.usuario.get_full_name|default:venda.usuario.username }}</strong>
+                        </div>
+                        <div class="small mb-1">
+                            <span class="text-muted">Forma de Pagamento:</span> 
+                            <strong class="text-primary">{{ venda.get_forma_pagamento_display }}</strong>
+                        </div>
+                        <div class="small">
+                            <span class="text-muted">Status do Pagamento:</span>
+                            {% if venda.status_pagamento == 'PAGO' %}
+                                <span class="badge bg-success">Pago</span>
+                            {% elif venda.status_pagamento == 'PENDENTE' %}
+                                <span class="badge bg-warning text-dark">Em Aberto (Crediário)</span>
+                            {% elif venda.status_pagamento == 'PARCIAL' %}
+                                <span class="badge bg-info text-dark">Parcialmente Pago</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Cancelado</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabela de Itens Vendidos -->
+            <h5 class="fw-bold text-dark mb-3">Itens da Venda</h5>
+            <div class="table-responsive mb-4">
+                <table class="table table-bordered align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Item / Produto</th>
+                            <th>Lote</th>
+                            <th class="text-center" style="width: 80px;">Qtd</th>
+                            <th class="text-end" style="width: 130px;">Preço Unit.</th>
+                            <th class="text-end" style="width: 140px;">Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in venda.itens.all %}
+                        <tr>
+                            <td>
+                                <div class="fw-bold text-dark">{{ item.nome_exibicao }}</div>
+                                <div class="text-muted small">SKU: {{ item.produto.sku|default:"-" }}</div>
+                            </td>
+                            <td>
+                                {% if item.lote %}
+                                    <span class="badge bg-light text-dark border">Lote {{ item.lote.numero_lote }}</span>
+                                {% else %}
+                                    <span class="text-muted small">Automático</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center fw-bold">{{ item.quantidade }} {{ item.produto.unidade|default:"UN" }}</td>
+                            <td class="text-end">R$ {{ item.preco_unitario|floatformat:2 }}</td>
+                            <td class="text-end fw-bold text-dark">R$ {{ item.subtotal|floatformat:2 }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Resumo Financeiro da Venda -->
+            <div class="row justify-content-end mb-4">
+                <div class="col-12 col-md-5">
+                    <div class="card bg-light border-0 p-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="text-muted">Subtotal:</span>
+                            <strong class="text-dark">R$ {{ venda.valor_subtotal|floatformat:2 }}</strong>
+                        </div>
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="text-muted">Desconto Concedido:</span>
+                            <span class="text-danger fw-semibold">- R$ {{ venda.desconto|floatformat:2 }}</span>
+                        </div>
+                        <hr class="my-2">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="fs-5 fw-bold text-dark">Total da Venda:</span>
+                            <span class="fs-4 fw-bold text-primary">R$ {{ venda.valor_total|floatformat:2 }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Seção de Parcelas do Crediário (Se Houver) -->
+            {% if venda.parcelas.exists %}
+            <div class="border-top pt-4 mb-4">
+                <h5 class="fw-bold text-dark mb-3 d-flex align-items-center gap-2">
+                    <i class="bi bi-calendar3 text-warning"></i> Cronograma de Parcelas do Crediário
+                </h5>
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Parcela</th>
+                                <th>Vencimento</th>
+                                <th class="text-end">Valor Nominal</th>
+                                <th class="text-end">Valor Pago</th>
+                                <th class="text-end">Saldo Restante</th>
+                                <th class="text-center">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for p in venda.parcelas.all %}
+                            <tr>
+                                <td class="fw-semibold">{{ p.numero_parcela }} de {{ p.total_parcelas }}</td>
+                                <td>{{ p.data_vencimento|date:"d/m/Y" }}</td>
+                                <td class="text-end">R$ {{ p.valor_parcela|floatformat:2 }}</td>
+                                <td class="text-end text-success fw-semibold">R$ {{ p.valor_pago|floatformat:2 }}</td>
+                                <td class="text-end fw-bold {% if p.saldo_restante > 0 %}text-danger{% else %}text-muted{% endif %}">
+                                    R$ {{ p.saldo_restante|floatformat:2 }}
+                                </td>
+                                <td class="text-center">
+                                    {% if p.status == 'PAGO' %}
+                                        <span class="badge bg-success-subtle text-success">Quitado</span>
+                                    {% elif p.esta_vencida %}
+                                        <span class="badge bg-danger">Vencido</span>
+                                    {% elif p.status == 'CANCELADO' %}
+                                        <span class="badge bg-secondary">Cancelado</span>
+                                    {% else %}
+                                        <span class="badge bg-warning-subtle text-warning-emphasis">Pendente</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Assinatura / Observações para Impressão -->
+            {% if venda.observacoes %}
+            <div class="p-3 bg-light rounded-3 mb-4">
+                <span class="text-muted small fw-semibold text-uppercase d-block mb-1">Observações</span>
+                <p class="mb-0 text-dark small">{{ venda.observacoes }}</p>
+            </div>
+            {% endif %}
+
+            <div class="row pt-5 mt-5 text-center d-none d-print-flex">
+                <div class="col-6">
+                    <div class="border-top pt-2">
+                        <small class="text-muted">Assinatura do Vendedor</small>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="border-top pt-2">
+                        <small class="text-muted">Assinatura do Cliente</small>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Cupom Térmico Exclusivo para Impressão (Oculto em tela, ativado estritamente para impressoras térmicas) -->
+    <div class="d-none d-print-block cupom-termico-print">
+        <!-- 1. DADOS DA EMPRESA (TOPO DO CUPOM) -->
+        <div class="text-center">
+            <div class="empresa-nome" style="font-size: 16px; font-weight: bold; letter-spacing: 0.5px;">{{ venda.empresa.nome|upper }}</div>
+            {% if venda.empresa.cnpj %}
+                <div class="empresa-sub">CNPJ: {{ venda.empresa.cnpj }}</div>
+            {% endif %}
+            <div class="linha-dupla"></div>
+            <div class="titulo-comprovante">COMPROVANTE NÃO FISCAL</div>
+            <div class="linha-dupla"></div>
+        </div>
+
+        <div style="font-size: 11px;">
+            <div><strong>VENDA:</strong> {{ venda.codigo_venda }}</div>
+            <div><strong>DATA:</strong> {{ venda.data_venda|date:"d/m/Y H:i:s" }}</div>
+        </div>
+
+        <div class="linha-tracejada"></div>
+
+        <div style="font-size: 11px;">
+            {% if venda.cliente %}
+                <div><strong>CLIENTE:</strong> {{ venda.cliente.nome|upper }}</div>
+                {% if venda.cliente.cpf_cnpj %}<div><strong>DOC:</strong> {{ venda.cliente.cpf_cnpj }}</div>{% endif %}
+                {% if venda.cliente.telefone %}<div><strong>CONTATO:</strong> {{ venda.cliente.telefone }}</div>{% endif %}
+            {% else %}
+                <div><strong>CLIENTE:</strong> CONSUMIDOR FINAL (BALCÃO)</div>
+            {% endif %}
+        </div>
+
+        <div class="linha-tracejada"></div>
+
+        <div class="text-center fw-bold" style="font-size: 11px; margin-bottom: 2px;">ITENS VENDIDOS</div>
+        <div class="linha-tracejada"></div>
+
+        <table class="tabela-itens-print">
+            <thead>
+                <tr>
+                    <th style="width: 15%;">ITEM</th>
+                    <th style="width: 55%;">DESCRIÇÃO</th>
+                    <th style="width: 30%; text-align: right;">VALOR (R$)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in venda.itens.all %}
+                <tr>
+                    <td>{{ forloop.counter|stringformat:"02d" }}</td>
+                    <td colspan="2">
+                        <span class="item-descricao-print">{{ item.nome_exibicao|upper }}</span>
+                        <div class="item-detalhe-print">
+                            <span>{{ item.quantidade }} {{ item.produto.unidade|default:"UN" }} x R$ {{ item.preco_unitario|floatformat:2 }}</span>
+                            <span class="fw-bold">R$ {{ item.subtotal|floatformat:2 }}</span>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="linha-tracejada"></div>
+
+        <div class="linha-print">
+            <span>QTD. TOTAL DE ITENS:</span>
+            <strong>{{ venda.itens.count }}</strong>
+        </div>
+        <div class="linha-print">
+            <span>SUBTOTAL:</span>
+            <span>R$ {{ venda.valor_subtotal|floatformat:2 }}</span>
+        </div>
+        {% if venda.desconto > 0 %}
+        <div class="linha-print">
+            <span>DESCONTO:</span>
+            <span>- R$ {{ venda.desconto|floatformat:2 }}</span>
+        </div>
+        {% endif %}
+
+        <div class="linha-tracejada"></div>
+
+        <div class="linha-print total-destaque-print">
+            <span>TOTAL A PAGAR:</span>
+            <span>R$ {{ venda.valor_total|floatformat:2 }}</span>
+        </div>
+
+        <div class="linha-tracejada"></div>
+
+        <div class="linha-print">
+            <span>FORMA DE PAGTO:</span>
+            <strong>{{ venda.get_forma_pagamento_display|upper }}</strong>
+        </div>
+
+        {% if venda.parcelas.exists %}
+        <div class="linha-tracejada"></div>
+        <div class="text-center fw-bold" style="font-size: 11px;">CRONOGRAMA DO CREDIÁRIO (CARNÊ)</div>
+        <div class="linha-tracejada"></div>
+        {% for p in venda.parcelas.all %}
+        <div class="linha-print" style="font-size: 10px;">
+            <span>Parc. {{ p.numero_parcela }}/{{ p.total_parcelas }} ({{ p.data_vencimento|date:"d/m/Y" }}):</span>
+            <strong>R$ {{ p.valor_parcela|floatformat:2 }}</strong>
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        {% if venda.observacoes %}
+        <div class="linha-tracejada"></div>
+        <div style="font-size: 10px;">
+            <strong>OBS:</strong> {{ venda.observacoes }}
+        </div>
+        {% endif %}
+
+        <div class="linha-dupla"></div>
+        <div class="text-center" style="font-size: 11px; margin-top: 6px;">
+            <div class="fw-bold">OBRIGADO PELA PREFERÊNCIA!</div>
+            <div>VOLTE SEMPRE!</div>
+            <div style="font-size: 9px; margin-top: 4px; color: #555;">JGTECH SISTEMA DE GESTÃO DE ESTOQUE</div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Modal Cancelar Venda -->
+{% if venda.status == 'CONCLUIDA' and user.userprofile.e_dono or user.is_superuser %}
+<div class="modal fade" id="modalCancelarVenda" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title fw-bold">
+                    <i class="bi bi-exclamation-triangle-fill me-1"></i> Cancelar Venda {{ venda.codigo_venda }}
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{% url 'cancelar_venda' venda.pk %}">
+                {% csrf_token %}
+                <div class="modal-body p-4">
+                    <p class="text-dark mb-2">Tem certeza de que deseja cancelar esta venda?</p>
+                    <div class="alert alert-warning small mb-0">
+                        <ul class="mb-0 ps-3">
+                            <li>Todas as mercadorias vendidas serão <strong>estornadas de volta ao estoque</strong> automaticamente.</li>
+                            <li>As saídas de estoque associadas serão canceladas.</li>
+                            <li>Quaisquer parcelas pendentes do crediário serão anuladas.</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
+                    <button type="submit" class="btn btn-danger px-4 fw-bold">
+                        <i class="bi bi-trash-fill me-1"></i> Confirmar Cancelamento
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<style>
+@media print {
+    @page {
+        size: 80mm auto;
+        margin: 0;
+    }
+    html, body {
+        background: #fff !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        color: #000 !important;
+        font-family: 'Courier New', Courier, monospace, sans-serif !important;
+    }
+    nav, header, footer, .sidebar, .navbar, .d-print-none, .modal, .alert {
+        display: none !important;
+    }
+    .container {
+        max-width: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+    .cupom-termico-print {
+        display: block !important;
+        width: 80mm !important;
+        max-width: 80mm !important;
+        margin: 0 auto !important;
+        padding: 4mm 3mm !important;
+        font-size: 12px !important;
+        line-height: 1.25 !important;
+    }
+    .linha-tracejada {
+        border-top: 1px dashed #000 !important;
+        margin: 4px 0 !important;
+    }
+    .linha-dupla {
+        border-top: 2px solid #000 !important;
+        margin: 5px 0 !important;
+    }
+    .empresa-nome {
+        font-size: 14px !important;
+        font-weight: bold !important;
+    }
+    .empresa-sub {
+        font-size: 11px !important;
+    }
+    .titulo-comprovante {
+        font-size: 12px !important;
+        font-weight: bold !important;
+    }
+    .tabela-itens-print {
+        width: 100% !important;
+        border-collapse: collapse !important;
+    }
+    .tabela-itens-print th {
+        font-size: 10px !important;
+        border-bottom: 1px dashed #000 !important;
+        text-align: left !important;
+        padding-bottom: 2px !important;
+    }
+    .tabela-itens-print td {
+        font-size: 11px !important;
+        padding: 2px 0 !important;
+    }
+    .item-descricao-print {
+        font-weight: bold !important;
+        display: block !important;
+    }
+    .item-detalhe-print {
+        display: flex !important;
+        justify-content: space-between !important;
+        font-size: 10px !important;
+    }
+    .linha-print {
+        display: flex !important;
+        justify-content: space-between !important;
+        font-size: 11px !important;
+        padding: 1px 0 !important;
+    }
+    .total-destaque-print {
+        font-size: 14px !important;
+        font-weight: bold !important;
+    }
+}
+</style>
+
+<script>
+function imprimirCupomTermico() {
+    var url = "{% url 'imprimir_cupom_venda' venda.pk %}";
+    var popup = window.open(url, "CupomTermico", "width=420,height=680,menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=yes");
+    if (popup) {
+        popup.focus();
+    } else {
+        window.print();
+    }
+}
+</script>
+
+{% endblock %}

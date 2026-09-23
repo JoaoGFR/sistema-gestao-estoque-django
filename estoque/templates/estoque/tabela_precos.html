@@ -1,0 +1,738 @@
+{% extends 'estoque/base.html' %}
+
+{% block content %}
+<div class="container-fluid py-2">
+    <!-- Topo e Ações -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 pb-2 border-bottom">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}" class="text-decoration-none">Início</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'lista_produtos' %}" class="text-decoration-none">Estoque Geral</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Tabela de Preços de Venda</li>
+                </ol>
+            </nav>
+            <h2 class="h3 fw-bold mb-0 text-dark d-flex align-items-center gap-2">
+                <i class="bi bi-tags-fill text-success"></i> Tabela de Preços de Venda
+            </h2>
+            <div class="text-muted small">Exibindo com exclusividade os itens marcados para venda no PDV</div>
+        </div>
+        <div class="d-flex flex-wrap gap-2 mt-2 mt-md-0">
+            <!-- Botão Incluir Item na Tabela -->
+            <button type="button" class="btn btn-outline-success shadow-sm fw-semibold" data-bs-toggle="modal" data-bs-target="#modalAdicionarItemTabela">
+                <i class="bi bi-plus-circle me-1"></i> Incluir Item na Tabela
+            </button>
+            <a href="{% url 'registrar_venda' %}" class="btn btn-success shadow-sm fw-semibold">
+                <i class="bi bi-cart-plus me-1"></i> Ir para o PDV
+            </a>
+            <a href="{% url 'simulador_preco' %}" class="btn btn-outline-primary shadow-sm">
+                <i class="bi bi-calculator me-1"></i> Simulador Avançado
+            </a>
+            <a href="{% url 'lista_produtos' %}" class="btn btn-outline-secondary shadow-sm">
+                <i class="bi bi-boxes me-1"></i> Ver Estoque Geral
+            </a>
+        </div>
+    </div>
+
+    <!-- Cards de Métricas da Tabela de Preços -->
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-md-4">
+            <div class="card border-0 shadow-sm rounded-3 p-3 bg-white border-start border-4 border-success h-100">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-muted small text-uppercase fw-semibold">Itens na Tabela de Preços (PDV)</div>
+                        <h3 class="fw-bold mb-0 text-success mt-1">{{ total_para_venda }}</h3>
+                        <small class="text-muted">Itens com venda e preço ativos</small>
+                    </div>
+                    <div class="bg-success-subtle text-success p-3 rounded-circle">
+                        <i class="bi bi-cart-check-fill fs-4"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-4">
+            <div class="card border-0 shadow-sm rounded-3 p-3 bg-white border-start border-4 border-secondary h-100">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-muted small text-uppercase fw-semibold">Insumos / Uso Interno</div>
+                        <h3 class="fw-bold mb-0 text-secondary mt-1">{{ total_sem_venda }}</h3>
+                        <small class="text-muted">Itens fora da tabela de preços</small>
+                    </div>
+                    <div class="bg-secondary-subtle text-secondary p-3 rounded-circle">
+                        <i class="bi bi-shield-lock fs-4"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-4">
+            <div class="card border-0 shadow-sm rounded-3 p-3 bg-white border-start border-4 border-primary h-100">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-muted small text-uppercase fw-semibold">Total de Produtos Ativos</div>
+                        <h3 class="fw-bold mb-0 text-dark mt-1">{{ total_geral }}</h3>
+                        <small class="text-muted">Estoque geral cadastrado</small>
+                    </div>
+                    <div class="bg-primary-subtle text-primary p-3 rounded-circle">
+                        <i class="bi bi-box-seam fs-4"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtros de Busca -->
+    <div class="card border-0 shadow-sm rounded-3 mb-4">
+        <div class="card-body p-3">
+            <form method="get" class="row g-2 align-items-center">
+                <!-- Busca textual -->
+                <div class="col-12 col-md-7">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
+                        <input type="text" name="q" class="form-control border-start-0" 
+                               placeholder="Buscar por nome do produto, código SKU ou código de barras..." value="{{ query }}">
+                    </div>
+                </div>
+
+                <!-- Categoria -->
+                <div class="col-12 col-sm-8 col-md-3">
+                    <select name="categoria" class="form-select" onchange="this.form.submit()">
+                        <option value="">Todas as Categorias</option>
+                        {% for cat in categorias %}
+                            <option value="{{ cat.id }}" {% if categoria_selecionada == cat.id %}selected{% endif %}>
+                                {{ cat.nome }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Botão Filtrar -->
+                <div class="col-12 col-sm-4 col-md-2 d-flex gap-1">
+                    <button type="submit" class="btn btn-primary w-100 fw-semibold" title="Aplicar Filtros">
+                        <i class="bi bi-funnel me-1"></i> Filtrar
+                    </button>
+                    {% if query or categoria_selecionada %}
+                        <a href="{% url 'tabela_precos' %}" class="btn btn-outline-danger" title="Limpar Filtro">
+                            <i class="bi bi-x-circle"></i>
+                        </a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tabela de Preços -->
+    <div class="card border-0 shadow-sm rounded-3">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3" style="min-width: 250px;">Produto Destinado à Venda</th>
+                        <th>Categoria</th>
+                        <th class="text-end">Custo Médio</th>
+                        <th class="text-end">Preço de Venda</th>
+                        <th class="text-center">Margem Líquida</th>
+                        <th class="text-center">Markup</th>
+                        <th class="text-end">Lucro Unit.</th>
+                        <th class="text-end pe-3" style="width: 150px;">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in page_obj %}
+                        <tr id="linha-produto-{{ p.id }}">
+                            <!-- Produto -->
+                            <td class="ps-3">
+                                <div class="fw-bold text-dark fs-6">{{ p.nome }}</div>
+                                <div class="small text-muted d-flex gap-2">
+                                    {% if p.sku %}<span>SKU: {{ p.sku }}</span>{% endif %}
+                                    {% if p.ean %}<span>EAN: {{ p.ean }}</span>{% endif %}
+                                    <span>Un: {{ p.unidade }}</span>
+                                </div>
+                            </td>
+
+                            <!-- Categoria -->
+                            <td>
+                                {% if p.categoria %}
+                                    <span class="badge bg-light text-dark border">{{ p.categoria.nome }}</span>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+
+                            <!-- Custo Médio -->
+                            <td class="text-end text-muted font-monospace" id="col-custo-{{ p.id }}" data-custo="{{ p.preco_medio|stringformat:'.2f'|default:'0.00' }}">
+                                R$ {{ p.preco_medio|floatformat:2 }}
+                            </td>
+
+                            <!-- Preço de Venda -->
+                            <td class="text-end fw-bold font-monospace fs-6" id="col-preco-{{ p.id }}">
+                                {% if p.preco_venda > 0 %}
+                                    <span class="text-success">R$ {{ p.preco_venda|floatformat:2 }}</span>
+                                {% else %}
+                                    <span class="text-warning">R$ 0,00</span>
+                                {% endif %}
+                            </td>
+
+                            <!-- Margem Líquida -->
+                            <td class="text-center" id="col-margem-{{ p.id }}">
+                                {% if p.preco_venda > 0 and p.preco_medio > 0 %}
+                                    {% if p.margem_lucro >= 20 %}
+                                        <span class="badge bg-success text-white px-2 py-1">{{ p.margem_lucro }}%</span>
+                                    {% elif p.margem_lucro > 0 %}
+                                        <span class="badge bg-warning text-dark px-2 py-1">{{ p.margem_lucro }}%</span>
+                                    {% else %}
+                                        <span class="badge bg-danger text-white px-2 py-1">{{ p.margem_lucro }}%</span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted small">-</span>
+                                {% endif %}
+                            </td>
+
+                            <!-- Markup -->
+                            <td class="text-center" id="col-markup-{{ p.id }}">
+                                {% if p.preco_venda > 0 and p.preco_medio > 0 %}
+                                    <span class="badge bg-light text-primary border px-2 py-1">{{ p.markup }}%</span>
+                                {% else %}
+                                    <span class="text-muted small">-</span>
+                                {% endif %}
+                            </td>
+
+                            <!-- Lucro Unitário -->
+                            <td class="text-end font-monospace fw-semibold" id="col-lucro-{{ p.id }}">
+                                {% if p.preco_venda > 0 and p.preco_medio > 0 %}
+                                    <span class="{% if p.lucro_unitario > 0 %}text-success{% else %}text-danger{% endif %}">
+                                        R$ {{ p.lucro_unitario|floatformat:2 }}
+                                    </span>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+
+                            <!-- Ações -->
+                            <td class="text-end pe-3">
+                                <div class="btn-group btn-group-sm">
+                                    <!-- Botão Edição Rápida de Preço -->
+                                    <button type="button" class="btn btn-outline-primary" 
+                                            onclick="abrirModalAjustePreco({{ p.id }}, '{{ p.nome|escapejs }}', '{{ p.preco_venda|stringformat:".2f" }}', {{ p.disponivel_venda|yesno:'true,false' }}, '{{ p.preco_medio|stringformat:".2f" }}')"
+                                            title="Ajustar Preço ou Desmarcar Venda">
+                                        <i class="bi bi-tag"></i>
+                                    </button>
+                                    
+                                    <!-- Botão Histórico de Preços -->
+                                    <button type="button" class="btn btn-outline-secondary" 
+                                            onclick="abrirModalHistorico({{ p.id }})" 
+                                            title="Histórico de Auditoria de Preços">
+                                        <i class="bi bi-clock-history"></i>
+                                    </button>
+
+                                    <!-- Editar Completo -->
+                                    <a href="{% url 'editar_produto' p.id %}" class="btn btn-outline-dark" title="Editar Cadastro Completo">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center py-5 text-muted">
+                                <i class="bi bi-cart-x fs-1 d-block mb-2 text-secondary"></i>
+                                <h5>Nenhum produto cadastrado na Tabela de Preços</h5>
+                                <p class="small mb-3">Atualmente nenhum produto está com a opção "Produto Destinado à Venda (PDV)" marcada.</p>
+                                <button type="button" class="btn btn-success btn-sm fw-semibold" data-bs-toggle="modal" data-bs-target="#modalAdicionarItemTabela">
+                                    <i class="bi bi-plus-circle me-1"></i> Incluir Item do Estoque na Tabela
+                                </button>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Paginação -->
+        {% if page_obj.has_other_pages %}
+            <div class="card-footer bg-white py-3 border-0">
+                <nav aria-label="Paginação da Tabela de Preços">
+                    <ul class="pagination justify-content-center mb-0">
+                        {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if query %}&q={{ query }}{% endif %}{% if categoria_selecionada %}&categoria={{ categoria_selecionada }}{% endif %}">
+                                    Anterior
+                                </a>
+                            </li>
+                        {% endif %}
+                        <li class="page-item disabled">
+                            <span class="page-link">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+                        </li>
+                        {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if query %}&q={{ query }}{% endif %}{% if categoria_selecionada %}&categoria={{ categoria_selecionada }}{% endif %}">
+                                    Próxima
+                                </a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODAL: INCLUIR ITEM DO ESTOQUE NA TABELA DE PREÇOS -->
+<!-- ========================================================================= -->
+<div class="modal fade" id="modalAdicionarItemTabela" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content shadow-lg border-0 rounded-3">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title fw-bold">
+                    <i class="bi bi-plus-circle me-1"></i> Incluir Item na Tabela de Preços
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body p-4">
+                <p class="text-muted small">
+                    Selecione um item do estoque geral que atualmente não está cadastrado para venda e defina seu preço inicial:
+                </p>
+
+                <!-- Seleção do Produto Insumo -->
+                <div class="mb-3">
+                    <label for="selectItemInsumo" class="form-label fw-bold">Selecione o Produto <span class="text-danger">*</span></label>
+                    <select id="selectItemInsumo" class="form-select form-select-lg">
+                        <option value="">-- Selecione o item --</option>
+                        {% for p in produtos_insumo %}
+                            <option value="{{ p.id }}" data-custo="{{ p.preco_medio|stringformat:'.2f'|default:'0.00' }}">
+                                {{ p.nome }} (Custo Médio: R$ {{ p.preco_medio|floatformat:2 }})
+                            </option>
+                        {% empty %}
+                            <option value="" disabled>Todos os produtos ativos já estão na tabela de preços!</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Preço de Venda -->
+                <div class="mb-3">
+                    <label for="inputNovoItemPreco" class="form-label fw-bold">Preço de Venda Inicial (R$) <span class="text-danger">*</span></label>
+                    <div class="input-group input-group-lg">
+                        <span class="input-group-text bg-success text-white fw-bold">R$</span>
+                        <input type="number" id="inputNovoItemPreco" class="form-control fw-bold" step="0.01" min="0" placeholder="0,00">
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="inputNovoItemMotivo" class="form-label fw-semibold">Motivo do Cadastro</label>
+                    <input type="text" id="inputNovoItemMotivo" class="form-control" value="Inclusão na Tabela de Preços de Venda">
+                </div>
+
+                <div id="feedbackNovoItem" class="alert d-none py-2 px-3 small"></div>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-success fw-bold px-4" id="btnSalvarNovoItemTabela" onclick="salvarNovoItemTabela()">
+                    <i class="bi bi-check-lg me-1"></i> Incluir na Tabela
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODAL: AJUSTE RÁPIDO DE PREÇO -->
+<!-- ========================================================================= -->
+<div class="modal fade" id="modalAjustePreco" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content shadow-lg border-0 rounded-3">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title fw-bold" id="modalAjusteTitulo">
+                    <i class="bi bi-tag-fill me-1"></i> Ajustar Preço de Venda
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body p-4">
+                <input type="hidden" id="modalProdId">
+                <input type="hidden" id="modalProdCusto">
+
+                <div class="mb-3">
+                    <label class="form-label text-muted small text-uppercase">Produto Selecionado</label>
+                    <h5 class="fw-bold text-dark" id="modalProdNome">-</h5>
+                </div>
+
+                <!-- Switch Destinado à Venda -->
+                <div class="card p-3 mb-3 bg-light border-0">
+                    <div class="form-check form-switch d-flex align-items-center justify-content-between p-0 m-0">
+                        <div>
+                            <label class="form-check-label fw-bold text-dark" for="modalDisponivelVenda" style="cursor: pointer;">
+                                Produto Destinado à Venda (PDV)?
+                            </label>
+                            <div class="text-muted small">
+                                Desmarque caso deseje retirar este item da tabela de preços e mantê-lo apenas como insumo interno.
+                            </div>
+                        </div>
+                        <div class="ms-3">
+                            <input class="form-check-input" type="checkbox" id="modalDisponivelVenda" style="width: 2.8rem; height: 1.5rem; cursor: pointer;">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Input Preço de Venda -->
+                <div class="mb-3">
+                    <label for="modalPrecoVenda" class="form-label fw-bold">Preço de Venda (R$)</label>
+                    <div class="input-group input-group-lg">
+                        <span class="input-group-text bg-primary text-white fw-bold">R$</span>
+                        <input type="number" id="modalPrecoVenda" class="form-control fw-bold" step="0.01" min="0" placeholder="0,00">
+                    </div>
+                </div>
+
+                <!-- Métricas Calculadas ao Vivo no Modal -->
+                <div class="row g-2 mb-3 text-center">
+                    <div class="col-4">
+                        <div class="card bg-light border p-2">
+                            <small class="text-muted">Custo Médio</small>
+                            <strong class="text-dark mt-1" id="modalDispCusto">R$ 0,00</strong>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="card bg-light border p-2" id="modalCardMargem">
+                            <small class="text-muted">Margem Líq.</small>
+                            <strong class="mt-1" id="modalDispMargem">0.0%</strong>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="card bg-light border p-2">
+                            <small class="text-muted">Lucro Unit.</small>
+                            <strong class="mt-1 text-primary" id="modalDispLucro">R$ 0,00</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Motivo do Reajuste -->
+                <div class="mb-3">
+                    <label for="modalMotivo" class="form-label fw-semibold">Motivo da Alteração (Opcional)</label>
+                    <input type="text" id="modalMotivo" class="form-control" placeholder="Ex: Reajuste anual, Repasse de custos, Promoção...">
+                    <div class="form-text">Ficará registrado no histórico de auditoria de preços.</div>
+                </div>
+
+                <div id="modalAjusteFeedback" class="alert d-none py-2 px-3 small"></div>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-success fw-bold px-4" id="btnSalvarPrecoModal" onclick="salvarPrecoModal()">
+                    <i class="bi bi-check-lg me-1"></i> Salvar Preço
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODAL: HISTÓRICO DE PREÇOS -->
+<!-- ========================================================================= -->
+<div class="modal fade" id="modalHistorico" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content shadow-lg border-0 rounded-3">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title fw-bold">
+                    <i class="bi bi-clock-history me-1"></i> Histórico de Alterações de Preço
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="mb-3 pb-2 border-bottom d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="fw-bold text-dark mb-0" id="histProdNome">-</h5>
+                        <small class="text-muted" id="histProdDetalhes">-</small>
+                    </div>
+                    <span class="badge bg-primary fs-6" id="histProdPrecoAtual">R$ 0,00</span>
+                </div>
+
+                <div id="loadingHistorico" class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <div class="text-muted small mt-2">Carregando histórico...</div>
+                </div>
+
+                <div id="conteudoHistorico" class="d-none">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Data / Hora</th>
+                                    <th>Usuário</th>
+                                    <th>Preço Anterior</th>
+                                    <th>Novo Preço</th>
+                                    <th>Variação</th>
+                                    <th>Motivo</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabelaHistoricoBody">
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="msgSemHistorico" class="alert alert-light text-center border text-muted d-none mt-3">
+                        Nenhuma alteração de preço registrada para este produto até o momento.
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer bg-light py-2">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- MODAL DE AJUSTE RÁPIDO DE PREÇO ---
+    const modalAjusteEl = document.getElementById('modalAjustePreco');
+    const inputPrecoModal = document.getElementById('modalPrecoVenda');
+    const switchVendaModal = document.getElementById('modalDisponivelVenda');
+    const dispCustoModal = document.getElementById('modalDispCusto');
+    const dispMargemModal = document.getElementById('modalDispMargem');
+    const dispLucroModal = document.getElementById('modalDispLucro');
+    const cardMargemModal = document.getElementById('modalCardMargem');
+
+    function calcularMetricasModal() {
+        const preco = parseFloat(inputPrecoModal.value) || 0;
+        const custo = parseFloat(document.getElementById('modalProdCusto').value) || 0;
+        const lucro = preco - custo;
+
+        dispLucroModal.textContent = `R$ ${lucro.toFixed(2).replace('.', ',')}`;
+
+        if (preco > 0) {
+            const margem = custo > 0 ? ((preco - custo) / preco) * 100 : 100;
+            dispMargemModal.textContent = `${margem.toFixed(1)}%`;
+
+            if (margem < 0) {
+                dispMargemModal.className = 'mt-1 text-danger';
+                cardMargemModal.className = 'card bg-danger-subtle border border-danger-subtle p-2';
+            } else if (margem < 15) {
+                dispMargemModal.className = 'mt-1 text-warning';
+                cardMargemModal.className = 'card bg-warning-subtle border border-warning-subtle p-2';
+            } else {
+                dispMargemModal.className = 'mt-1 text-success';
+                cardMargemModal.className = 'card bg-success-subtle border border-success-subtle p-2';
+            }
+        } else {
+            dispMargemModal.textContent = '0.0%';
+            dispMargemModal.className = 'mt-1 text-muted';
+            cardMargemModal.className = 'card bg-light border p-2';
+        }
+    }
+
+    inputPrecoModal.addEventListener('input', calcularMetricasModal);
+
+    function abrirModalAjustePreco(id, nome, precoAtual, disponivelVenda, custoMedio) {
+        document.getElementById('modalProdId').value = id;
+        document.getElementById('modalProdNome').textContent = nome;
+        document.getElementById('modalProdCusto').value = custoMedio;
+        dispCustoModal.textContent = `R$ ${parseFloat(custoMedio).toFixed(2).replace('.', ',')}`;
+
+        inputPrecoModal.value = parseFloat(precoAtual) > 0 ? parseFloat(precoAtual).toFixed(2) : '';
+        switchVendaModal.checked = disponivelVenda;
+        document.getElementById('modalMotivo').value = '';
+        document.getElementById('modalAjusteFeedback').className = 'alert d-none py-2 px-3 small';
+
+        calcularMetricasModal();
+
+        const modal = bootstrap.Modal.getOrCreateInstance(modalAjusteEl);
+        modal.show();
+    }
+
+    function salvarPrecoModal() {
+        const id = document.getElementById('modalProdId').value;
+        const preco = inputPrecoModal.value;
+        const disponivel = switchVendaModal.checked;
+        const motivo = document.getElementById('modalMotivo').value;
+        const feedback = document.getElementById('modalAjusteFeedback');
+        const btnSalvar = document.getElementById('btnSalvarPrecoModal');
+
+        feedback.className = 'alert d-none py-2 px-3 small';
+        btnSalvar.disabled = true;
+
+        const formData = new FormData();
+        formData.append('preco_venda', preco);
+        formData.append('disponivel_venda', disponivel);
+        formData.append('motivo', motivo);
+        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+        fetch(`/api/produto/${id}/atualizar-preco/`, {
+            method: 'POST',
+            body: formData,
+            headers: {"X-CSRFToken": '{{ csrf_token }}'}
+        })
+        .then(res => res.json())
+        .then(data => {
+            btnSalvar.disabled = false;
+            if (data.status === 'success') {
+                // Se desmarcou disponivel_venda, remove a linha da tabela de preços pois ela só exibe itens de venda
+                if (!data.disponivel_venda) {
+                    const linha = document.getElementById(`linha-produto-${id}`);
+                    if (linha) {
+                        linha.style.transition = 'opacity 0.5s';
+                        linha.style.opacity = '0';
+                        setTimeout(() => linha.remove(), 500);
+                    }
+                } else {
+                    const colPreco = document.getElementById(`col-preco-${id}`);
+                    const colMargem = document.getElementById(`col-margem-${id}`);
+                    const colMarkup = document.getElementById(`col-markup-${id}`);
+                    const colLucro = document.getElementById(`col-lucro-${id}`);
+
+                    if (colPreco) {
+                        const precoFloat = parseFloat(data.preco_venda);
+                        colPreco.innerHTML = precoFloat > 0 
+                            ? `<span class="text-success">R$ ${precoFloat.toFixed(2).replace('.', ',')}</span>`
+                            : '<span class="text-muted">R$ 0,00</span>';
+                    }
+
+                    if (colMargem) {
+                        const margemVal = parseFloat(data.margem_lucro);
+                        if (margemVal >= 20) {
+                            colMargem.innerHTML = `<span class="badge bg-success text-white px-2 py-1">${margemVal.toFixed(1)}%</span>`;
+                        } else if (margemVal > 0) {
+                            colMargem.innerHTML = `<span class="badge bg-warning text-dark px-2 py-1">${margemVal.toFixed(1)}%</span>`;
+                        } else {
+                            colMargem.innerHTML = `<span class="badge bg-danger text-white px-2 py-1">${margemVal.toFixed(1)}%</span>`;
+                        }
+                    }
+
+                    if (colMarkup) {
+                        colMarkup.innerHTML = `<span class="badge bg-light text-primary border px-2 py-1">${data.markup}%</span>`;
+                    }
+
+                    if (colLucro) {
+                        const lucroFloat = parseFloat(data.lucro_unitario);
+                        colLucro.innerHTML = `<span class="${lucroFloat > 0 ? 'text-success' : 'text-danger'}">R$ ${lucroFloat.toFixed(2).replace('.', ',')}</span>`;
+                    }
+                }
+
+                bootstrap.Modal.getInstance(modalAjusteEl).hide();
+            } else {
+                feedback.className = 'alert alert-danger py-2 px-3 small';
+                feedback.textContent = data.message || 'Erro ao atualizar preço.';
+            }
+        })
+        .catch(() => {
+            btnSalvar.disabled = false;
+            feedback.className = 'alert alert-danger py-2 px-3 small';
+            feedback.textContent = 'Erro de conexão com o servidor.';
+        });
+    }
+
+    // --- MODAL: INCLUIR ITEM DO ESTOQUE NA TABELA DE PREÇOS ---
+    function salvarNovoItemTabela() {
+        const select = document.getElementById('selectItemInsumo');
+        const prodId = select.value;
+        const preco = document.getElementById('inputNovoItemPreco').value;
+        const motivo = document.getElementById('inputNovoItemMotivo').value;
+        const feedback = document.getElementById('feedbackNovoItem');
+        const btnSalvar = document.getElementById('btnSalvarNovoItemTabela');
+
+        if (!prodId) {
+            feedback.className = 'alert alert-warning py-2 px-3 small';
+            feedback.textContent = 'Por favor, selecione um produto do estoque.';
+            return;
+        }
+
+        if (!preco || parseFloat(preco) <= 0) {
+            feedback.className = 'alert alert-warning py-2 px-3 small';
+            feedback.textContent = 'Informe um preço de venda válido maior que zero.';
+            return;
+        }
+
+        feedback.className = 'alert d-none py-2 px-3 small';
+        btnSalvar.disabled = true;
+
+        const formData = new FormData();
+        formData.append('preco_venda', preco);
+        formData.append('disponivel_venda', 'true');
+        formData.append('motivo', motivo);
+        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+        fetch(`/api/produto/${prodId}/atualizar-preco/`, {
+            method: 'POST',
+            body: formData,
+            headers: {"X-CSRFToken": '{{ csrf_token }}'}
+        })
+        .then(res => res.json())
+        .then(data => {
+            btnSalvar.disabled = false;
+            if (data.status === 'success') {
+                window.location.reload();
+            } else {
+                feedback.className = 'alert alert-danger py-2 px-3 small';
+                feedback.textContent = data.message || 'Erro ao incluir na tabela.';
+            }
+        })
+        .catch(() => {
+            btnSalvar.disabled = false;
+            feedback.className = 'alert alert-danger py-2 px-3 small';
+            feedback.textContent = 'Erro de conexão com o servidor.';
+        });
+    }
+
+    // --- MODAL DE HISTÓRICO DE PREÇOS ---
+    const modalHistEl = document.getElementById('modalHistorico');
+    const loadingHist = document.getElementById('loadingHistorico');
+    const conteudoHist = document.getElementById('conteudoHistorico');
+    const tbodyHist = document.getElementById('tabelaHistoricoBody');
+    const msgSemHist = document.getElementById('msgSemHistorico');
+
+    function abrirModalHistorico(id) {
+        loadingHist.classList.remove('d-none');
+        conteudoHist.classList.add('d-none');
+        msgSemHist.classList.add('d-none');
+        tbodyHist.innerHTML = '';
+
+        const modal = bootstrap.Modal.getOrCreateInstance(modalHistEl);
+        modal.show();
+
+        fetch(`/api/produto/${id}/historico-precos/`)
+            .then(res => res.json())
+            .then(data => {
+                loadingHist.classList.add('d-none');
+                conteudoHist.classList.remove('d-none');
+
+                if (data.status === 'success') {
+                    document.getElementById('histProdNome').textContent = data.produto.nome;
+                    document.getElementById('histProdDetalhes').textContent = `Custo Médio: R$ ${parseFloat(data.produto.custo_medio).toFixed(2).replace('.', ',')}`;
+                    document.getElementById('histProdPrecoAtual').textContent = `Preço Atual: R$ ${parseFloat(data.produto.preco_atual).toFixed(2).replace('.', ',')}`;
+
+                    if (data.historico.length === 0) {
+                        msgSemHist.classList.remove('d-none');
+                    } else {
+                        data.historico.forEach(h => {
+                            const pAnt = parseFloat(h.preco_anterior);
+                            const pNov = parseFloat(h.preco_novo);
+                            const diff = pNov - pAnt;
+                            let varBadge = '';
+
+                            if (pAnt === 0) {
+                                varBadge = '<span class="badge bg-info-subtle text-info border">Preço Inicial</span>';
+                            } else if (diff > 0) {
+                                varBadge = `<span class="badge bg-success-subtle text-success border">+R$ ${diff.toFixed(2)}</span>`;
+                            } else if (diff < 0) {
+                                varBadge = `<span class="badge bg-danger-subtle text-danger border">-R$ ${Math.abs(diff).toFixed(2)}</span>`;
+                            } else {
+                                varBadge = '<span class="badge bg-light text-muted border">Sem alteração</span>';
+                            }
+
+                            const tr = document.createElement('tr');
+                            tr.innerHTML = `
+                                <td class="text-nowrap">${h.data}</td>
+                                <td><span class="badge bg-light text-dark border">${h.usuario}</span></td>
+                                <td class="font-monospace">R$ ${pAnt.toFixed(2)}</td>
+                                <td class="font-monospace fw-bold text-success">R$ ${pNov.toFixed(2)}</td>
+                                <td>${varBadge}</td>
+                                <td class="small text-muted">${h.motivo}</td>
+                            `;
+                            tbodyHist.appendChild(tr);
+                        });
+                    }
+                }
+            })
+            .catch(() => {
+                loadingHist.classList.add('d-none');
+                conteudoHist.classList.remove('d-none');
+                msgSemHist.textContent = 'Erro ao carregar histórico.';
+                msgSemHist.classList.remove('d-none');
+            });
+    }
+</script>
+{% endblock %}

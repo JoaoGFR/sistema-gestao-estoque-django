@@ -1,0 +1,515 @@
+{% extends 'estoque/base.html' %}
+
+{% block title %}Painel do Crediário & Contas a Receber | JGTECH Estoque{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-3">
+
+    <!-- Cabeçalho -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <h2 class="h3 fw-bold mb-1 d-flex align-items-center gap-2">
+                <i class="bi bi-credit-card-2-front-fill text-warning"></i> Painel do Crediário & Contas a Receber
+            </h2>
+            <p class="text-muted mb-0">Gerencie todos os débitos em aberto, receba pagamentos de parcelas e controle a inadimplência.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'lista_clientes' %}" class="btn btn-outline-secondary d-flex align-items-center gap-2">
+                <i class="bi bi-people"></i> Ver Clientes
+            </a>
+            <a href="{% url 'registrar_venda' %}" class="btn btn-success d-flex align-items-center gap-2 shadow-sm">
+                <i class="bi bi-cart-plus-fill"></i> Nova Venda (PDV)
+            </a>
+        </div>
+    </div>
+
+    <!-- Cards de KPIs Financeiros -->
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-md-4">
+            <div class="card border-0 shadow-sm rounded-3 h-100 bg-white">
+                <div class="card-body d-flex align-items-center gap-3">
+                    <div class="bg-primary-subtle text-primary p-3 rounded-circle fs-3">
+                        <i class="bi bi-cash-coin"></i>
+                    </div>
+                    <div>
+                        <span class="text-muted small fw-semibold text-uppercase">Total a Receber (Em Aberto)</span>
+                        <h3 class="fw-bold mb-0 text-primary">R$ {{ total_a_receber|floatformat:2 }}</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-4">
+            <div class="card border-0 shadow-sm rounded-3 h-100 bg-white">
+                <div class="card-body d-flex align-items-center gap-3">
+                    <div class="bg-danger-subtle text-danger p-3 rounded-circle fs-3">
+                        <i class="bi bi-alarm-fill"></i>
+                    </div>
+                    <div>
+                        <span class="text-muted small fw-semibold text-uppercase">Total Vencido em Atraso</span>
+                        <h3 class="fw-bold mb-0 text-danger">R$ {{ total_vencido|floatformat:2 }}</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-4">
+            <div class="card border-0 shadow-sm rounded-3 h-100 bg-white">
+                <div class="card-body d-flex align-items-center gap-3">
+                    <div class="bg-success-subtle text-success p-3 rounded-circle fs-3">
+                        <i class="bi bi-piggy-bank-fill"></i>
+                    </div>
+                    <div>
+                        <span class="text-muted small fw-semibold text-uppercase">Recebido no Mês</span>
+                        <h3 class="fw-bold mb-0 text-success">R$ {{ total_recebido_mes|floatformat:2 }}</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtros de Contas -->
+    <div class="card border-0 shadow-sm rounded-3 mb-4">
+        <div class="card-body p-3">
+            <form method="GET" class="row g-2 align-items-center">
+                <div class="col-12 col-md-4">
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-end-0 text-muted">
+                            <i class="bi bi-search"></i>
+                        </span>
+                        <input type="text" name="q" value="{{ q }}" class="form-control border-start-0 bg-light" placeholder="Buscar cliente ou código da venda...">
+                    </div>
+                </div>
+                <div class="col-12 col-md-3">
+                    <!-- Select oculto para envio do formulário -->
+                    <select name="cliente_id" id="filtroClienteCrediario" class="d-none">
+                        <option value="">-- Todos os Clientes --</option>
+                        {% for c in clientes %}
+                            <option value="{{ c.id }}"
+                                    data-nome="{{ c.nome }}"
+                                    data-cpf="{{ c.cpf_cnpj|default:'' }}"
+                                    data-telefone="{{ c.telefone|default:'' }}"
+                                    data-cidade="{{ c.cidade|default:'' }}"
+                                    {% if cliente_id == c.id|stringformat:'s' %}selected{% endif %}>
+                                {{ c.nome }}
+                            </option>
+                        {% endfor %}
+                    </select>
+
+                    <button type="button" class="btn btn-outline-secondary bg-white text-start text-truncate w-100 d-flex justify-content-between align-items-center h-100 py-2" 
+                            id="btnAbrirModalClienteCrediario" data-bs-toggle="modal" data-bs-target="#modalBuscaClienteCrediario">
+                        <span id="txtClienteCrediarioSel" class="text-truncate">
+                            {% if cliente_id %}
+                                {% for c in clientes %}{% if cliente_id == c.id|stringformat:'s' %}<i class="bi bi-person-fill text-primary me-1"></i>{{ c.nome }}{% endif %}{% endfor %}
+                            {% else %}
+                                <i class="bi bi-person-search me-1 text-muted"></i> Todos os Clientes
+                            {% endif %}
+                        </span>
+                        <i class="bi bi-search small text-muted ms-1"></i>
+                    </button>
+                </div>
+                <div class="col-12 col-md-3">
+                    <div class="btn-group w-100" role="group">
+                        <a href="?status=abertos{% if q %}&q={{ q }}{% endif %}{% if cliente_id %}&cliente_id={{ cliente_id }}{% endif %}" class="btn btn-sm {% if status_filtro == 'abertos' %}btn-primary{% else %}btn-outline-secondary{% endif %}">Abertas</a>
+                        <a href="?status=atrasados{% if q %}&q={{ q }}{% endif %}{% if cliente_id %}&cliente_id={{ cliente_id }}{% endif %}" class="btn btn-sm {% if status_filtro == 'atrasados' %}btn-danger{% else %}btn-outline-secondary{% endif %}">Vencidas</a>
+                        <a href="?status=pagos{% if q %}&q={{ q }}{% endif %}{% if cliente_id %}&cliente_id={{ cliente_id }}{% endif %}" class="btn btn-sm {% if status_filtro == 'pagos' %}btn-success{% else %}btn-outline-secondary{% endif %}">Pagas</a>
+                    </div>
+                </div>
+                <div class="col-12 col-md-2 d-flex gap-2">
+                    <button type="submit" class="btn btn-secondary w-100">
+                        <i class="bi bi-funnel"></i> Filtrar
+                    </button>
+                    {% if q or cliente_id or status_filtro != 'abertos' %}
+                        <a href="{% url 'painel_crediario' %}" class="btn btn-outline-danger" title="Limpar filtros">
+                            <i class="bi bi-x-lg"></i>
+                        </a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tabela de Parcelas -->
+    <div class="card border-0 shadow-sm rounded-3">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3">Cliente</th>
+                        <th>Venda</th>
+                        <th>Parcela</th>
+                        <th>Vencimento</th>
+                        <th class="text-end">Valor Nominal</th>
+                        <th class="text-end">Valor Pago</th>
+                        <th class="text-end">Saldo a Pagar</th>
+                        <th class="text-center">Status</th>
+                        <th class="text-end pe-3">Ação</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for conta in page_obj %}
+                    <tr class="{% if conta.esta_vencida %}table-danger-subtle{% endif %}">
+                        <td class="ps-3">
+                            <a href="{% url 'detalhe_cliente' conta.cliente.pk %}" class="fw-bold text-dark text-decoration-none">
+                                {{ conta.cliente.nome }}
+                            </a>
+                            {% if conta.cliente.telefone %}
+                                <div class="text-muted small"><i class="bi bi-telephone"></i> {{ conta.cliente.telefone }}</div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{% url 'detalhe_venda' conta.venda.pk %}" class="text-decoration-none fw-semibold text-primary">
+                                {{ conta.venda.codigo_venda }}
+                            </a>
+                            <div class="text-muted small">{{ conta.venda.data_venda|date:"d/m/Y" }}</div>
+                        </td>
+                        <td class="fw-semibold">{{ conta.numero_parcela }} de {{ conta.total_parcelas }}</td>
+                        <td>
+                            <span class="fw-semibold">{{ conta.data_vencimento|date:"d/m/Y" }}</span>
+                            {% if conta.esta_vencida %}
+                                <div class="badge bg-danger small">{{ conta.dias_atraso }} dias atrasado</div>
+                            {% elif conta.status == 'PENDENTE' and conta.data_vencimento == hoje %}
+                                <div class="badge bg-warning text-dark small">Vence Hoje</div>
+                            {% endif %}
+                        </td>
+                        <td class="text-end text-secondary fw-semibold">
+                            R$ {{ conta.valor_parcela|floatformat:2 }}
+                        </td>
+                        <td class="text-end text-success fw-semibold">
+                            R$ {{ conta.valor_pago|floatformat:2 }}
+                        </td>
+                        <td class="text-end fw-bold {% if conta.saldo_restante > 0 %}text-danger{% else %}text-muted{% endif %}">
+                            R$ {{ conta.saldo_restante|floatformat:2 }}
+                        </td>
+                        <td class="text-center">
+                            {% if conta.status == 'PAGO' %}
+                                <span class="badge bg-success-subtle text-success">Quitado</span>
+                            {% elif conta.esta_vencida %}
+                                <span class="badge bg-danger">Vencido</span>
+                            {% elif conta.status == 'CANCELADO' %}
+                                <span class="badge bg-secondary">Cancelado</span>
+                            {% else %}
+                                <span class="badge bg-warning-subtle text-warning-emphasis">Pendente</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end pe-3">
+                            {% if conta.status != 'PAGO' and conta.status != 'CANCELADO' %}
+                                <button type="button" class="btn btn-sm btn-success d-inline-flex align-items-center gap-1 btn-receber"
+                                        data-bs-toggle="modal" data-bs-target="#modalReceberParcela"
+                                        data-action="{% url 'baixar_parcela' conta.pk %}"
+                                        data-cliente="{{ conta.cliente.nome }}"
+                                        data-parcela="{{ conta.numero_parcela }}/{{ conta.total_parcelas }}"
+                                        data-venda="{{ conta.venda.codigo_venda }}"
+                                        data-saldo="{{ conta.saldo_restante|floatformat:2 }}">
+                                    <i class="bi bi-cash-coin"></i> Receber
+                                </button>
+                            {% else %}
+                                <span class="text-muted small"><i class="bi bi-check-circle-fill text-success"></i> Quitado</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="text-center py-5 text-muted">
+                            <i class="bi bi-journal-check fs-1 d-block mb-2 text-secondary"></i>
+                            Nenhuma conta ou parcela encontrada com os filtros atuais.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Paginação -->
+        {% if page_obj.has_other_pages %}
+        <div class="card-footer bg-white border-top-0 py-3">
+            <nav>
+                <ul class="pagination pagination-sm justify-content-center mb-0">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if q %}&q={{ q }}{% endif %}{% if status_filtro %}&status={{ status_filtro }}{% endif %}{% if cliente_id %}&cliente_id={{ cliente_id }}{% endif %}">Anterior</a>
+                        </li>
+                    {% endif %}
+                    
+                    <li class="page-item disabled">
+                        <span class="page-link">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+                    </li>
+
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if q %}&q={{ q }}{% endif %}{% if status_filtro %}&status={{ status_filtro }}{% endif %}{% if cliente_id %}&cliente_id={{ cliente_id }}{% endif %}">Próxima</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+
+<!-- Modal Receber Pagamento de Parcela -->
+<div class="modal fade" id="modalReceberParcela" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title fw-bold">
+                    <i class="bi bi-cash-coin me-1"></i> Receber Pagamento de Parcela
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" id="formReceberModal">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                <div class="modal-body p-4">
+                    <div class="alert alert-light border mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="text-muted small">Cliente:</span>
+                            <strong id="modalClienteNome" class="text-dark"></strong>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="text-muted small">Venda / Parcela:</span>
+                            <span id="modalVendaParcela" class="fw-semibold"></span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center pt-2 border-top">
+                            <span class="text-muted small">Saldo a Quitar:</span>
+                            <strong id="modalSaldoDevedorTxt" class="text-danger fs-5"></strong>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Valor Recebido (R$) <span class="text-danger">*</span></label>
+                        {{ form_receber.valor_recebido }}
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Forma de Recebimento</label>
+                        {{ form_receber.forma_pagamento }}
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Data do Recebimento</label>
+                        {{ form_receber.data_recebimento }}
+                    </div>
+
+                    <div class="mb-2">
+                        <label class="form-label fw-semibold">Observações / Anotações</label>
+                        {{ form_receber.observacoes }}
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success px-4 fw-bold">
+                        <i class="bi bi-check-circle me-1"></i> Confirmar Baixa
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const formModal = document.getElementById('formReceberModal');
+    const modalClienteNome = document.getElementById('modalClienteNome');
+    const modalVendaParcela = document.getElementById('modalVendaParcela');
+    const modalSaldoDevedorTxt = document.getElementById('modalSaldoDevedorTxt');
+    const inputValor = formModal.querySelector('input[name="valor_recebido"]');
+
+    document.querySelectorAll('.btn-receber').forEach(btn => {
+        btn.addEventListener('click', function () {
+            formModal.action = this.dataset.action;
+            modalClienteNome.textContent = this.dataset.cliente;
+            modalVendaParcela.textContent = `${this.dataset.venda} (Parc. ${this.dataset.parcela})`;
+            modalSaldoDevedorTxt.textContent = `R$ ${this.dataset.saldo}`;
+            if (inputValor) {
+                inputValor.value = this.dataset.saldo.replace(',', '.');
+            }
+        });
+    });
+    // =========================================================================
+    // LÓGICA DO MODAL DE FILTRO DE CLIENTE (CREDIÁRIO)
+    // =========================================================================
+
+    function normalizarTextoCrediario(txt) {
+        if (!txt) return '';
+        return txt.toString()
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^\w\s]/gi, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
+    const selectCliCred = document.getElementById('filtroClienteCrediario');
+    const txtCliCredSel = document.getElementById('txtClienteCrediarioSel');
+    const modalCliCredEl = document.getElementById('modalBuscaClienteCrediario');
+    const inputBuscaCliCred = document.getElementById('inputBuscaCliCrediario');
+    const btnLimparBuscaCliCred = document.getElementById('btnLimparBuscaCliCrediario');
+    const listaCliCredEl = document.getElementById('listaClientesModalCrediario');
+    const contadorCliCredModal = document.getElementById('contadorClientesModalCrediario');
+    const msgSemCliCred = document.getElementById('msgSemClientesCrediario');
+    const btnTodosCliModal = document.getElementById('btnTodosClientesModal');
+
+    function filtrarClientesCredModal() {
+        const query = normalizarTextoCrediario(inputBuscaCliCred.value);
+        const termos = query.split(' ').filter(t => t.length > 0);
+        const itens = listaCliCredEl.querySelectorAll('.item-cliente-cred');
+        let visiveis = 0;
+
+        itens.forEach(item => {
+            const searchData = item.dataset.searchNormalized || '';
+            const bateTodos = termos.every(termo => searchData.includes(termo));
+
+            if (bateTodos) {
+                item.classList.remove('d-none');
+                visiveis++;
+            } else {
+                item.classList.add('d-none');
+            }
+        });
+
+        contadorCliCredModal.textContent = `${visiveis} cliente(s)`;
+        if (visiveis === 0) {
+            msgSemCliCred.classList.remove('d-none');
+        } else {
+            msgSemCliCred.classList.add('d-none');
+        }
+    }
+
+    if (btnTodosCliModal) {
+        btnTodosCliModal.addEventListener('click', function() {
+            selectCliCred.value = '';
+            txtCliCredSel.innerHTML = '<i class="bi bi-person-search me-1 text-muted"></i> Todos os Clientes';
+            bootstrap.Modal.getInstance(modalCliCredEl).hide();
+            selectCliCred.form.submit();
+        });
+    }
+
+    listaCliCredEl.querySelectorAll('.item-cliente-cred').forEach(item => {
+        item.dataset.searchNormalized = normalizarTextoCrediario(item.dataset.searchTerms);
+        item.addEventListener('click', function() {
+            const cliId = this.dataset.id;
+            const cliNome = this.dataset.nome;
+            selectCliCred.value = cliId;
+            txtCliCredSel.innerHTML = `<i class="bi bi-person-fill text-primary me-1"></i>${cliNome}`;
+            bootstrap.Modal.getInstance(modalCliCredEl).hide();
+            selectCliCred.form.submit();
+        });
+    });
+
+    inputBuscaCliCred.addEventListener('input', filtrarClientesCredModal);
+    btnLimparBuscaCliCred.addEventListener('click', function() {
+        inputBuscaCliCred.value = '';
+        filtrarClientesCredModal();
+        inputBuscaCliCred.focus();
+    });
+
+    inputBuscaCliCred.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const primeiro = listaCliCredEl.querySelector('.item-cliente-cred:not(.d-none)');
+            if (primeiro) {
+                primeiro.click();
+            }
+        }
+    });
+
+    modalCliCredEl.addEventListener('shown.bs.modal', function() {
+        inputBuscaCliCred.focus();
+        inputBuscaCliCred.select();
+    });
+});
+</script>
+
+<!-- ========================================================================= -->
+<!-- MODAL DE BUSCA INTELIGENTE DE CLIENTE (FILTRO DO CREDIÁRIO) -->
+<!-- ========================================================================= -->
+<div class="modal fade" id="modalBuscaClienteCrediario" tabindex="-1" aria-labelledby="modalBuscaClienteCrediarioLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content shadow-lg border-0">
+            <div class="modal-header bg-dark text-white py-3">
+                <h5 class="modal-title fw-bold d-flex align-items-center gap-2" id="modalBuscaClienteCrediarioLabel">
+                    <i class="bi bi-person-bounding-box"></i> Filtrar por Cliente
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body p-0">
+                <!-- Barra de Pesquisa Fixa com Foco Automático -->
+                <div class="p-3 bg-light border-bottom sticky-top shadow-sm">
+                    <div class="input-group input-group-lg">
+                        <span class="input-group-text bg-white border-end-0 text-dark">
+                            <i class="bi bi-search"></i>
+                        </span>
+                        <input type="text" id="inputBuscaCliCrediario" class="form-control border-start-0 border-end-0 ps-0" 
+                               placeholder="Buscar por Nome, CPF/CNPJ, Telefone, E-mail, Cidade, Endereço..." autocomplete="off">
+                        <button class="btn btn-white bg-white border border-start-0 text-muted" type="button" id="btnLimparBuscaCliCrediario" title="Limpar busca">
+                            <i class="bi bi-x-circle"></i>
+                        </button>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mt-2 px-1">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="btnTodosClientesModal">
+                            <i class="bi bi-people me-1"></i> Todos os Clientes (Limpar Filtro)
+                        </button>
+                        <span id="contadorClientesModalCrediario" class="badge bg-dark-subtle text-dark fw-semibold">
+                            {{ clientes|length }} cliente(s)
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Lista de Clientes -->
+                <div class="list-group list-group-flush" id="listaClientesModalCrediario">
+                    {% for c in clientes %}
+                        <div class="list-group-item list-group-item-action p-3 item-cliente-cred cursor-pointer" 
+                             style="cursor: pointer;"
+                             data-id="{{ c.id }}"
+                             data-nome="{{ c.nome }}"
+                             data-search-terms="{{ c.nome }} {{ c.cpf_cnpj|default:'' }} {{ c.telefone|default:'' }} {{ c.email|default:'' }} {{ c.cidade|default:'' }} {{ c.endereco|default:'' }}">
+                            <div class="d-flex justify-content-between align-items-center gap-3">
+                                <div class="flex-grow-1">
+                                    <div class="fw-bold text-dark fs-6 d-flex align-items-center gap-2">
+                                        {{ c.nome }}
+                                    </div>
+                                    <div class="d-flex flex-wrap gap-1 mt-1 small">
+                                        {% if c.cpf_cnpj %}
+                                            <span class="badge bg-secondary-subtle text-secondary border">CPF/CNPJ: {{ c.cpf_cnpj }}</span>
+                                        {% endif %}
+                                        {% if c.telefone %}
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                                <i class="bi bi-whatsapp me-1"></i>{{ c.telefone }}
+                                            </span>
+                                        {% endif %}
+                                        {% if c.cidade %}
+                                            <span class="badge bg-light text-muted border"><i class="bi bi-geo-alt me-1"></i>{{ c.cidade }}</span>
+                                        {% endif %}
+                                        {% if c.tem_debitos_vencidos %}
+                                            <span class="badge bg-danger text-white">Possui Débitos Vencidos</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="text-end">
+                                    <button type="button" class="btn btn-sm btn-outline-dark fw-semibold px-3">
+                                        Filtrar <i class="bi bi-funnel ms-1"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    {% empty %}
+                        <div class="p-4 text-center text-muted">
+                            <i class="bi bi-person-x fs-1 d-block mb-2 text-secondary"></i>
+                            Nenhum cliente cadastrado.
+                        </div>
+                    {% endfor %}
+
+                    <div id="msgSemClientesCrediario" class="p-4 text-center text-muted d-none">
+                        <i class="bi bi-search fs-1 d-block mb-2 text-secondary"></i>
+                        Nenhum cliente encontrado com os termos digitados.
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer bg-light py-2">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

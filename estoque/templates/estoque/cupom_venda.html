@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cupom {{ venda.codigo_venda }} - {{ empresa.nome }}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: 'Courier New', Courier, monospace, sans-serif;
+            font-size: 12px;
+            line-height: 1.3;
+            color: #000;
+            background-color: #f1f3f5;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        /* Barra de Ações Superior (Não impressa) */
+        .toolbar-acoes {
+            position: sticky;
+            top: 0;
+            z-index: 999;
+            background: #212529;
+            color: #fff;
+            padding: 10px 16px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        .btn-acao {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            font-size: 13px;
+            font-weight: 600;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.15s ease;
+        }
+        .btn-imprimir {
+            background-color: #0d6efd;
+            color: #fff;
+        }
+        .btn-imprimir:hover {
+            background-color: #0b5ed7;
+        }
+        .btn-fechar {
+            background-color: #495057;
+            color: #fff;
+        }
+        .btn-fechar:hover {
+            background-color: #343a40;
+        }
+
+        /* Recipiente do Cupom Térmico (Padrão 80mm) */
+        .cupom-termico {
+            width: 80mm;
+            max-width: 80mm;
+            margin: 20px auto;
+            padding: 5mm 4mm;
+            background: #fff;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.12);
+            border-radius: 2px;
+        }
+
+        /* Utilitários de Alinhamento e Estilo */
+        .text-center { text-align: center; }
+        .text-end { text-align: right; }
+        .text-start { text-align: left; }
+        .fw-bold { font-weight: bold; }
+        .text-uppercase { text-transform: uppercase; }
+
+        /* Divisores Térmicos Clássicos */
+        .linha-tracejada {
+            border-top: 1px dashed #000;
+            margin: 5px 0;
+        }
+        .linha-dupla {
+            border-top: 2px solid #000;
+            margin: 6px 0;
+        }
+
+        /* Cabeçalho da Empresa */
+        .empresa-nome {
+            font-size: 15px;
+            font-weight: bold;
+            line-height: 1.2;
+            margin-bottom: 2px;
+        }
+        .empresa-sub {
+            font-size: 11px;
+            color: #222;
+        }
+
+        /* Título do Comprovante */
+        .titulo-comprovante {
+            font-size: 12px;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            padding: 2px 0;
+        }
+
+        /* Tabela de Itens Condensada */
+        .tabela-itens {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 3px 0;
+        }
+        .tabela-itens th {
+            font-size: 11px;
+            text-align: left;
+            padding-bottom: 3px;
+            border-bottom: 1px dashed #000;
+        }
+        .tabela-itens td {
+            padding: 2px 0;
+            vertical-align: top;
+            font-size: 11px;
+        }
+        .item-descricao {
+            font-weight: bold;
+            display: block;
+            word-break: break-word;
+        }
+        .item-detalhe {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: #111;
+        }
+
+        /* Linhas Financeiras e Totais */
+        .linha-financeira {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            padding: 1px 0;
+        }
+        .total-destaque {
+            font-size: 15px;
+            font-weight: bold;
+            padding: 3px 0;
+        }
+
+        /* Extrato de Parcelas do Crediário */
+        .parcela-item {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            padding: 1px 0;
+        }
+
+        /* Rodapé */
+        .rodape {
+            margin-top: 8px;
+            font-size: 11px;
+            color: #333;
+            text-align: center;
+        }
+
+        /* =========================================================================
+           REGRAS ESTRITAS DE IMPRESSÃO VIA BOBINA TÉRMICA (80mm)
+           ========================================================================= */
+        @media print {
+            @page {
+                size: 80mm auto;
+                margin: 0;
+            }
+            body {
+                background: #fff !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            .toolbar-acoes {
+                display: none !important;
+            }
+            .cupom-termico {
+                width: 100% !important;
+                max-width: 100% !important;
+                margin: 0 !important;
+                padding: 3mm 2.5mm !important;
+                box-shadow: none !important;
+                border-radius: 0 !important;
+            }
+        }
+    </style>
+</head>
+<body onload="autoImprimir()">
+
+    <!-- Barra Superior de Controle (Ocultada na Impressão) -->
+    <div class="toolbar-acoes">
+        <button type="button" class="btn-acao btn-imprimir" onclick="window.print()">
+            <i class="bi bi-printer-fill"></i> Imprimir na Térmica
+        </button>
+        <button type="button" class="btn-acao btn-fechar" onclick="window.close()">
+            <i class="bi bi-x-lg"></i> Fechar Janela
+        </button>
+    </div>
+
+    <!-- Estrutura do Cupom Térmico (80mm) -->
+    <div class="cupom-termico">
+
+        <!-- 1. DADOS DA EMPRESA (TOPO DO CUPOM) -->
+        <div class="text-center">
+            <div class="empresa-nome" style="font-size: 16px; font-weight: bold; letter-spacing: 0.5px;">{{ empresa.nome|upper }}</div>
+            {% if empresa.cnpj %}
+                <div class="empresa-sub">CNPJ: {{ empresa.cnpj }}</div>
+            {% endif %}
+            <div class="linha-dupla"></div>
+            <div class="titulo-comprovante">COMPROVANTE NÃO FISCAL</div>
+            <div class="linha-dupla"></div>
+        </div>
+
+        <!-- 2. IDENTIFICAÇÃO DA VENDA -->
+        <div style="font-size: 11px; margin-bottom: 2px;">
+            <div><strong>VENDA:</strong> {{ venda.codigo_venda }}</div>
+            <div><strong>DATA:</strong> {{ venda.data_venda|date:"d/m/Y H:i:s" }}</div>
+        </div>
+
+        <div class="linha-tracejada"></div>
+
+        <!-- 3. IDENTIFICAÇÃO DO CLIENTE -->
+        <div style="font-size: 11px;">
+            {% if venda.cliente %}
+                <div><strong>CLIENTE:</strong> {{ venda.cliente.nome|upper }}</div>
+                {% if venda.cliente.cpf_cnpj %}
+                    <div><strong>CPF/CNPJ:</strong> {{ venda.cliente.cpf_cnpj }}</div>
+                {% endif %}
+                {% if venda.cliente.telefone %}
+                    <div><strong>CONTATO:</strong> {{ venda.cliente.telefone }}</div>
+                {% endif %}
+            {% else %}
+                <div><strong>CLIENTE:</strong> CONSUMIDOR FINAL (BALCÃO)</div>
+            {% endif %}
+        </div>
+
+        <div class="linha-tracejada"></div>
+
+        <!-- 4. ITENS DA VENDA -->
+        <div class="text-center fw-bold" style="font-size: 11px; margin-bottom: 3px;">
+            ITENS VENDIDOS
+        </div>
+        <div class="linha-tracejada"></div>
+
+        <table class="tabela-itens">
+            <thead>
+                <tr>
+                    <th style="width: 15%;">ITEM</th>
+                    <th style="width: 55%;">DESCRIÇÃO</th>
+                    <th style="width: 30%; text-align: right;">VALOR (R$)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in venda.itens.all %}
+                <tr>
+                    <td>{{ forloop.counter|stringformat:"02d" }}</td>
+                    <td colspan="2">
+                        <span class="item-descricao">{{ item.nome_exibicao|upper }}</span>
+                        <div class="item-detalhe">
+                            <span>{{ item.quantidade }} {{ item.produto.unidade|default:"UN" }} x R$ {{ item.preco_unitario|floatformat:2 }}</span>
+                            <span class="fw-bold">R$ {{ item.subtotal|floatformat:2 }}</span>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="linha-tracejada"></div>
+
+        <!-- 5. TOTAIS E VALORES -->
+        <div class="linha-financeira">
+            <span>QTD. TOTAL DE ITENS:</span>
+            <strong>{{ venda.itens.count }}</strong>
+        </div>
+        <div class="linha-financeira">
+            <span>SUBTOTAL:</span>
+            <span>R$ {{ venda.valor_subtotal|floatformat:2 }}</span>
+        </div>
+        {% if venda.desconto > 0 %}
+        <div class="linha-financeira">
+            <span>DESCONTO:</span>
+            <span>- R$ {{ venda.desconto|floatformat:2 }}</span>
+        </div>
+        {% endif %}
+
+        <div class="linha-tracejada"></div>
+
+        <div class="linha-financeira total-destaque">
+            <span>TOTAL A PAGAR:</span>
+            <span>R$ {{ venda.valor_total|floatformat:2 }}</span>
+        </div>
+
+        <div class="linha-tracejada"></div>
+
+        <!-- 6. FORMA DE PAGAMENTO -->
+        <div class="linha-financeira">
+            <span>FORMA DE PAGTO:</span>
+            <strong>{{ venda.get_forma_pagamento_display|upper }}</strong>
+        </div>
+
+        <!-- 7. CRONOGRAMA DE PARCELAS DO CREDIÁRIO (SE HOUVER) -->
+        {% if venda.parcelas.exists %}
+        <div class="linha-tracejada"></div>
+        <div class="text-center fw-bold" style="font-size: 11px; margin-bottom: 3px;">
+            CRONOGRAMA DO CREDIÁRIO (CARNÊ)
+        </div>
+        <div class="linha-tracejada"></div>
+        {% for p in venda.parcelas.all %}
+        <div class="parcela-item">
+            <span>Parc. {{ p.numero_parcela }}/{{ p.total_parcelas }} ({{ p.data_vencimento|date:"d/m/Y" }}):</span>
+            <strong class="{% if p.status == 'PAGO' %}text-muted{% endif %}">
+                R$ {{ p.valor_parcela|floatformat:2 }} {% if p.status == 'PAGO' %}(Pago){% endif %}
+            </strong>
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        <!-- 8. OBSERVAÇÕES (SE HOUVER) -->
+        {% if venda.observacoes %}
+        <div class="linha-tracejada"></div>
+        <div style="font-size: 10px;">
+            <strong>OBS:</strong> {{ venda.observacoes }}
+        </div>
+        {% endif %}
+
+        <!-- 9. MENSAGEM DE AGRADECIMENTO & ASSINATURA -->
+        <div class="linha-dupla"></div>
+        <div class="rodape">
+            <div class="fw-bold">OBRIGADO PELA PREFERÊNCIA!</div>
+            <div>VOLTE SEMPRE!</div>
+            <div style="font-size: 9px; margin-top: 6px; color: #555;">
+                JGTECH SISTEMA DE GESTÃO DE ESTOQUE
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        function autoImprimir() {
+            // Se for aberto diretamente em popup ou com intenção de impressão, aciona o print
+            setTimeout(function() {
+                window.print();
+            }, 300);
+        }
+    </script>
+</body>
+</html>

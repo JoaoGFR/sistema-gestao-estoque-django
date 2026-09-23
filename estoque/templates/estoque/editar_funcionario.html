@@ -1,0 +1,148 @@
+{% extends 'estoque/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-primary text-white py-3">
+                <div class="d-flex align-items-center justify-content-between">
+                    <h4 class="mb-0">
+                        <i class="bi bi-person-gear"></i> Editar Cadastro de Usuário
+                    </h4>
+                    <span class="badge bg-light text-primary fw-bold px-3 py-2">
+                        ID: #{{ funcionario_user.id }}
+                    </span>
+                </div>
+            </div>
+            <div class="card-body p-4">
+                
+                <!-- Informação sobre preservação de histórico -->
+                <div class="alert alert-info border-info d-flex align-items-start mb-4" role="alert">
+                    <i class="bi bi-shield-check text-info fs-3 me-3 mt-1"></i>
+                    <div>
+                        <strong class="d-block mb-1">Rastreabilidade e Histórico Preservados:</strong>
+                        <span class="small text-muted">
+                            As edições realizadas nesta tela preservam o histórico de todas as <strong>saídas de estoque</strong>, <strong>empréstimos</strong> e <strong>movimentações</strong> já registradas por este usuário. Caso o colaborador não faça mais parte da equipe, você pode alterar o status para <strong>Inativo</strong> para bloquear o acesso mantendo todos os relatórios intactos.
+                        </span>
+                    </div>
+                </div>
+
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    
+                    {% if form.errors %}
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                            Por favor, corrija os erros sinalizados abaixo antes de continuar.
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endif %}
+
+                    <!-- Identificação de Acesso -->
+                    <h6 class="text-primary border-bottom pb-2 mb-3 fw-bold">
+                        <i class="bi bi-person-badge"></i> Identificação de Acesso
+                    </h6>
+
+                    <div class="mb-3">
+                        <label class="form-label text-muted fw-bold">Usuário de Login (Permanente)</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light text-muted">
+                                <i class="bi bi-lock-fill"></i>
+                            </span>
+                            <input type="text" class="form-control bg-light" value="{{ funcionario_user.username }}" readonly disabled>
+                            <span class="input-group-text bg-light text-muted small">
+                                Login do Sistema
+                            </span>
+                        </div>
+                        <div class="form-text text-muted">
+                            O identificador de login é mantido estável para garantir a integridade das auditorias e logs de acesso.
+                        </div>
+                    </div>
+
+                    <!-- Dados Pessoais -->
+                    <h6 class="text-primary border-bottom pb-2 mb-3 mt-4 fw-bold">
+                        <i class="bi bi-person-vcard"></i> Dados Pessoais e Contato
+                    </h6>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-semibold">Nome <span class="text-danger">*</span></label>
+                            {{ form.first_name }}
+                            {% for error in form.first_name.errors %}
+                                <div class="text-danger small mt-1">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-semibold">Sobrenome</label>
+                            {{ form.last_name }}
+                            {% for error in form.last_name.errors %}
+                                <div class="text-danger small mt-1">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label fw-semibold">E-mail <span class="text-danger">*</span></label>
+                            {{ form.email }}
+                            {% for error in form.email.errors %}
+                                <div class="text-danger small mt-1">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Permissões e Status -->
+                    <h6 class="text-primary border-bottom pb-2 mb-3 mt-4 fw-bold">
+                        <i class="bi bi-sliders"></i> Permissões e Status da Conta
+                    </h6>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-semibold">Função no Sistema <span class="text-danger">*</span></label>
+                            {{ form.e_dono }}
+                            {% for error in form.e_dono.errors %}
+                                <div class="text-danger small mt-1">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-semibold">Status da Conta <span class="text-danger">*</span></label>
+                            {{ form.is_active }}
+                            {% for error in form.is_active.errors %}
+                                <div class="text-danger small mt-1">{{ error }}</div>
+                            {% endfor %}
+                            <div class="form-text text-muted">
+                                Contas inativas são impedidas de fazer login imediatamente.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Redefinição de Senha -->
+                    <h6 class="text-primary border-bottom pb-2 mb-3 mt-4 fw-bold">
+                        <i class="bi bi-key-fill"></i> Redefinição de Senha (Opcional)
+                    </h6>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Nova Senha</label>
+                        {{ form.nova_senha }}
+                        <div class="form-text text-muted">
+                            Deixe este campo em branco para <strong>manter a senha atual</strong> do usuário inalterada.
+                        </div>
+                        {% for error in form.nova_senha.errors %}
+                            <div class="text-danger small mt-1">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Botões de Ação -->
+                    <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
+                        <a href="{% url 'lista_funcionarios' %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left"></i> Voltar para Equipe
+                        </a>
+                        <button type="submit" class="btn btn-primary px-4 fw-bold shadow-sm">
+                            <i class="bi bi-check-circle-fill me-1"></i> Salvar Alterações
+                        </button>
+                    </div>
+
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

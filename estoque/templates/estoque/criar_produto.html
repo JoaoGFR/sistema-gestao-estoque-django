@@ -1,125 +1,455 @@
 {% extends 'estoque/base.html' %}
-{% load crispy_forms_tags %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-8">
-        <div class="card shadow-sm">
-            <div class="card-header bg-primary text-white">
-                <h4 class="mb-0">
-                    {% if form.instance.pk %}
-                        <i class="bi bi-pencil-square"></i> Editar Produto
-                    {% else %}
-                        <i class="bi bi-box-seam"></i> Novo Produto
-                    {% endif %}
-                </h4>
+<div class="container-fluid py-2">
+    <!-- Breadcrumb e Topo -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 pb-2 border-bottom">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}" class="text-decoration-none">Início</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'lista_produtos' %}" class="text-decoration-none">Produtos</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">
+                        {% if form.instance.pk %}Editar Produto{% else %}Novo Produto{% endif %}
+                    </li>
+                </ol>
+            </nav>
+            <h2 class="h3 fw-bold mb-0 text-dark d-flex align-items-center gap-2">
+                {% if form.instance.pk %}
+                    <i class="bi bi-pencil-square text-primary"></i> Editar Produto: <span class="text-primary">{{ form.instance.nome }}</span>
+                {% else %}
+                    <i class="bi bi-box-seam-fill text-primary"></i> Novo Cadastro de Produto
+                {% endif %}
+            </h2>
+        </div>
+        <div class="d-flex gap-2 mt-2 mt-md-0">
+            {% if form.instance.pk %}
+                <a href="{% url 'historico_produto' form.instance.pk %}" class="btn btn-outline-secondary shadow-sm">
+                    <i class="bi bi-clock-history me-1"></i> Histórico Completo
+                </a>
+            {% endif %}
+            <a href="{% url 'lista_produtos' %}" class="btn btn-outline-dark shadow-sm">
+                <i class="bi bi-arrow-left me-1"></i> Voltar para Lista
+            </a>
+        </div>
+    </div>
+
+    <!-- Alertas de Erro Globais do Formulário -->
+    {% if form.errors %}
+        <div class="alert alert-danger alert-dismissible fade show shadow-sm mb-4" role="alert">
+            <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+                <div>
+                    <strong>Existem inconsistências no formulário:</strong>
+                    <ul class="mb-0 mt-1 small">
+                        {% for field, errors in form.errors.items %}
+                            {% for error in errors %}
+                                <li>{{ field|capfirst }}: {{ error }}</li>
+                            {% endfor %}
+                        {% endfor %}
+                    </ul>
+                </div>
             </div>
-            <div class="card-body">
-                <form method="post">
-                    {% csrf_token %}
-                    
-                    <h6 class="text-muted border-bottom pb-2 mb-3">Dados Principais</h6>
-                    <div class="row mb-3 align-items-center">
-                        <div class="col-md-9">
-                            {{ form.nome|as_crispy_field }}
-                        </div>
-                        <div class="col-md-3">
-                            {{ form.controla_lote|as_crispy_field }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    {% endif %}
+
+    <!-- Formulário Principal -->
+    <form method="post" id="formProduto" novalidate>
+        {% csrf_token %}
+
+        <div class="row g-4 justify-content-center">
+            <div class="col-12 col-xl-10">
+
+                <!-- CARD 1: IDENTIFICAÇÃO E DADOS PRINCIPAIS -->
+                <div class="card border-0 shadow-sm rounded-3 mb-4">
+                    <div class="card-header bg-white py-3 border-bottom d-flex align-items-center gap-2">
+                        <span class="badge bg-primary-subtle text-primary p-2 rounded-circle">
+                            <i class="bi bi-info-circle-fill fs-6"></i>
+                        </span>
+                        <div>
+                            <h5 class="fw-bold mb-0 text-dark">Identificação do Produto</h5>
+                            <small class="text-muted">Informações básicas e classificação no estoque</small>
                         </div>
                     </div>
+                    <div class="card-body p-4">
+                        <div class="row g-3">
+                            <!-- Nome do Produto -->
+                            <div class="col-12 col-lg-8">
+                                <label for="{{ form.nome.id_for_label }}" class="form-label fw-semibold">
+                                    Nome do Produto / Item <span class="text-danger">*</span>
+                                </label>
+                                {{ form.nome }}
+                                {% if form.nome.errors %}
+                                    <div class="text-danger small mt-1">{{ form.nome.errors.0 }}</div>
+                                {% endif %}
+                                <div class="form-text">Ex: Parafuso Sextavado 1/4, Cabo de Rede Cat6, Óleo Lubrificante...</div>
+                            </div>
 
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label requiredField">Categoria <span class="asteriskField">*</span></label>
-                            <div class="input-group">
-                                {{ form.categoria }}
-                                <button class="btn btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#modalCategoria" title="Nova Categoria">
-                                    <i class="bi bi-plus-lg"></i>
-                                </button>
+                            <!-- Unidade de Medida -->
+                            <div class="col-12 col-sm-6 col-lg-4">
+                                <label for="{{ form.unidade.id_for_label }}" class="form-label fw-semibold">
+                                    Unidade de Medida <span class="text-danger">*</span>
+                                </label>
+                                {{ form.unidade }}
+                                {% if form.unidade.errors %}
+                                    <div class="text-danger small mt-1">{{ form.unidade.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Categoria -->
+                            <div class="col-12 col-sm-6 col-lg-6">
+                                <label for="id_categoria" class="form-label fw-semibold">
+                                    Categoria <span class="text-danger">*</span>
+                                </label>
+                                <div class="input-group">
+                                    {{ form.categoria }}
+                                    <button class="btn btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#modalCategoria" title="Cadastrar Nova Categoria">
+                                        <i class="bi bi-plus-lg"></i>
+                                    </button>
+                                </div>
+                                {% if form.categoria.errors %}
+                                    <div class="text-danger small mt-1">{{ form.categoria.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Controle de Lote e Validade Switch -->
+                            <div class="col-12 col-lg-6 d-flex align-items-center">
+                                <div class="card bg-light border-0 p-3 w-100 mt-2">
+                                    <div class="form-check form-switch d-flex align-items-center justify-content-between p-0 m-0">
+                                        <div>
+                                            <label class="form-check-label fw-bold text-dark cursor-pointer" for="id_controla_lote" style="cursor: pointer;">
+                                                <i class="bi bi-boxes text-secondary me-1"></i> Controlar Lotes e Datas de Validade?
+                                            </label>
+                                            <div class="text-muted small">
+                                                Permite vincular entradas por lote, fornecedor, validade e saída inteligente (FIFO/FEFO).
+                                            </div>
+                                        </div>
+                                        <div class="ms-3">
+                                            {{ form.controla_lote }}
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        <div class="col-md-6">
-                            {{ form.unidade|as_crispy_field }}
+                    </div>
+                </div>
+
+                <!-- CARD 2: COMERCIALIZAÇÃO, TABELA DE PREÇO & MARGENS (DESTAQUE) -->
+                <div class="card border-0 shadow-sm rounded-3 mb-4 border-start border-4 border-primary">
+                    <div class="card-header bg-white py-3 border-bottom d-flex align-items-center justify-content-between flex-wrap gap-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-success-subtle text-success p-2 rounded-circle">
+                                <i class="bi bi-tag-fill fs-6"></i>
+                            </span>
+                            <div>
+                                <h5 class="fw-bold mb-0 text-dark">Comercialização & Tabela de Preço de Venda</h5>
+                                <small class="text-muted">Defina se este item é vendido no PDV e estipule sua precificação</small>
+                            </div>
+                        </div>
+                        <a href="{% url 'simulador_preco' %}" class="btn btn-sm btn-outline-primary" target="_blank" title="Abrir Simulador Avançado">
+                            <i class="bi bi-calculator me-1"></i> Simulador com Impostos
+                        </a>
+                    </div>
+                    <div class="card-body p-4">
+
+                        <!-- SWITCH: PRODUTO PARA VENDA -->
+                        <div class="card p-3 mb-4 border-2 border-primary-subtle bg-primary-subtle bg-opacity-25 rounded-3">
+                            <div class="form-check form-switch d-flex align-items-center justify-content-between p-0 m-0">
+                                <div class="pe-3">
+                                    <label class="form-check-label fw-bold text-dark fs-6 d-flex align-items-center gap-2" for="id_disponivel_venda" style="cursor: pointer;">
+                                        <i class="bi bi-cart-check-fill text-primary"></i> Produto Destinado à Venda (PDV)?
+                                    </label>
+                                    <div class="text-muted small mt-1">
+                                        <span class="fw-semibold">Por padrão fica desmarcado.</span> Ative esta opção caso deseje cadastrar este produto na tabela de preços para venda no PDV. Se mantiver desmarcado, ele será tratado como insumo ou uso interno.
+                                    </div>
+                                </div>
+                                <div class="ms-auto">
+                                    {{ form.disponivel_venda }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- PAINEL DE PRECIFICAÇÃO (EXIBIDO QUANDO ATIVADO) -->
+                        <div id="painelPrecoVenda" class="{% if not form.disponivel_venda.value %}d-none{% endif %}">
+                            <div class="row g-4 align-items-center">
+                                <!-- Input Preço de Venda -->
+                                <div class="col-12 col-md-5">
+                                    <label for="id_preco_venda" class="form-label fw-bold text-dark">
+                                        Preço Unitário de Venda (R$) <span class="text-danger">*</span>
+                                    </label>
+                                    <div class="input-group input-group-lg shadow-sm">
+                                        <span class="input-group-text bg-primary text-white fw-bold">R$</span>
+                                        {{ form.preco_venda }}
+                                    </div>
+                                    {% if form.preco_venda.errors %}
+                                        <div class="text-danger small mt-1">{{ form.preco_venda.errors.0 }}</div>
+                                    {% endif %}
+                                    <div class="form-text">
+                                        Preço sugerido preenchido automaticamente ao selecionar este item no PDV.
+                                    </div>
+                                </div>
+
+                                <!-- Cards de Métricas e Margem Dinâmica -->
+                                <div class="col-12 col-md-7">
+                                    <div class="row g-2">
+                                        <!-- Custo Médio -->
+                                        <div class="col-4">
+                                            <div class="card bg-light border p-2 text-center h-100">
+                                                <small class="text-muted text-uppercase" style="font-size: 0.7rem;">Custo Médio</small>
+                                                <strong class="text-dark fs-6 mt-1" id="dispCustoMedio">
+                                                    R$ {% if produto %}{{ produto.preco_medio|floatformat:2 }}{% else %}0,00{% endif %}
+                                                </strong>
+                                            </div>
+                                        </div>
+
+                                        <!-- Margem de Lucro -->
+                                        <div class="col-4">
+                                            <div class="card bg-light border p-2 text-center h-100" id="cardMargemLucro">
+                                                <small class="text-muted text-uppercase" style="font-size: 0.7rem;">Margem Líq.</small>
+                                                <strong class="fs-6 mt-1 text-success" id="dispMargemLucro">0.0%</strong>
+                                            </div>
+                                        </div>
+
+                                        <!-- Markup / Lucro Bruto -->
+                                        <div class="col-4">
+                                            <div class="card bg-light border p-2 text-center h-100">
+                                                <small class="text-muted text-uppercase" style="font-size: 0.7rem;">Lucro Unit.</small>
+                                                <strong class="fs-6 mt-1 text-primary" id="dispLucroUnit">R$ 0,00</strong>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="alert alert-light border mt-2 py-2 px-3 mb-0 small text-muted d-flex align-items-center gap-2">
+                                        <i class="bi bi-clock-history text-secondary"></i>
+                                        <span>Todas as alterações neste preço geram um registro permanente de auditoria no Histórico de Preços.</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- MENSAGEM QUANDO DESATIVADO -->
+                        <div id="msgItemNaoVenda" class="alert alert-light border text-muted small p-3 mb-0 d-flex align-items-center gap-2 {% if form.disponivel_venda.value %}d-none{% endif %}">
+                            <i class="bi bi-shield-lock text-secondary fs-5"></i>
+                            <div>
+                                <strong>Item não cadastrado para venda no PDV.</strong> Este item funcionará para gestão interna, movimentações e baixas de estoque. Você poderá marcar a opção e definir seu preço de venda a qualquer momento nesta tela ou pela Tabela de Preços.
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- CARD 3: CÓDIGOS, RASTREABILIDADE E ENDEREÇAMENTO -->
+                <div class="card border-0 shadow-sm rounded-3 mb-4">
+                    <div class="card-header bg-white py-3 border-bottom d-flex align-items-center gap-2">
+                        <span class="badge bg-secondary-subtle text-secondary p-2 rounded-circle">
+                            <i class="bi bi-upc-scan fs-6"></i>
+                        </span>
+                        <div>
+                            <h5 class="fw-bold mb-0 text-dark">Códigos & Endereçamento Físico</h5>
+                            <small class="text-muted">Localize o item com facilidade e configure níveis de alerta de estoque</small>
                         </div>
                     </div>
+                    <div class="card-body p-4">
+                        <div class="row g-3">
+                            <!-- SKU -->
+                            <div class="col-12 col-md-6">
+                                <label for="{{ form.sku.id_for_label }}" class="form-label fw-semibold">
+                                    Código Interno (SKU)
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light"><i class="bi bi-hash"></i></span>
+                                    {{ form.sku }}
+                                </div>
+                                {% if form.sku.errors %}
+                                    <div class="text-danger small mt-1">{{ form.sku.errors.0 }}</div>
+                                {% endif %}
+                                <div class="form-text">Código próprio da sua empresa para este produto.</div>
+                            </div>
 
-                    <h6 class="text-muted border-bottom pb-2 mb-3 mt-4">Códigos e Rastreio</h6>
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            {{ form.sku|as_crispy_field }}
-                        </div>
-                        <div class="col-md-6">
-                            {{ form.ean|as_crispy_field }}
-                        </div>
-                    </div>
+                            <!-- EAN Código de Barras -->
+                            <div class="col-12 col-md-6">
+                                <label for="{{ form.ean.id_for_label }}" class="form-label fw-semibold">
+                                    Código de Barras (EAN-13)
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light"><i class="bi bi-upc"></i></span>
+                                    {{ form.ean }}
+                                </div>
+                                {% if form.ean.errors %}
+                                    <div class="text-danger small mt-1">{{ form.ean.errors.0 }}</div>
+                                {% endif %}
+                                <div class="form-text">Compatível com leitores óticos de código de barras no PDV.</div>
+                            </div>
 
-                    <h6 class="text-muted border-bottom pb-2 mb-3 mt-4">Endereçamento</h6>
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            {{ form.estoque_minimo|as_crispy_field }}
-                        </div>
-                        
-                        <div class="col-md-6">
-                            <label class="form-label">Localização</label>
-                            <div class="input-group">
-                                {{ form.localizacao }}
-                                <button class="btn btn-outline-secondary" type="button" data-bs-toggle="modal" data-bs-target="#modalLocalizacao" title="Nova Localização">
-                                    <i class="bi bi-geo-alt-fill"></i> +
-                                </button>
+                            <!-- Estoque Mínimo -->
+                            <div class="col-12 col-md-6">
+                                <label for="{{ form.estoque_minimo.id_for_label }}" class="form-label fw-semibold">
+                                    Estoque Mínimo (Alerta de Reposição) <span class="text-danger">*</span>
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light"><i class="bi bi-bell"></i></span>
+                                    {{ form.estoque_minimo }}
+                                </div>
+                                {% if form.estoque_minimo.errors %}
+                                    <div class="text-danger small mt-1">{{ form.estoque_minimo.errors.0 }}</div>
+                                {% endif %}
+                                <div class="form-text">O sistema sinalizará quando o saldo for menor ou igual a esse valor.</div>
+                            </div>
+
+                            <!-- Localização -->
+                            <div class="col-12 col-md-6">
+                                <label for="id_localizacao" class="form-label fw-semibold">
+                                    Localização no Estoque / Galpão
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light"><i class="bi bi-geo-alt"></i></span>
+                                    {{ form.localizacao }}
+                                    <button class="btn btn-outline-secondary" type="button" data-bs-toggle="modal" data-bs-target="#modalLocalizacao" title="Cadastrar Nova Localização">
+                                        <i class="bi bi-plus-lg"></i>
+                                    </button>
+                                </div>
+                                {% if form.localizacao.errors %}
+                                    <div class="text-danger small mt-1">{{ form.localizacao.errors.0 }}</div>
+                                {% endif %}
+                                <div class="form-text">Ex: Prateleira B3, Corredor 2, Gaveta 4...</div>
                             </div>
                         </div>
                     </div>
+                </div>
 
-                    <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
-                        <a href="{% url 'lista_produtos' %}" class="btn btn-secondary me-md-2">Cancelar</a>
-                        <button type="submit" class="btn btn-success fw-bold">
-                            <i class="bi bi-check-lg"></i> Salvar Produto
-                        </button>
+                <!-- BARRA DE AÇÕES INFERIOR -->
+                <div class="card border-0 shadow-sm rounded-3 bg-light p-3 mb-5">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+                        <a href="{% url 'lista_produtos' %}" class="btn btn-secondary px-4 fw-semibold">
+                            <i class="bi bi-x-circle me-1"></i> Cancelar
+                        </a>
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-success btn-lg px-5 fw-bold shadow">
+                                <i class="bi bi-check-lg me-1"></i> {% if form.instance.pk %}Salvar Alterações{% else %}Salvar Produto{% endif %}
+                            </button>
+                        </div>
                     </div>
-                </form>
+                </div>
+
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODAL DE CRIAÇÃO RÁPIDA: CATEGORIA -->
+<!-- ========================================================================= -->
+<div class="modal fade" id="modalCategoria" tabindex="-1" aria-labelledby="modalCategoriaLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content shadow-lg border-0 rounded-3">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title fw-bold" id="modalCategoriaLabel">
+                    <i class="bi bi-folder-plus me-1"></i> Nova Categoria
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body p-4">
+                <label for="inputNomeCategoria" class="form-label fw-semibold">Nome da Categoria</label>
+                <input type="text" id="inputNomeCategoria" class="form-control form-control-lg" placeholder="Ex: Elétrica, Hidráulica, Ferramentas...">
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary fw-bold px-4" onclick="salvarAuxiliar('categoria')">
+                    <i class="bi bi-check-lg me-1"></i> Salvar Categoria
+                </button>
             </div>
         </div>
     </div>
 </div>
 
-<div class="modal fade" id="modalCategoria" tabindex="-1" aria-hidden="true">
+<!-- ========================================================================= -->
+<!-- MODAL DE CRIAÇÃO RÁPIDA: LOCALIZAÇÃO -->
+<!-- ========================================================================= -->
+<div class="modal fade" id="modalLocalizacao" tabindex="-1" aria-labelledby="modalLocalizacaoLabel" aria-hidden="true">
     <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Nova Categoria</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        <div class="modal-content shadow-lg border-0 rounded-3">
+            <div class="modal-header bg-secondary text-white">
+                <h5 class="modal-title fw-bold" id="modalLocalizacaoLabel">
+                    <i class="bi bi-geo-alt-fill me-1"></i> Nova Localização
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
             </div>
-            <div class="modal-body">
-                <input type="text" id="inputNomeCategoria" class="form-control" placeholder="Nome da categoria...">
+            <div class="modal-body p-4">
+                <label for="inputNomeLocalizacao" class="form-label fw-semibold">Identificação da Localização</label>
+                <input type="text" id="inputNomeLocalizacao" class="form-control form-control-lg" placeholder="Ex: Prateleira B3, Gaveta 2, Depósito Principal...">
             </div>
-            <div class="modal-footer">
+            <div class="modal-footer bg-light">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-primary" onclick="salvarAuxiliar('categoria')">Salvar</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="modal fade" id="modalLocalizacao" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Nova Localização</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <input type="text" id="inputNomeLocalizacao" class="form-control" placeholder="Ex: Prateleira B3...">
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-primary" onclick="salvarAuxiliar('localizacao')">Salvar</button>
+                <button type="button" class="btn btn-secondary fw-bold px-4" onclick="salvarAuxiliar('localizacao')">
+                    <i class="bi bi-check-lg me-1"></i> Salvar Localização
+                </button>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-    
+    // Custo médio em float para cálculos ao vivo
+    const custoMedioProduto = parseFloat('{% if produto %}{{ produto.preco_medio|stringformat:".2f"|default:"0.00" }}{% else %}0.00{% endif %}');
+
+    const switchVenda = document.getElementById('id_disponivel_venda');
+    const painelPreco = document.getElementById('painelPrecoVenda');
+    const msgNaoVenda = document.getElementById('msgItemNaoVenda');
+    const inputPrecoVenda = document.getElementById('id_preco_venda');
+
+    const dispMargem = document.getElementById('dispMargemLucro');
+    const dispLucroUnit = document.getElementById('dispLucroUnit');
+    const cardMargem = document.getElementById('cardMargemLucro');
+
+    function atualizarCalculosPreco() {
+        const precoVenda = parseFloat(inputPrecoVenda.value) || 0;
+        const lucro = precoVenda - custoMedioProduto;
+        
+        dispLucroUnit.textContent = `R$ ${lucro.toFixed(2).replace('.', ',')}`;
+
+        if (precoVenda > 0) {
+            const margem = custoMedioProduto > 0 ? ((precoVenda - custoMedioProduto) / precoVenda) * 100 : 100;
+            dispMargem.textContent = `${margem.toFixed(1)}%`;
+
+            if (margem < 0) {
+                dispMargem.className = 'fs-6 mt-1 text-danger';
+                cardMargem.className = 'card bg-danger-subtle border border-danger-subtle p-2 text-center h-100';
+            } else if (margem < 15) {
+                dispMargem.className = 'fs-6 mt-1 text-warning';
+                cardMargem.className = 'card bg-warning-subtle border border-warning-subtle p-2 text-center h-100';
+            } else {
+                dispMargem.className = 'fs-6 mt-1 text-success';
+                cardMargem.className = 'card bg-success-subtle border border-success-subtle p-2 text-center h-100';
+            }
+        } else {
+            dispMargem.textContent = '0.0%';
+            dispMargem.className = 'fs-6 mt-1 text-muted';
+            cardMargem.className = 'card bg-light border p-2 text-center h-100';
+        }
+    }
+
+    if (switchVenda) {
+        switchVenda.addEventListener('change', function () {
+            if (this.checked) {
+                painelPreco.classList.remove('d-none');
+                msgNaoVenda.classList.add('d-none');
+                inputPrecoVenda.focus();
+                atualizarCalculosPreco();
+            } else {
+                painelPreco.classList.add('d-none');
+                msgNaoVenda.classList.remove('d-none');
+            }
+        });
+    }
+
+    if (inputPrecoVenda) {
+        inputPrecoVenda.addEventListener('input', atualizarCalculosPreco);
+        // Inicializa cálculo na carga da página
+        atualizarCalculosPreco();
+    }
+
+    // Modal Auxiliar (Categoria e Localização)
     function salvarAuxiliar(tipo) {
         let url, inputId, selectId, modalId;
 
@@ -136,11 +466,15 @@
         }
 
         const input = document.getElementById(inputId);
-        const nome = input.value;
+        const nome = input.value.trim();
         const select = document.getElementById(selectId);
         const modalElement = document.getElementById(modalId);
 
-        if (!nome) { alert("Digite um nome!"); return; }
+        if (!nome) { 
+            alert("Por favor, digite um nome!"); 
+            input.focus();
+            return; 
+        }
 
         const formData = new FormData();
         formData.append('nome', nome);
@@ -162,14 +496,23 @@
                 modalInstance.hide();
                 document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
             } else {
-                alert("Erro: " + data.message);
+                alert("Erro: " + (data.message || 'Falha ao salvar.'));
             }
         })
-        .catch(err => alert("Erro no servidor."));
+        .catch(() => alert("Erro ao comunicar com o servidor."));
     }
 </script>
 
 <style>
-    #id_categoria, #id_localizacao { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+    /* Estilo refinado para switches e botões combinados */
+    .form-switch .form-check-input {
+        width: 3rem;
+        height: 1.6rem;
+        cursor: pointer;
+    }
+    #id_categoria, #id_localizacao { 
+        border-top-right-radius: 0; 
+        border-bottom-right-radius: 0; 
+    }
 </style>
 {% endblock %}

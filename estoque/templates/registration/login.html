@@ -2,18 +2,22 @@
 {% load crispy_forms_tags %}
 
 {% block content %}
-<div class="row justify-content-center mt-5">
-    <div class="col-md-4">
-        <div class="card shadow-lg">
-            <div class="card-header bg-dark text-white text-center py-3">
-                <h4 class="mb-0">Acesso Restrito</h4>
+<div class="row justify-content-center align-items-center py-4" style="min-height: 75vh;">
+    <div class="col-12 col-sm-10 col-md-6 col-lg-4">
+        <div class="card shadow-lg border-0 rounded-4 overflow-hidden">
+            <div class="card-header bg-dark text-white text-center py-4 border-0" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);">
+                <div class="d-inline-flex align-items-center justify-content-center bg-primary bg-opacity-25 rounded-circle p-3 mb-2 text-primary">
+                    <i class="bi bi-shield-lock-fill fs-2 text-info"></i>
+                </div>
+                <h4 class="fw-bold mb-1">Acesso ao Sistema</h4>
+                <p class="text-white-50 small mb-0">Entre com suas credenciais de usuário</p>
             </div>
             <div class="card-body p-4">
                 {# [SEGURANÇA M1] Exibe mensagem de bloqueio do django-axes após tentativas excessivas #}
                 {% if form.non_field_errors %}
-                    <div class="alert alert-danger d-flex align-items-center gap-2" role="alert">
-                        <i class="bi bi-shield-lock-fill fs-5"></i>
-                        <div>
+                    <div class="alert alert-danger d-flex align-items-center gap-2 rounded-3 shadow-sm" role="alert">
+                        <i class="bi bi-shield-slash-fill fs-5 flex-shrink-0"></i>
+                        <div class="small">
                             {% for error in form.non_field_errors %}
                                 {{ error }}
                             {% endfor %}
@@ -26,13 +30,23 @@
                     
                     {{ form|crispy }}
                     
-                    <div class="d-grid mt-3">
-                        <button type="submit" class="btn btn-primary btn-lg">Entrar</button>
+                    <div class="d-grid mt-4">
+                        <button type="submit" class="btn btn-primary btn-lg fw-bold shadow-sm py-2">
+                            <i class="bi bi-box-arrow-in-right me-1"></i> Entrar no Sistema
+                        </button>
                     </div>
                 </form>
             </div>
-            <div class="card-footer text-center text-muted">
-                <small>Sistema de Gestão JGTECH</small>
+            <div class="card-footer text-center py-3 bg-light border-0">
+                <div class="small text-muted mb-2">
+                    Ainda não tem conta na sua empresa? 
+                    <a href="{% url 'cadastro_saas' %}" class="fw-bold text-primary text-decoration-none">Criar Conta Grátis</a>
+                </div>
+                <div class="small">
+                    <a href="{% url 'landing_page' %}" class="text-secondary text-decoration-none">
+                        <i class="bi bi-arrow-left me-1"></i> Voltar à Página Inicial
+                    </a>
+                </div>
             </div>
         </div>
     </div>

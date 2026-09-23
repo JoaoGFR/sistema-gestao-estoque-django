@@ -209,11 +209,11 @@
 
         <!-- 3. PARAMETRIZAÇÃO TRIBUTÁRIA E MARGEM -->
         <div class="mb-4">
-            <div class="section-title">3. Parâmetros de Venda</div>
-            <div class="row g-2 px-2">
+            <div class="section-title">3. Parâmetros de Venda e Tributação</div>
+            <div class="row g-2 px-2 mb-2">
                 <div class="col-6">
-                    <span class="info-label">Alíquota de Imposto:</span>
-                    <span class="info-value">{{ aliquota_nome }} ({{ aliquota_percentual|floatformat:2 }}%)</span>
+                    <span class="info-label">Carga Tributária Total:</span>
+                    <span class="info-value fw-bold text-danger">{{ aliquota_percentual|floatformat:2 }}%</span>
                 </div>
                 <div class="col-6">
                     <span class="info-label">Margem Desejada:</span>
@@ -223,13 +223,45 @@
                     <span class="info-label">Método de Precificação:</span>
                     <span class="info-value">
                         {% if metodo == 'inside' %}
-                            Markup Divisor (Cálculo do imposto "por dentro" do preço final)
+                            Markup Divisor (Cálculo do imposto e margem "por dentro" do preço final)
                         {% else %}
                             Markup Multiplicador (Margem sobre custo, imposto "por dentro" da venda)
                         {% endif %}
                     </span>
                 </div>
             </div>
+
+            {% if aliquotas_detalhe %}
+            <div class="table-responsive px-2 mt-2">
+                <table class="table table-bordered table-sm mb-0" style="font-size: 0.82rem;">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-2">Imposto / Tributo</th>
+                            <th class="text-center" style="width: 25%;">Alíquota (%)</th>
+                            <th class="text-end pe-2" style="width: 30%;">Valor Unit. na Venda</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ad in aliquotas_detalhe %}
+                        <tr>
+                            <td class="ps-2">{{ ad.nome }}</td>
+                            <td class="text-center">{{ ad.percentual|floatformat:2 }}%</td>
+                            <td class="text-end pe-2 text-danger">R$ {{ ad.valor|floatformat:2 }}</td>
+                        </tr>
+                        {% endfor %}
+                        <tr class="table-light fw-bold">
+                            <td class="ps-2">TOTAL DE IMPOSTOS</td>
+                            <td class="text-center text-danger">{{ aliquota_percentual|floatformat:2 }}%</td>
+                            <td class="text-end pe-2 text-danger">R$ {{ valor_imposto|floatformat:2 }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="px-2 small text-muted">
+                <strong>Composição:</strong> {{ aliquota_nome }}
+            </div>
+            {% endif %}
         </div>
 
         <!-- 4. RESULTADOS OBTIDOS -->
@@ -254,13 +286,25 @@
             <table class="table table-bordered table-sm align-middle style-table" style="font-size: 0.9rem;">
                 <tbody>
                     <tr>
-                        <td class="ps-3" style="width: 50%;">Imposto Embutido Unitário (Gross Up)</td>
-                        <td class="text-end fw-semibold pe-3 text-danger">R$ {{ valor_imposto|floatformat:2 }}</td>
+                        <td class="ps-3" style="width: 50%;">Total de Impostos Unitários (Gross Up)</td>
+                        <td class="text-end fw-semibold pe-3 text-danger">R$ {{ valor_imposto|floatformat:2 }} ({{ aliquota_percentual|floatformat:2 }}%)</td>
                     </tr>
                     <tr>
                         <td class="ps-3">Lucro Líquido por Unidade</td>
                         <td class="text-end fw-semibold pe-3 {% if lucro_liquido < 0 %}text-danger{% else %}text-success{% endif %}">
                             R$ {{ lucro_liquido|floatformat:2 }}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="ps-3">Margem Líquida Realizada (sobre a venda)</td>
+                        <td class="text-end fw-bold pe-3 {% if margem_realizada < 0 %}text-danger{% else %}text-success{% endif %}">
+                            {{ margem_realizada|floatformat:1 }}%
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="ps-3">Markup Realizado (sobre o custo)</td>
+                        <td class="text-end fw-bold pe-3 {% if markup_realizado < 0 %}text-danger{% else %}text-success{% endif %}">
+                            {{ markup_realizado|floatformat:1 }}%
                         </td>
                     </tr>
                     <tr>

@@ -1,0 +1,254 @@
+{% extends 'estoque/base.html' %}
+
+{% block title %}{{ titulo }} | JGTECH Estoque{% endblock %}
+
+{% block content %}
+<div class="container py-4" style="max-width: 850px;">
+
+    <!-- Cabeçalho -->
+    <div class="d-flex align-items-center justify-content-between mb-4">
+        <div>
+            <a href="{% url 'lista_clientes' %}" class="btn btn-outline-secondary btn-sm mb-2">
+                <i class="bi bi-arrow-left"></i> Voltar para Lista
+            </a>
+            <h2 class="h3 fw-bold mb-0 text-dark">
+                <i class="bi bi-person-badge text-primary me-2"></i>{{ titulo }}
+            </h2>
+        </div>
+        {% if cliente %}
+            <a href="{% url 'detalhe_cliente' cliente.pk %}" class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-eye"></i> Ver Ficha do Cliente
+            </a>
+        {% endif %}
+    </div>
+
+    <!-- Formulário -->
+    <div class="card border-0 shadow-sm rounded-3">
+        <div class="card-body p-4">
+            <form method="POST" id="formCliente">
+                {% csrf_token %}
+
+                {% if form.non_field_errors %}
+                    <div class="alert alert-danger">
+                        {% for error in form.non_field_errors %}
+                            <div>{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+                <!-- Seção 1: Identificação -->
+                <h5 class="fw-bold text-dark border-bottom pb-2 mb-3">
+                    <i class="bi bi-person-lines-fill text-primary me-1"></i> Identificação
+                </h5>
+                <div class="row g-3 mb-4">
+                    <div class="col-12 col-md-8">
+                        <label class="form-label fw-semibold">Nome Completo / Razão Social <span class="text-danger">*</span></label>
+                        {{ form.nome }}
+                        {% if form.nome.errors %}
+                            <div class="text-danger small mt-1">{{ form.nome.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label fw-semibold">Tipo de Pessoa</label>
+                        {{ form.tipo_pessoa }}
+                        {% if form.tipo_pessoa.errors %}
+                            <div class="text-danger small mt-1">{{ form.tipo_pessoa.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label fw-semibold" id="lbl_cpf_cnpj">CPF / CNPJ <span class="text-danger">*</span></label>
+                        {{ form.cpf_cnpj }}
+                        {% if form.cpf_cnpj.errors %}
+                            <div class="text-danger small mt-1">{{ form.cpf_cnpj.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Seção 2: Contato & Endereço -->
+                <h5 class="fw-bold text-dark border-bottom pb-2 mb-3">
+                    <i class="bi bi-geo-alt-fill text-success me-1"></i> Contato & Localização
+                </h5>
+                <div class="row g-3 mb-4">
+                    <div class="col-12 col-md-6">
+                        <label class="form-label fw-semibold">Telefone / WhatsApp</label>
+                        {{ form.telefone }}
+                        {% if form.telefone.errors %}
+                            <div class="text-danger small mt-1">{{ form.telefone.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label fw-semibold">E-mail <span class="text-muted fw-normal small">(Opcional)</span></label>
+                        {{ form.email }}
+                        {% if form.email.errors %}
+                            <div class="text-danger small mt-1">{{ form.email.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-12 col-md-8">
+                        <label class="form-label fw-semibold">Endereço Completo <span class="text-danger">*</span></label>
+                        {{ form.endereco }}
+                        {% if form.endereco.errors %}
+                            <div class="text-danger small mt-1">{{ form.endereco.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label fw-semibold">Cidade</label>
+                        {{ form.cidade }}
+                        {% if form.cidade.errors %}
+                            <div class="text-danger small mt-1">{{ form.cidade.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Seção 3: Parâmetros Financeiros & Crediário -->
+                <h5 class="fw-bold text-dark border-bottom pb-2 mb-3">
+                    <i class="bi bi-cash-stack text-warning me-1"></i> Configurações de Crediário
+                </h5>
+                <div class="row g-3 mb-4">
+                    <div class="col-12 col-md-6">
+                        <label class="form-label fw-semibold">Limite de Crediário Permitido (R$)</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light">R$</span>
+                            {{ form.limite_credito }}
+                        </div>
+                        <div class="form-text">Valor máximo que o cliente pode deixar em débito em aberto. Deixe 0,00 caso não permita crediário.</div>
+                        {% if form.limite_credito.errors %}
+                            <div class="text-danger small mt-1">{{ form.limite_credito.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-12 col-md-6 d-flex align-items-center">
+                        <div class="form-check form-switch mt-3">
+                            {{ form.ativo }}
+                            <label class="form-check-label fw-semibold" for="{{ form.ativo.id_for_label }}">
+                                Cliente Ativo
+                            </label>
+                            <div class="form-text">Clientes inativos não podem realizar novas compras a prazo.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Seção 4: Observações -->
+                <h5 class="fw-bold text-dark border-bottom pb-2 mb-3">
+                    <i class="bi bi-chat-left-text text-secondary me-1"></i> Observações
+                </h5>
+                <div class="mb-4">
+                    {{ form.observacoes }}
+                    {% if form.observacoes.errors %}
+                        <div class="text-danger small mt-1">{{ form.observacoes.errors.0 }}</div>
+                    {% endif %}
+                </div>
+
+                <!-- Botões de Ação -->
+                <div class="d-flex justify-content-end gap-2 pt-3 border-top">
+                    <a href="{% url 'lista_clientes' %}" class="btn btn-outline-secondary">Cancelar</a>
+                    <button type="submit" class="btn btn-primary px-4 shadow-sm">
+                        <i class="bi bi-check-lg me-1"></i> Salvar Cliente
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- SCRIPT DE FORMATAÇÃO AUTOMÁTICA EM TEMPO REAL (MÁSCARAS) -->
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const selTipoPessoa = document.getElementById('id_tipo_pessoa');
+    const inputCpfCnpj = document.getElementById('id_cpf_cnpj');
+    const lblCpfCnpj = document.getElementById('lbl_cpf_cnpj');
+    const inputTelefone = document.getElementById('id_telefone');
+
+    // --- 1. MÁSCARA INTELIGENTE CPF / CNPJ ---
+    function aplicarMascaraCpf(valor) {
+        valor = valor.replace(/\D/g, '').slice(0, 11);
+        if (valor.length > 9) {
+            return valor.replace(/(\d{3})(\d{3})(\d{3})(\d{1,2})/, '$1.$2.$3-$4');
+        } else if (valor.length > 6) {
+            return valor.replace(/(\d{3})(\d{3})(\d{1,3})/, '$1.$2.$3');
+        } else if (valor.length > 3) {
+            return valor.replace(/(\d{3})(\d{1,3})/, '$1.$2');
+        }
+        return valor;
+    }
+
+    function aplicarMascaraCnpj(valor) {
+        valor = valor.replace(/\D/g, '').slice(0, 14);
+        if (valor.length > 12) {
+            return valor.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{1,2})/, '$1.$2.$3/$4-$5');
+        } else if (valor.length > 8) {
+            return valor.replace(/(\d{2})(\d{3})(\d{3})(\d{1,4})/, '$1.$2.$3/$4');
+        } else if (valor.length > 5) {
+            return valor.replace(/(\d{2})(\d{3})(\d{1,3})/, '$1.$2.$3');
+        } else if (valor.length > 2) {
+            return valor.replace(/(\d{2})(\d{1,3})/, '$1.$2');
+        }
+        return valor;
+    }
+
+    function atualizarMascaraCpfCnpj() {
+        if (!inputCpfCnpj) return;
+        const tipo = selTipoPessoa ? selTipoPessoa.value : 'F';
+        let digitos = inputCpfCnpj.value.replace(/\D/g, '');
+
+        if (tipo === 'J' || digitos.length > 11) {
+            if (lblCpfCnpj) lblCpfCnpj.innerHTML = 'CNPJ <span class="text-danger">*</span>';
+            inputCpfCnpj.placeholder = '00.000.000/0001-00';
+            inputCpfCnpj.maxLength = 18;
+            inputCpfCnpj.value = aplicarMascaraCnpj(digitos);
+        } else {
+            if (lblCpfCnpj) lblCpfCnpj.innerHTML = 'CPF <span class="text-danger">*</span>';
+            inputCpfCnpj.placeholder = '000.000.000-00';
+            inputCpfCnpj.maxLength = 14;
+            inputCpfCnpj.value = aplicarMascaraCpf(digitos);
+        }
+    }
+
+    if (inputCpfCnpj) {
+        inputCpfCnpj.addEventListener('input', atualizarMascaraCpfCnpj);
+        inputCpfCnpj.addEventListener('paste', function () {
+            setTimeout(atualizarMascaraCpfCnpj, 10);
+        });
+    }
+
+    if (selTipoPessoa) {
+        selTipoPessoa.addEventListener('change', function () {
+            atualizarMascaraCpfCnpj();
+        });
+    }
+
+    // --- 2. MÁSCARA TELEFONE / WHATSAPP ---
+    function aplicarMascaraTelefone() {
+        if (!inputTelefone) return;
+        let v = inputTelefone.value.replace(/\D/g, '').slice(0, 11);
+
+        if (v.length > 10) {
+            // Celular com 9 dígitos: (11) 99999-9999
+            v = v.replace(/^(\d{2})(\d{5})(\d{4})$/, '($1) $2-$3');
+        } else if (v.length > 6) {
+            // Fixo ou celular digitando: (11) 9999-9999
+            v = v.replace(/^(\d{2})(\d{4})(\d{0,4})$/, '($1) $2-$3');
+        } else if (v.length > 2) {
+            // DDD: (11) 999...
+            v = v.replace(/^(\d{2})(\d{0,5})$/, '($1) $2');
+        } else if (v.length > 0) {
+            v = v.replace(/^(\d{0,2})$/, '($1');
+        }
+
+        inputTelefone.value = v;
+    }
+
+    if (inputTelefone) {
+        inputTelefone.maxLength = 15;
+        inputTelefone.addEventListener('input', aplicarMascaraTelefone);
+        inputTelefone.addEventListener('paste', function () {
+            setTimeout(aplicarMascaraTelefone, 10);
+        });
+    }
+
+    // Inicializa máscaras caso o formulário já venha pré-preenchido (edição)
+    atualizarMascaraCpfCnpj();
+    if (inputTelefone && inputTelefone.value) {
+        aplicarMascaraTelefone();
+    }
+});
+</script>
+{% endblock %}

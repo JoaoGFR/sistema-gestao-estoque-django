@@ -1,0 +1,343 @@
+{% extends 'estoque/base.html' %}
+
+{% block title %}{{ cliente.nome }} | Ficha do Cliente{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-3">
+
+    <!-- Cabeçalho -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <a href="{% url 'lista_clientes' %}" class="btn btn-outline-secondary btn-sm mb-2">
+                <i class="bi bi-arrow-left"></i> Voltar aos Clientes
+            </a>
+            <div class="d-flex align-items-center gap-3">
+                <div class="avatar-circle bg-primary text-white fw-bold rounded-circle d-flex align-items-center justify-content-center fs-3 shadow-sm" style="width: 52px; height: 52px;">
+                    {{ cliente.nome|slice:":1"|upper }}
+                </div>
+                <div>
+                    <h2 class="h3 fw-bold mb-1 text-dark">{{ cliente.nome }}</h2>
+                    <div class="d-flex flex-wrap align-items-center gap-2 text-muted small">
+                        {% if cliente.cpf_cnpj %}
+                            <span><i class="bi bi-card-heading"></i> {{ cliente.cpf_cnpj }}</span>
+                            <span>•</span>
+                        {% endif %}
+                        {% if cliente.telefone %}
+                            <span><i class="bi bi-telephone"></i> {{ cliente.telefone }}</span>
+                            <span>•</span>
+                        {% endif %}
+                        {% if cliente.email %}
+                            <span><i class="bi bi-envelope"></i> {{ cliente.email }}</span>
+                            <span>•</span>
+                        {% endif %}
+                        {% if cliente.ativo %}
+                            <span class="badge bg-success-subtle text-success">Ativo</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Inativo</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'registrar_venda' %}?cliente_id={{ cliente.pk }}" class="btn btn-success d-flex align-items-center gap-2 shadow-sm">
+                <i class="bi bi-cart-plus"></i> Nova Venda
+            </a>
+            <a href="{% url 'editar_cliente' cliente.pk %}" class="btn btn-outline-secondary d-flex align-items-center gap-2">
+                <i class="bi bi-pencil"></i> Editar Cadastro
+            </a>
+        </div>
+    </div>
+
+    <!-- Cards Financeiros de Crediário -->
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-md-4">
+            <div class="card border-0 shadow-sm rounded-3 h-100 bg-white">
+                <div class="card-body">
+                    <span class="text-muted small fw-semibold text-uppercase d-block mb-1">Limite Total de Crediário</span>
+                    <h3 class="fw-bold text-dark mb-0">R$ {{ cliente.limite_credito|floatformat:2 }}</h3>
+                    <small class="text-muted">Limite estabelecido para compras a prazo</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-4">
+            <div class="card border-0 shadow-sm rounded-3 h-100 bg-white">
+                <div class="card-body">
+                    <span class="text-muted small fw-semibold text-uppercase d-block mb-1">Saldo Devedor em Aberto</span>
+                    <h3 class="fw-bold {% if cliente.saldo_devedor > 0 %}text-danger{% else %}text-success{% endif %} mb-0">
+                        R$ {{ cliente.saldo_devedor|floatformat:2 }}
+                    </h3>
+                    {% if cliente.tem_debitos_vencidos %}
+                        <span class="badge bg-danger mt-1"><i class="bi bi-exclamation-triangle"></i> Possui parcelas em atraso</span>
+                    {% else %}
+                        <small class="text-success"><i class="bi bi-check2"></i> Nenhuma parcela em atraso</small>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-4">
+            <div class="card border-0 shadow-sm rounded-3 h-100 bg-white">
+                <div class="card-body">
+                    <span class="text-muted small fw-semibold text-uppercase d-block mb-1">Limite Disponível para Compras</span>
+                    <h3 class="fw-bold text-primary mb-0">R$ {{ cliente.limite_disponivel|floatformat:2 }}</h3>
+                    <small class="text-muted">Margem restante para novas vendas a prazo</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navegação por Abas -->
+    <ul class="nav nav-pills mb-3" id="pills-tab" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active fw-semibold" id="tab-crediario-tab" data-bs-toggle="pill" data-bs-target="#tab-crediario" type="button" role="tab">
+                <i class="bi bi-credit-card-2-front me-1"></i> Extrato de Crediário ({{ contas.count }})
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link fw-semibold" id="tab-vendas-tab" data-bs-toggle="pill" data-bs-target="#tab-vendas" type="button" role="tab">
+                <i class="bi bi-cart-check me-1"></i> Histórico de Vendas ({{ vendas.count }})
+            </button>
+        </li>
+    </ul>
+
+    <!-- Conteúdo das Abas -->
+    <div class="tab-content" id="pills-tabContent">
+
+        <!-- ABA 1: CREDIÁRIO / DÉBITOS -->
+        <div class="tab-pane fade show active" id="tab-crediario" role="tabpanel">
+            <div class="card border-0 shadow-sm rounded-3">
+                <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
+                    <h5 class="fw-bold mb-0 text-dark">Parcelas & Débitos em Aberto</h5>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-3">Venda / Código</th>
+                                <th>Parcela</th>
+                                <th>Vencimento</th>
+                                <th class="text-end">Valor Nominal</th>
+                                <th class="text-end">Valor Pago</th>
+                                <th class="text-end">Saldo Devedor</th>
+                                <th class="text-center">Status</th>
+                                <th class="text-end pe-3">Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for conta in contas %}
+                            <tr class="{% if conta.esta_vencida %}table-danger-subtle{% endif %}">
+                                <td class="ps-3">
+                                    <a href="{% url 'detalhe_venda' conta.venda.pk %}" class="fw-bold text-dark text-decoration-none">
+                                        {{ conta.venda.codigo_venda }}
+                                    </a>
+                                    <div class="text-muted small">{{ conta.venda.data_venda|date:"d/m/Y H:i" }}</div>
+                                </td>
+                                <td class="fw-semibold">
+                                    {{ conta.numero_parcela }} de {{ conta.total_parcelas }}
+                                </td>
+                                <td>
+                                    <span class="fw-semibold">{{ conta.data_vencimento|date:"d/m/Y" }}</span>
+                                    {% if conta.esta_vencida %}
+                                        <div class="badge bg-danger small">{{ conta.dias_atraso }} dias de atraso</div>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end text-secondary fw-semibold">
+                                    R$ {{ conta.valor_parcela|floatformat:2 }}
+                                </td>
+                                <td class="text-end text-success fw-semibold">
+                                    R$ {{ conta.valor_pago|floatformat:2 }}
+                                </td>
+                                <td class="text-end fw-bold {% if conta.saldo_restante > 0 %}text-danger{% else %}text-muted{% endif %}">
+                                    R$ {{ conta.saldo_restante|floatformat:2 }}
+                                </td>
+                                <td class="text-center">
+                                    {% if conta.status == 'PAGO' %}
+                                        <span class="badge bg-success-subtle text-success">Pago</span>
+                                    {% elif conta.esta_vencida %}
+                                        <span class="badge bg-danger">Vencido</span>
+                                    {% elif conta.status == 'CANCELADO' %}
+                                        <span class="badge bg-secondary">Cancelado</span>
+                                    {% else %}
+                                        <span class="badge bg-warning-subtle text-warning-emphasis">Pendente</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end pe-3">
+                                    {% if conta.status != 'PAGO' and conta.status != 'CANCELADO' %}
+                                        <button type="button" class="btn btn-sm btn-success d-inline-flex align-items-center gap-1 btn-receber"
+                                                data-bs-toggle="modal" data-bs-target="#modalReceber"
+                                                data-action="{% url 'baixar_parcela' conta.pk %}"
+                                                data-parcela="{{ conta.numero_parcela }}/{{ conta.total_parcelas }}"
+                                                data-venda="{{ conta.venda.codigo_venda }}"
+                                                data-saldo="{{ conta.saldo_restante|floatformat:2 }}"
+                                                data-valor="{{ conta.valor_parcela|floatformat:2 }}">
+                                            <i class="bi bi-cash-coin"></i> Receber
+                                        </button>
+                                    {% else %}
+                                        <span class="text-muted small"><i class="bi bi-check-all text-success"></i> Quitado</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="8" class="text-center py-4 text-muted">
+                                    <i class="bi bi-check-circle fs-2 d-block mb-1 text-success"></i>
+                                    Este cliente não possui nenhuma conta ou parcela no crediário.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ABA 2: HISTÓRICO DE VENDAS -->
+        <div class="tab-pane fade" id="tab-vendas" role="tabpanel">
+            <div class="card border-0 shadow-sm rounded-3">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-3">Data / Hora</th>
+                                <th>Código da Venda</th>
+                                <th>Forma de Pagamento</th>
+                                <th class="text-end">Total da Venda</th>
+                                <th class="text-center">Status Venda</th>
+                                <th class="text-center">Pagamento</th>
+                                <th class="text-end pe-3">Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for venda in vendas %}
+                            <tr>
+                                <td class="ps-3 text-muted">{{ venda.data_venda|date:"d/m/Y H:i" }}</td>
+                                <td class="fw-bold">{{ venda.codigo_venda }}</td>
+                                <td>
+                                    <span class="badge bg-light text-dark border">{{ venda.get_forma_pagamento_display }}</span>
+                                </td>
+                                <td class="text-end fw-bold text-dark">
+                                    R$ {{ venda.valor_total|floatformat:2 }}
+                                </td>
+                                <td class="text-center">
+                                    {% if venda.status == 'CONCLUIDA' %}
+                                        <span class="badge bg-success-subtle text-success">Concluída</span>
+                                    {% else %}
+                                        <span class="badge bg-danger-subtle text-danger">Cancelada</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    {% if venda.status_pagamento == 'PAGO' %}
+                                        <span class="badge bg-success">Pago</span>
+                                    {% elif venda.status_pagamento == 'PENDENTE' %}
+                                        <span class="badge bg-warning text-dark">Em Aberto</span>
+                                    {% elif venda.status_pagamento == 'PARCIAL' %}
+                                        <span class="badge bg-info text-dark">Parcial</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Cancelado</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end pe-3">
+                                    <a href="{% url 'detalhe_venda' venda.pk %}" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-receipt"></i> Recibo
+                                    </a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7" class="text-center py-4 text-muted">
+                                    Nenhuma venda registrada para este cliente até o momento.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+<!-- Modal Receber Pagamento -->
+<div class="modal fade" id="modalReceber" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title fw-bold">
+                    <i class="bi bi-cash-coin me-1"></i> Registrar Recebimento
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-toggle="modal"></button>
+            </div>
+            <form method="POST" id="formReceberPagamento">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.path }}">
+                <div class="modal-body p-4">
+                    <div class="alert alert-light border d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <span class="small text-muted d-block">Venda / Parcela:</span>
+                            <strong id="modalDescParcela" class="text-dark"></strong>
+                        </div>
+                        <div class="text-end">
+                            <span class="small text-muted d-block">Saldo a Pagar:</span>
+                            <strong id="modalSaldoDevedor" class="text-danger fs-5"></strong>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Valor Recebido (R$) <span class="text-danger">*</span></label>
+                        {{ form_receber.valor_recebido }}
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Forma de Recebimento</label>
+                        {{ form_receber.forma_pagamento }}
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Data do Pagamento</label>
+                        {{ form_receber.data_recebimento }}
+                    </div>
+
+                    <div class="mb-2">
+                        <label class="form-label fw-semibold">Observações / Anotações</label>
+                        {{ form_receber.observacoes }}
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success px-4 fw-bold">
+                        <i class="bi bi-check-circle me-1"></i> Confirmar Baixa
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const modalReceberEl = document.getElementById('modalReceber');
+    const formReceber = document.getElementById('formReceberPagamento');
+    const descParcela = document.getElementById('modalDescParcela');
+    const saldoDevedor = document.getElementById('modalSaldoDevedor');
+    const inputValor = formReceber.querySelector('input[name="valor_recebido"]');
+
+    document.querySelectorAll('.btn-receber').forEach(btn => {
+        btn.addEventListener('click', function () {
+            const action = this.dataset.action;
+            const parcela = this.dataset.parcela;
+            const venda = this.dataset.venda;
+            const saldo = this.dataset.saldo;
+
+            formReceber.action = action;
+            descParcela.textContent = `${venda} (Parc. ${parcela})`;
+            saldoDevedor.textContent = `R$ ${saldo}`;
+            if (inputValor) {
+                inputValor.value = saldo.replace(',', '.');
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

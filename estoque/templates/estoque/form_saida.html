@@ -2,138 +2,804 @@
 {% load crispy_forms_tags %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-6">
-        <div class="card shadow">
-            <div class="card-header bg-secondary text-white">
-                <h4 class="mb-0"><i class="bi bi-box-arrow-down"></i> Registrar Saída / Baixa</h4>
-            </div>
-            <div class="card-body">
-                {% if error_message %}
-                    <div class="alert alert-danger">
-                        <i class="bi bi-exclamation-octagon-fill"></i> {{ error_message }}
-                    </div>
-                {% endif %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-2 pb-2 mb-3 border-bottom">
+    <div>
+        <h2 class="h3 mb-1"><i class="bi bi-box-arrow-right text-danger"></i> Registrar Baixas no Estoque</h2>
+        <p class="text-muted mb-0">Selecione um ou vários itens para realizar a baixa de estoque em uma única operação.</p>
+    </div>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{% url 'lista_saidas' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-clock-history"></i> Ver Histórico de Baixas
+        </a>
+    </div>
+</div>
 
-                <form method="post">
-                    {% csrf_token %}
+{% if error_message %}
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i> {{ error_message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+{% endif %}
+
+<div class="row g-4">
+    <!-- COLUNA ESQUERDA: SELETOR DE PRODUTOS E LOTES -->
+    <div class="col-lg-5">
+        <div class="card shadow-sm border-0 sticky-top" style="top: 80px; z-index: 10;">
+            <div class="card-header bg-dark text-white py-3">
+                <h5 class="mb-0 fs-6">
+                    <i class="bi bi-plus-circle-fill text-danger me-2"></i>1. Adicionar Item à Baixa
+                </h5>
+            </div>
+            <div class="card-body p-3 p-md-4">
+                
+                <!-- 1. Produto com Modal Pop-up -->
+                <div class="mb-3">
+                    <label for="seletor_produto" class="form-label fw-bold small text-secondary text-uppercase">
+                        Produto <span class="text-danger">*</span>
+                    </label>
                     
-                    {{ form.produto|as_crispy_field }}
-                    
-                    {{ form.lote_especifico|as_crispy_field }}
-                    
-                    <div class="row">
-                        <div class="col-md-6">
-                            {{ form.quantidade|as_crispy_field }}
-                            <small id="ajudaSaldo" class="form-text text-muted">Selecione um produto/lote.</small>
+                    <!-- Select oculto para integração e submissão -->
+                    <select id="seletor_produto" class="d-none">
+                        <option value="">-- Selecione o Produto --</option>
+                        {% for prod in produtos %}
+                            <option value="{{ prod.id }}" 
+                                    data-saldo="{{ prod.saldo_ativo }}" 
+                                    data-unidade="{{ prod.get_unidade_display }}"
+                                    data-sku="{{ prod.sku|default:'' }}"
+                                    data-ean="{{ prod.ean|default:'' }}"
+                                    data-categoria="{{ prod.categoria.nome|default:'' }}"
+                                    data-localizacao="{{ prod.localizacao.nome|default:'' }}"
+                                    data-nome="{{ prod.nome }}"
+                                    {% if prod.saldo_ativo <= 0 %}class="text-muted bg-light"{% endif %}>
+                                {{ prod.nome }} {% if prod.sku %}(SKU: {{ prod.sku }}){% endif %} - Saldo: {{ prod.saldo_ativo }} {{ prod.get_unidade_display }}
+                            </option>
+                        {% endfor %}
+                    </select>
+
+                    <!-- Botão de abertura quando vazio -->
+                    <div id="btnAbrirModalProdSaida" class="card border border-2 border-dashed p-3 text-center cursor-pointer bg-light hover-bg-white shadow-sm" style="cursor: pointer;" data-bs-toggle="modal" data-bs-target="#modalBuscaProdutoSaida">
+                        <div class="d-flex align-items-center justify-content-center gap-2 text-danger fw-semibold">
+                            <i class="bi bi-search fs-5"></i>
+                            <span>Clique para buscar e selecionar produto...</span>
                         </div>
-                        <div class="col-md-6">
-                            {{ form.motivo|as_crispy_field }}
+                        <div class="text-muted small mt-1">Pesquise por nome, SKU, código de barras, categoria ou qualquer dado</div>
+                    </div>
+
+                    <!-- Card de exibição do produto selecionado -->
+                    <div id="cardProdSelSaida" class="card border-danger bg-danger-subtle p-3 shadow-sm d-none">
+                        <div class="d-flex justify-content-between align-items-start gap-2">
+                            <div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge bg-danger text-white"><i class="bi bi-box-seam"></i></span>
+                                    <strong class="text-dark fs-6" id="cardProdNomeSaida">-</strong>
+                                </div>
+                                <div class="d-flex flex-wrap gap-1 mt-2 small" id="cardProdBadgesSaida">
+                                    <!-- Badges dinâmicos inseridos via JS -->
+                                </div>
+                            </div>
+                            <div class="d-flex gap-1">
+                                <button type="button" class="btn btn-sm btn-outline-danger bg-white" data-bs-toggle="modal" data-bs-target="#modalBuscaProdutoSaida" title="Trocar Produto">
+                                    <i class="bi bi-arrow-repeat"></i> Trocar
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary bg-white" id="btnLimparProdSaida" title="Remover Produto">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
+                </div>
+
+                <!-- 2. Lote de Origem -->
+                <div class="mb-3">
+                    <label for="seletor_lote" class="form-label fw-bold small text-secondary text-uppercase">
+                        Lote de Origem
+                    </label>
+                    <select id="seletor_lote" class="form-select">
+                        <option value="">Automático (FEFO/FIFO - Mais antigo primeiro)</option>
+                    </select>
+                    <div class="form-text text-muted" id="textoAjudaLote">
+                        Por padrão, o sistema prioriza o lote mais próximo da validade (FEFO).
+                    </div>
+                </div>
+
+                <!-- 3. Quantidade -->
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <label for="input_quantidade" class="form-label fw-bold small text-secondary text-uppercase mb-0">
+                            Quantidade a Baixar <span class="text-danger">*</span>
+                        </label>
+                        <span id="badgeSaldoDisponivel" class="badge bg-secondary-subtle text-secondary border">
+                            Saldo: -
+                        </span>
+                    </div>
+                    <div class="input-group">
+                        <input type="number" id="input_quantidade" class="form-control form-control-lg" min="1" step="1" placeholder="Ex: 5">
+                        <span class="input-group-text bg-light text-muted" id="spanUnidadeMedida">un</span>
+                    </div>
+                    <!-- Atalhos rápidos de quantidade -->
+                    <div class="btn-group btn-group-sm mt-2 w-100" role="group">
+                        <button type="button" class="btn btn-outline-secondary btn-atalho" data-soma="1">+1</button>
+                        <button type="button" class="btn btn-outline-secondary btn-atalho" data-soma="5">+5</button>
+                        <button type="button" class="btn btn-outline-secondary btn-atalho" data-soma="10">+10</button>
+                        <button type="button" class="btn btn-outline-danger btn-atalho-max" id="btnMaximo">Máximo</button>
+                    </div>
+                    <div id="textoErroQtd" class="text-danger small mt-1 d-none">
+                        <i class="bi bi-exclamation-circle"></i> Quantidade maior do que o saldo disponível!
+                    </div>
+                </div>
+
+                <!-- 4. Valor de Venda Unitário (Opcional) -->
+                <div class="mb-4">
+                    <label for="input_valor_venda" class="form-label fw-bold small text-secondary text-uppercase">
+                        Valor de Venda Unitário (R$) <span class="text-muted fw-normal">(Opcional)</span>
+                    </label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light">R$</span>
+                        <input type="number" id="input_valor_venda" class="form-control" step="0.01" min="0" placeholder="0,00">
+                    </div>
+                    <div class="form-text text-muted">
+                        Preencha se for venda a cliente. Deixe em branco para consumo ou descarte.
+                    </div>
+                </div>
+
+                <!-- Botão Adicionar Item -->
+                <button type="button" id="btnAdicionarItem" class="btn btn-danger w-100 py-2 fw-bold shadow-sm">
+                    <i class="bi bi-plus-lg me-1"></i> Adicionar Item à Baixa
+                </button>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- COLUNA DIREITA: GRADE DE ITENS DA BAIXA (CARRINHO) -->
+    <div class="col-lg-7">
+        <form method="post" id="formBaixasMultiplas">
+            {% csrf_token %}
+            <input type="hidden" name="itens_json" id="hidden_itens_json">
+            
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-light py-3 border-bottom d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 fs-6 fw-bold text-dark">
+                        <i class="bi bi-cart-check-fill text-danger me-2"></i>2. Itens da Baixa Atual
+                    </h5>
+                    <span id="badgeContadorItens" class="badge bg-danger rounded-pill px-3 py-2">
+                        0 itens
+                    </span>
+                </div>
+                <div class="card-body p-3 p-md-4">
+                    
+                    <!-- Motivo / Destino Geral -->
                     <div class="mb-3">
-                        <label for="id_valor_venda" class="form-label">Valor da Venda (R$)</label>
-                             {{ form.valor_venda }} 
-                         <div class="form-text text-muted">Deixe em branco se for consumo interno ou perda.</div>
+                        <label for="input_motivo_geral" class="form-label fw-bold small text-secondary text-uppercase">
+                            Motivo / Destino Geral da Baixa <span class="text-danger">*</span>
+                        </label>
+                        <input type="text" name="motivo" id="input_motivo_geral" class="form-control" 
+                               list="sugestoesMotivo" 
+                               placeholder="Ex: Venda Balcão Pedido #123, Consumo Interno, Descarte por avaria..." 
+                               required>
+                        <datalist id="sugestoesMotivo">
+                            <option value="Venda Balcão">
+                            <option value="Consumo Interno">
+                            <option value="Uso na Manutenção">
+                            <option value="Descarte / Avaria">
+                            <option value="Transferência entre Estoques">
+                            <option value="Ajuste de Inventário">
+                        </datalist>
+                        <div class="form-text text-muted">
+                            Este motivo será associado a todos os itens baixados nesta operação.
+                        </div>
                     </div>
-                    <div class="d-grid gap-2 mt-3">
-                        <button type="submit" class="btn btn-dark">Confirmar Baixa</button>
-                        <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">Cancelar</a>
+
+                    <!-- Tabela de Itens Adicionados -->
+                    <div class="table-responsive mt-3 border rounded">
+                        <table class="table table-hover align-middle mb-0" id="tabelaItensBaixa">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Produto</th>
+                                    <th>Lote</th>
+                                    <th class="text-center">Qtd</th>
+                                    <th class="text-end">Valor Unit.</th>
+                                    <th class="text-end">Subtotal</th>
+                                    <th class="text-center" style="width: 50px;">Ação</th>
+                                </tr>
+                            </thead>
+                            <tbody id="corpoTabelaItens">
+                                <!-- Estado Vazio Inicial -->
+                                <tr id="linhaVazia">
+                                    <td colspan="6" class="text-center py-5 text-muted">
+                                        <i class="bi bi-inbox fs-1 d-block mb-2 text-secondary opacity-50"></i>
+                                        <span class="fw-semibold">Nenhum item adicionado à baixa ainda.</span>
+                                        <br>
+                                        <small class="text-muted">Selecione o produto no painel ao lado e clique em <strong>Adicionar Item</strong>.</small>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
-                </form>
+
+                    <!-- Resumo / Totais -->
+                    <div class="card bg-light border-0 mt-3 p-3" id="cardResumoTotais">
+                        <div class="row text-center g-2">
+                            <div class="col-4 border-end">
+                                <span class="d-block small text-muted text-uppercase fw-semibold">Produtos</span>
+                                <strong class="fs-5 text-dark" id="totalProdutosDiferentes">0</strong>
+                            </div>
+                            <div class="col-4 border-end">
+                                <span class="d-block small text-muted text-uppercase fw-semibold">Total de Peças</span>
+                                <strong class="fs-5 text-danger" id="totalPecasBaixa">0 un</strong>
+                            </div>
+                            <div class="col-4">
+                                <span class="d-block small text-muted text-uppercase fw-semibold">Valor Estimado</span>
+                                <strong class="fs-5 text-success" id="totalValorBaixa">R$ 0,00</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Botões de Ação Final -->
+                    <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="btnLimparLista" disabled>
+                            <i class="bi bi-trash"></i> Limpar Lista
+                        </button>
+                        <div class="d-flex gap-2">
+                            <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">Cancelar</a>
+                            <button type="submit" id="btnConfirmarBaixa" class="btn btn-danger fw-bold px-4 shadow-sm" disabled>
+                                <i class="bi bi-check-circle-fill me-1"></i> Confirmar Baixa dos Itens
+                            </button>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- SCRIPT DE GESTÃO DO CARRINHO DE BAIXAS -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const seletorProduto = document.getElementById('seletor_produto');
+    const seletorLote = document.getElementById('seletor_lote');
+    const inputQtd = document.getElementById('input_quantidade');
+    const inputValorVenda = document.getElementById('input_valor_venda');
+    const badgeSaldo = document.getElementById('badgeSaldoDisponivel');
+    const spanUnidade = document.getElementById('spanUnidadeMedida');
+    const textoAjudaLote = document.getElementById('textoAjudaLote');
+    const textoErroQtd = document.getElementById('textoErroQtd');
+    const btnAdicionar = document.getElementById('btnAdicionarItem');
+    const btnMaximo = document.getElementById('btnMaximo');
+
+    const corpoTabela = document.getElementById('corpoTabelaItens');
+    const linhaVazia = document.getElementById('linhaVazia');
+    const badgeContador = document.getElementById('badgeContadorItens');
+    const totalProdutosEl = document.getElementById('totalProdutosDiferentes');
+    const totalPecasEl = document.getElementById('totalPecasBaixa');
+    const totalValorEl = document.getElementById('totalValorBaixa');
+    const btnConfirmar = document.getElementById('btnConfirmarBaixa');
+    const btnLimpar = document.getElementById('btnLimparLista');
+    const formBaixas = document.getElementById('formBaixasMultiplas');
+    const hiddenItensJson = document.getElementById('hidden_itens_json');
+    const inputMotivoGeral = document.getElementById('input_motivo_geral');
+
+    // Estado em Memória da Baixa Múltipla
+    let itensCarrinho = [];
+    let limiteSaldoAtual = 0;
+
+    // 1. Carregar Lotes e Saldo ao mudar produto
+    seletorProduto.addEventListener('change', function() {
+        const option = this.options[this.selectedIndex];
+        const produtoId = this.value;
+
+        // Reseta campos
+        seletorLote.innerHTML = '<option value="" data-qtd="0">Carregando lotes...</option>';
+        inputQtd.value = "";
+        textoErroQtd.classList.add('d-none');
+
+        if (!produtoId) {
+            seletorLote.innerHTML = '<option value="">Automático (FEFO/FIFO - Mais antigo primeiro)</option>';
+            badgeSaldo.textContent = 'Saldo: -';
+            badgeSaldo.className = 'badge bg-secondary-subtle text-secondary border';
+            spanUnidade.textContent = 'un';
+            limiteSaldoAtual = 0;
+            return;
+        }
+
+        const saldoTotal = parseFloat(option.getAttribute('data-saldo')) || 0;
+        const unidade = option.getAttribute('data-unidade') || 'un';
+        spanUnidade.textContent = unidade;
+
+        // Busca lotes na API
+        fetch(`/api/lotes/${produtoId}/`)
+            .then(res => res.json())
+            .then(data => {
+                seletorLote.innerHTML = '<option value="" selected data-qtd="' + saldoTotal + '">Automático (FEFO/FIFO - Mais antigo primeiro)</option>';
+                data.forEach(lote => {
+                    const opt = document.createElement('option');
+                    opt.value = lote.id;
+                    opt.text = lote.texto;
+                    opt.setAttribute('data-qtd', lote.qtd_disponivel);
+                    seletorLote.appendChild(opt);
+                });
+                atualizarLimiteSaldo();
+            })
+            .catch(() => {
+                seletorLote.innerHTML = '<option value="" data-qtd="' + saldoTotal + '">Automático (Mais antigo)</option>';
+                atualizarLimiteSaldo();
+            });
+    });
+
+    // 2. Atualizar Limite de Saldo ao trocar lote
+    function atualizarLimiteSaldo() {
+        const loteOpt = seletorLote.options[seletorLote.selectedIndex];
+        const prodOpt = seletorProduto.options[seletorProduto.selectedIndex];
+
+        if (!prodOpt || !prodOpt.value) {
+            limiteSaldoAtual = 0;
+            badgeSaldo.textContent = 'Saldo: -';
+            return;
+        }
+
+        const unidade = prodOpt.getAttribute('data-unidade') || 'un';
+        const isLoteManual = loteOpt && loteOpt.value;
+
+        if (isLoteManual) {
+            limiteSaldoAtual = parseFloat(loteOpt.getAttribute('data-qtd')) || 0;
+            badgeSaldo.textContent = `Lote selecionado: ${limiteSaldoAtual} ${unidade}`;
+            badgeSaldo.className = 'badge bg-primary-subtle text-primary border border-primary-subtle';
+            textoAjudaLote.innerHTML = '<i class="bi bi-pin-angle-fill text-primary"></i> Baixa vinculada exclusivamente a este lote.';
+        } else {
+            limiteSaldoAtual = parseFloat(prodOpt.getAttribute('data-saldo')) || 0;
+            if (limiteSaldoAtual > 0) {
+                badgeSaldo.textContent = `Saldo total: ${limiteSaldoAtual} ${unidade}`;
+                badgeSaldo.className = 'badge bg-success-subtle text-success border border-success-subtle';
+            } else {
+                badgeSaldo.textContent = 'Sem estoque disponível';
+                badgeSaldo.className = 'badge bg-danger-subtle text-danger border border-danger-subtle';
+            }
+            textoAjudaLote.innerHTML = 'O sistema priorizará o lote mais antigo ou mais próximo do vencimento.';
+        }
+
+        validarQuantidadeDigitada();
+    }
+
+    seletorLote.addEventListener('change', atualizarLimiteSaldo);
+
+    // 3. Validação em tempo real do input de quantidade
+    function validarQuantidadeDigitada() {
+        const valor = parseFloat(inputQtd.value) || 0;
+        if (valor > limiteSaldoAtual && limiteSaldoAtual > 0) {
+            textoErroQtd.classList.remove('d-none');
+            inputQtd.classList.add('is-invalid');
+            return false;
+        } else {
+            textoErroQtd.classList.add('d-none');
+            inputQtd.classList.remove('is-invalid');
+            return valor > 0;
+        }
+    }
+
+    inputQtd.addEventListener('input', validarQuantidadeDigitada);
+
+    // 4. Atalhos rápidos (+1, +5, +10, Máx)
+    document.querySelectorAll('.btn-atalho').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const incremento = parseFloat(this.getAttribute('data-soma')) || 1;
+            const atual = parseFloat(inputQtd.value) || 0;
+            const novo = Math.min(atual + incremento, limiteSaldoAtual > 0 ? limiteSaldoAtual : 99999);
+            inputQtd.value = novo;
+            validarQuantidadeDigitada();
+        });
+    });
+
+    btnMaximo.addEventListener('click', function() {
+        if (limiteSaldoAtual > 0) {
+            inputQtd.value = limiteSaldoAtual;
+            validarQuantidadeDigitada();
+        }
+    });
+
+    // 5. Adicionar Item ao Carrinho
+    btnAdicionar.addEventListener('click', function() {
+        const prodOpt = seletorProduto.options[seletorProduto.selectedIndex];
+        if (!prodOpt || !prodOpt.value) {
+            alert('Por favor, selecione um produto primeiro.');
+            seletorProduto.focus();
+            return;
+        }
+
+        const qtd = parseInt(inputQtd.value, 10);
+        if (!qtd || qtd <= 0) {
+            alert('Informe uma quantidade válida (mínimo 1).');
+            inputQtd.focus();
+            return;
+        }
+
+        if (qtd > limiteSaldoAtual) {
+            alert(`A quantidade solicitada (${qtd}) excede o saldo disponível (${limiteSaldoAtual}).`);
+            inputQtd.focus();
+            return;
+        }
+
+        const loteOpt = seletorLote.options[seletorLote.selectedIndex];
+        const loteId = loteOpt && loteOpt.value ? parseInt(loteOpt.value, 10) : null;
+        const loteNome = loteOpt && loteOpt.value ? loteOpt.text : 'Automático (FEFO)';
+
+        const valorVendaStr = inputValorVenda.value;
+        const valorVenda = valorVendaStr ? parseFloat(valorVendaStr) : 0;
+
+        const produtoId = parseInt(prodOpt.value, 10);
+        const produtoNome = prodOpt.getAttribute('data-nome');
+        const unidade = prodOpt.getAttribute('data-unidade') || 'un';
+        const sku = prodOpt.getAttribute('data-sku') || '';
+
+        // Checa se o item já existe no carrinho com o mesmo lote
+        const itemExistente = itensCarrinho.find(i => i.produto_id === produtoId && i.lote_id === loteId);
+        if (itemExistente) {
+            const novaQtdTotal = itemExistente.quantidade + qtd;
+            if (novaQtdTotal > limiteSaldoAtual) {
+                alert(`Ao somar, a quantidade (${novaQtdTotal}) excederá o saldo disponível (${limiteSaldoAtual}).`);
+                return;
+            }
+            itemExistente.quantidade = novaQtdTotal;
+            if (valorVenda > 0) {
+                itemExistente.valor_venda = valorVenda;
+            }
+        } else {
+            itensCarrinho.push({
+                produto_id: produtoId,
+                produto_nome: produtoNome,
+                sku: sku,
+                unidade: unidade,
+                lote_id: loteId,
+                lote_nome: loteNome,
+                quantidade: qtd,
+                valor_venda: valorVenda
+            });
+        }
+
+        // Limpa campos para próxima inserção
+        inputQtd.value = "";
+        inputValorVenda.value = "";
+        seletorProduto.value = "";
+        seletorLote.innerHTML = '<option value="">Automático (FEFO/FIFO - Mais antigo primeiro)</option>';
+        badgeSaldo.textContent = 'Saldo: -';
+        limiteSaldoAtual = 0;
+
+        renderizarTabela();
+    });
+
+    // 6. Renderizar Tabela do Carrinho
+    function renderizarTabela() {
+        corpoTabela.innerHTML = "";
+
+        if (itensCarrinho.length === 0) {
+            corpoTabela.appendChild(linhaVazia);
+            badgeContador.textContent = "0 itens";
+            totalProdutosEl.textContent = "0";
+            totalPecasEl.textContent = "0 un";
+            totalValorEl.textContent = "R$ 0,00";
+            btnConfirmar.disabled = true;
+            btnLimpar.disabled = true;
+            return;
+        }
+
+        let totalPecas = 0;
+        let totalValor = 0;
+
+        itensCarrinho.forEach((item, index) => {
+            totalPecas += item.quantidade;
+            const subtotal = item.quantidade * (item.valor_venda || 0);
+            totalValor += subtotal;
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>
+                    <div class="fw-bold text-dark">${item.produto_nome}</div>
+                    ${item.sku ? '<small class="text-muted">SKU: ' + item.sku + '</small>' : ''}
+                </td>
+                <td>
+                    ${item.lote_id 
+                        ? '<span class="badge bg-secondary">' + item.lote_nome + '</span>' 
+                        : '<span class="badge bg-light text-dark border">Automático</span>'}
+                </td>
+                <td class="text-center fw-bold text-danger fs-6">
+                    ${item.quantidade} <small class="text-muted fw-normal">${item.unidade}</small>
+                </td>
+                <td class="text-end text-muted small">
+                    ${item.valor_venda > 0 ? 'R$ ' + item.valor_venda.toFixed(2).replace('.', ',') : '-'}
+                </td>
+                <td class="text-end fw-semibold ${subtotal > 0 ? 'text-success' : 'text-muted'}">
+                    ${subtotal > 0 ? 'R$ ' + subtotal.toFixed(2).replace('.', ',') : '-'}
+                </td>
+                <td class="text-center">
+                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="removerItem(${index})" title="Remover item">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </td>
+            `;
+            corpoTabela.appendChild(tr);
+        });
+
+        badgeContador.textContent = `${itensCarrinho.length} ${itensCarrinho.length === 1 ? 'item' : 'itens'}`;
+        totalProdutosEl.textContent = itensCarrinho.length;
+        totalPecasEl.textContent = `${totalPecas} un`;
+        totalValorEl.textContent = `R$ ${totalValor.toFixed(2).replace('.', ',')}`;
+
+        btnConfirmar.disabled = false;
+        btnLimpar.disabled = false;
+    }
+
+    // 7. Remover Item Individual
+    window.removerItem = function(index) {
+        itensCarrinho.splice(index, 1);
+        renderizarTabela();
+    };
+
+    // 8. Limpar Todos os Itens
+    btnLimpar.addEventListener('click', function() {
+        if (confirm('Deseja realmente limpar toda a lista de itens da baixa?')) {
+            itensCarrinho = [];
+            renderizarTabela();
+        }
+    });
+
+    // 9. Submissão do Formulário de Baixa Múltipla
+    formBaixas.addEventListener('submit', function(e) {
+        if (itensCarrinho.length === 0) {
+            e.preventDefault();
+            alert('Adicione ao menos um item antes de confirmar a baixa.');
+            return;
+        }
+
+        const motivo = inputMotivoGeral.value.trim();
+        if (!motivo) {
+            e.preventDefault();
+            alert('Por favor, informe o motivo ou destino geral da baixa.');
+            inputMotivoGeral.focus();
+            return;
+        }
+
+        if (!confirm(`Confirmar a baixa de ${itensCarrinho.length} produto(s) no estoque?`)) {
+            e.preventDefault();
+            return;
+        }
+
+        // Serializa para o hidden input
+        hiddenItensJson.value = JSON.stringify(itensCarrinho);
+
+        // Feedback visual de processamento
+        btnConfirmar.disabled = true;
+        btnConfirmar.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Processando Baixa...';
+    });
+
+    // =========================================================================
+    // LÓGICA DO MODAL DE BUSCA INTELIGENTE DE PRODUTO (BAIXA NO ESTOQUE)
+    // =========================================================================
+
+    function normalizarTextoSaida(txt) {
+        if (!txt) return '';
+        return txt.toString()
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^\w\s]/gi, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
+    const btnAbrirModalProdSaida = document.getElementById('btnAbrirModalProdSaida');
+    const cardProdSelSaida = document.getElementById('cardProdSelSaida');
+    const cardProdNomeSaida = document.getElementById('cardProdNomeSaida');
+    const cardProdBadgesSaida = document.getElementById('cardProdBadgesSaida');
+    const btnLimparProdSaida = document.getElementById('btnLimparProdSaida');
+    const modalProdSaidaEl = document.getElementById('modalBuscaProdutoSaida');
+    const inputBuscaProdSaida = document.getElementById('inputBuscaProdSaida');
+    const btnLimparBuscaProdSaida = document.getElementById('btnLimparBuscaProdSaida');
+    const listaProdutosSaidaEl = document.getElementById('listaProdutosModalSaida');
+    const contadorProdSaidaModal = document.getElementById('contadorProdutosModalSaida');
+    const msgSemProdutosSaida = document.getElementById('msgSemProdutosSaida');
+
+    function atualizarCardProdutoSaida() {
+        const opt = seletorProduto.options[seletorProduto.selectedIndex];
+        if (!seletorProduto.value || !opt) {
+            btnAbrirModalProdSaida.classList.remove('d-none');
+            cardProdSelSaida.classList.add('d-none');
+            return;
+        }
+
+        btnAbrirModalProdSaida.classList.add('d-none');
+        cardProdSelSaida.classList.remove('d-none');
+
+        const nome = opt.getAttribute('data-nome') || opt.textContent;
+        const sku = opt.getAttribute('data-sku');
+        const ean = opt.getAttribute('data-ean');
+        const cat = opt.getAttribute('data-categoria');
+        const loc = opt.getAttribute('data-localizacao');
+        const saldo = parseFloat(opt.getAttribute('data-saldo')) || 0;
+        const unidade = opt.getAttribute('data-unidade') || 'un';
+
+        cardProdNomeSaida.textContent = nome;
+
+        let badges = '';
+        if (sku) badges += `<span class="badge bg-secondary-subtle text-secondary border">SKU: ${sku}</span>`;
+        if (ean) badges += `<span class="badge bg-secondary-subtle text-secondary border"><i class="bi bi-upc-scan me-1"></i>${ean}</span>`;
+        if (cat) badges += `<span class="badge bg-danger-subtle text-danger border border-danger-subtle">${cat}</span>`;
+        if (loc) badges += `<span class="badge bg-info-subtle text-dark border">Local: ${loc}</span>`;
+
+        if (saldo > 0) {
+            badges += `<span class="badge bg-success text-white">Saldo: ${saldo} ${unidade}</span>`;
+        } else {
+            badges += `<span class="badge bg-danger text-white">Sem Estoque</span>`;
+        }
+
+        cardProdBadgesSaida.innerHTML = badges;
+    }
+
+    btnLimparProdSaida.addEventListener('click', function() {
+        seletorProduto.value = '';
+        seletorProduto.dispatchEvent(new Event('change'));
+        atualizarCardProdutoSaida();
+    });
+
+    // Filtro instantâneo no modal
+    function filtrarProdutosSaidaModal() {
+        const query = normalizarTextoSaida(inputBuscaProdSaida.value);
+        const termos = query.split(' ').filter(t => t.length > 0);
+        const itens = listaProdutosSaidaEl.querySelectorAll('.item-produto-saida');
+        let visiveis = 0;
+
+        itens.forEach(item => {
+            const searchData = item.dataset.searchNormalized || '';
+            const bateTodos = termos.every(termo => searchData.includes(termo));
+
+            if (bateTodos) {
+                item.classList.remove('d-none');
+                visiveis++;
+            } else {
+                item.classList.add('d-none');
+            }
+        });
+
+        contadorProdSaidaModal.textContent = `${visiveis} produto(s)`;
+        if (visiveis === 0) {
+            msgSemProdutosSaida.classList.remove('d-none');
+        } else {
+            msgSemProdutosSaida.classList.add('d-none');
+        }
+    }
+
+    listaProdutosSaidaEl.querySelectorAll('.item-produto-saida').forEach(item => {
+        item.dataset.searchNormalized = normalizarTextoSaida(item.dataset.searchTerms);
+        item.addEventListener('click', function() {
+            const prodId = this.dataset.id;
+            seletorProduto.value = prodId;
+            seletorProduto.dispatchEvent(new Event('change'));
+            atualizarCardProdutoSaida();
+            bootstrap.Modal.getInstance(modalProdSaidaEl).hide();
+        });
+    });
+
+    inputBuscaProdSaida.addEventListener('input', filtrarProdutosSaidaModal);
+    btnLimparBuscaProdSaida.addEventListener('click', function() {
+        inputBuscaProdSaida.value = '';
+        filtrarProdutosSaidaModal();
+        inputBuscaProdSaida.focus();
+    });
+
+    inputBuscaProdSaida.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const primeiro = listaProdutosSaidaEl.querySelector('.item-produto-saida:not(.d-none)');
+            if (primeiro) {
+                primeiro.click();
+            }
+        }
+    });
+
+    modalProdSaidaEl.addEventListener('shown.bs.modal', function() {
+        inputBuscaProdSaida.focus();
+        inputBuscaProdSaida.select();
+    });
+
+    // Se já houver produto selecionado
+    atualizarCardProdutoSaida();
+});
+</script>
+
+<!-- ========================================================================= -->
+<!-- MODAL DE BUSCA INTELIGENTE DE PRODUTO (BAIXA NO ESTOQUE) -->
+<!-- ========================================================================= -->
+<div class="modal fade" id="modalBuscaProdutoSaida" tabindex="-1" aria-labelledby="modalBuscaProdutoSaidaLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content shadow-lg border-0">
+            <div class="modal-header bg-danger text-white py-3">
+                <h5 class="modal-title fw-bold d-flex align-items-center gap-2" id="modalBuscaProdutoSaidaLabel">
+                    <i class="bi bi-box-seam"></i> Selecionar Produto para Baixa
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body p-0">
+                <!-- Barra de Pesquisa Fixa com Foco Automático -->
+                <div class="p-3 bg-light border-bottom sticky-top shadow-sm">
+                    <div class="input-group input-group-lg">
+                        <span class="input-group-text bg-white border-end-0 text-danger">
+                            <i class="bi bi-search"></i>
+                        </span>
+                        <input type="text" id="inputBuscaProdSaida" class="form-control border-start-0 border-end-0 ps-0" 
+                               placeholder="Buscar por Nome, SKU, Código de Barras, Categoria, Localização..." autocomplete="off">
+                        <button class="btn btn-white bg-white border border-start-0 text-muted" type="button" id="btnLimparBuscaProdSaida" title="Limpar busca">
+                            <i class="bi bi-x-circle"></i>
+                        </button>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mt-2 px-1">
+                        <small class="text-muted">
+                            <i class="bi bi-keyboard me-1"></i> Pressione <strong>Enter</strong> para selecionar o primeiro item filtrado.
+                        </small>
+                        <span id="contadorProdutosModalSaida" class="badge bg-danger-subtle text-danger fw-semibold">
+                            {{ produtos|length }} produto(s)
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Lista de Produtos -->
+                <div class="list-group list-group-flush" id="listaProdutosModalSaida">
+                    {% for prod in produtos %}
+                        <div class="list-group-item list-group-item-action p-3 item-produto-saida cursor-pointer" 
+                             style="cursor: pointer;"
+                             data-id="{{ prod.id }}"
+                             data-search-terms="{{ prod.nome }} {{ prod.sku|default:'' }} {{ prod.ean|default:'' }} {{ prod.categoria.nome|default:'' }} {{ prod.localizacao.nome|default:'' }} {{ prod.get_unidade_display }}">
+                            <div class="d-flex justify-content-between align-items-center gap-3">
+                                <div class="flex-grow-1">
+                                    <div class="fw-bold text-dark fs-6 d-flex align-items-center gap-2">
+                                        {{ prod.nome }}
+                                    </div>
+                                    <div class="d-flex flex-wrap gap-1 mt-1 small">
+                                        {% if prod.sku %}
+                                            <span class="badge bg-secondary-subtle text-secondary border">SKU: {{ prod.sku }}</span>
+                                        {% endif %}
+                                        {% if prod.ean %}
+                                            <span class="badge bg-secondary-subtle text-secondary border"><i class="bi bi-upc-scan me-1"></i>{{ prod.ean }}</span>
+                                        {% endif %}
+                                        {% if prod.categoria %}
+                                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle">{{ prod.categoria.nome }}</span>
+                                        {% endif %}
+                                        {% if prod.localizacao %}
+                                            <span class="badge bg-light text-muted border">Local: {{ prod.localizacao.nome }}</span>
+                                        {% endif %}
+                                        {% if prod.saldo_ativo > 0 %}
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                                <i class="bi bi-box me-1"></i>Saldo: {{ prod.saldo_ativo }} {{ prod.get_unidade_display }}
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
+                                                Sem estoque
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="text-end">
+                                    <button type="button" class="btn btn-sm btn-outline-danger fw-semibold px-3">
+                                        Selecionar <i class="bi bi-check-lg ms-1"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    {% empty %}
+                        <div class="p-4 text-center text-muted">
+                            <i class="bi bi-box fs-1 d-block mb-2 text-secondary"></i>
+                            Nenhum produto cadastrado no sistema.
+                        </div>
+                    {% endfor %}
+
+                    <div id="msgSemProdutosSaida" class="p-4 text-center text-muted d-none">
+                        <i class="bi bi-search fs-1 d-block mb-2 text-secondary"></i>
+                        Nenhum produto encontrado com os termos digitados.
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer bg-light py-2">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Fechar</button>
             </div>
         </div>
     </div>
 </div>
-
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const selectProduto = document.getElementById('id_produto');
-        const selectLote = document.getElementById('id_lote_especifico');
-        const inputQtd = document.getElementById('id_quantidade');
-        const textoAjuda = document.getElementById('ajudaSaldo');
-        
-        let saldoTotalProduto = 0; 
-
-        function carregarLotes() {
-            const produtoId = selectProduto.value;
-            
-            // Reseta
-            selectLote.innerHTML = '<option value="" data-qtd="0">Carregando...</option>';
-            inputQtd.max = ""; 
-            textoAjuda.innerText = "Buscando informações...";
-            textoAjuda.className = "form-text text-muted";
-
-            if (!produtoId) {
-                selectLote.innerHTML = '<option value="">Automático (Mais antigo primeiro)</option>';
-                return;
-            }
-
-            // Busca os lotes na API
-            fetch(`/api/lotes/${produtoId}/`)
-                .then(response => response.json())
-                .then(data => {
-                    selectLote.innerHTML = '<option value="" selected>Automático (Mais antigo primeiro)</option>';
-                    
-                    let somaTotal = 0;
-
-                    data.forEach(lote => {
-                        const option = document.createElement('option');
-                        option.value = lote.id;
-                        option.text = lote.texto; 
-                        
-                        
-                        option.setAttribute('data-qtd', lote.qtd_disponivel);
-                        
-                        selectLote.appendChild(option);
-                        somaTotal += lote.qtd_disponivel;
-                    });
-                    
-                    saldoTotalProduto = somaTotal;
-                    atualizarLimiteQuantidade();
-                })
-                .catch(error => {
-                    console.error('Erro:', error);
-                    textoAjuda.innerText = "Erro ao carregar dados.";
-                    textoAjuda.className = "form-text text-danger";
-                });
-        }
-
-        function atualizarLimiteQuantidade() {
-            // Verifica qual opção está selecionada no LOTE
-            const loteSelecionado = selectLote.options[selectLote.selectedIndex];
-            
-            if (loteSelecionado && loteSelecionado.value) {
-                
-                const maximoLote = loteSelecionado.getAttribute('data-qtd');
-                
-                inputQtd.max = maximoLote;
-                inputQtd.placeholder = `Máx: ${maximoLote}`;
-                
-                textoAjuda.innerText = `Limite deste lote: ${maximoLote} unidades.`;
-                textoAjuda.className = "form-text text-primary fw-bold";
-            } else {
-                // MODO AUTOMÁTICO: Usa o saldo total do produto
-                if (saldoTotalProduto > 0) {
-                    inputQtd.max = saldoTotalProduto;
-                    inputQtd.placeholder = `Máx: ${saldoTotalProduto}`;
-                    textoAjuda.innerText = `Saldo total disponível: ${saldoTotalProduto} unidades.`;
-                    textoAjuda.className = "form-text text-success";
-                } else {
-                    textoAjuda.innerText = "Produto sem estoque.";
-                    textoAjuda.className = "form-text text-danger";
-                }
-            }
-        }
-
-        // Eventos
-        selectProduto.addEventListener('change', carregarLotes);
-        selectLote.addEventListener('change', atualizarLimiteQuantidade);
-        
-        // Inicialização
-        if (selectProduto.value) {
-            carregarLotes();
-        }
-    });
-</script>
 {% endblock %}

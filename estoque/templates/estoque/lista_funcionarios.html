@@ -25,6 +25,7 @@
                         <th>E-mail</th>
                         <th>Função</th>
                         <th class="text-center">Status</th>
+                        <th class="text-end">Ações</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -53,15 +54,25 @@
 
                         <td class="text-center">
                             {% if funcionario.user.is_active %}
-                                <i class="bi bi-check-circle-fill text-success" title="Ativo"></i>
+                                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                                    <i class="bi bi-check-circle-fill"></i> Ativo
+                                </span>
                             {% else %}
-                                <i class="bi bi-dash-circle-fill text-muted" title="Inativo"></i>
+                                <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1">
+                                    <i class="bi bi-dash-circle-fill"></i> Inativo
+                                </span>
                             {% endif %}
+                        </td>
+
+                        <td class="text-end">
+                            <a href="{% url 'editar_funcionario' funcionario.user.id %}" class="btn btn-sm btn-outline-primary shadow-sm" title="Editar cadastro">
+                                <i class="bi bi-pencil-square"></i> Editar
+                            </a>
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="5" class="text-center py-4 text-muted">
+                        <td colspan="6" class="text-center py-4 text-muted">
                             Nenhum funcionário encontrado.
                         </td>
                     </tr>

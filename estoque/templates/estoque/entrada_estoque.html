@@ -19,7 +19,42 @@
                     <h6 class="text-muted border-bottom pb-2 mb-3">Item e Custo</h6>
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            {{ form.produto|as_crispy_field }}
+                            <label class="form-label fw-semibold">Produto <span class="text-danger">*</span></label>
+                            <div class="d-none">
+                                {{ form.produto }}
+                            </div>
+
+                            <!-- Botão de abertura quando vazio -->
+                            <div id="btnAbrirModalProdEntrada" class="card border border-2 border-dashed p-3 text-center cursor-pointer bg-light hover-bg-white shadow-sm" style="cursor: pointer;" data-bs-toggle="modal" data-bs-target="#modalBuscaProdutoEntrada">
+                                <div class="d-flex align-items-center justify-content-center gap-2 text-success fw-semibold">
+                                    <i class="bi bi-search fs-5"></i>
+                                    <span>Clique para buscar e selecionar produto...</span>
+                                </div>
+                                <div class="text-muted small mt-1">Pesquise por nome, SKU, código de barras, categoria ou qualquer dado</div>
+                            </div>
+
+                            <!-- Card de exibição do produto selecionado -->
+                            <div id="cardProdSelEntrada" class="card border-success bg-success-subtle p-3 shadow-sm d-none">
+                                <div class="d-flex justify-content-between align-items-start gap-2">
+                                    <div>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="badge bg-success text-white"><i class="bi bi-box-seam"></i></span>
+                                            <strong class="text-dark fs-6" id="cardProdNomeEntrada">-</strong>
+                                        </div>
+                                        <div class="d-flex flex-wrap gap-1 mt-2 small" id="cardProdBadgesEntrada">
+                                            <!-- Badges dinâmicos inseridos via JS -->
+                                        </div>
+                                    </div>
+                                    <div class="d-flex gap-1">
+                                        <button type="button" class="btn btn-sm btn-outline-success bg-white" data-bs-toggle="modal" data-bs-target="#modalBuscaProdutoEntrada" title="Trocar Produto">
+                                            <i class="bi bi-arrow-repeat"></i> Trocar
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary bg-white" id="btnLimparProdEntrada" title="Remover Produto">
+                                            <i class="bi bi-x-lg"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                         <div class="col-md-3 mb-3">
                             {{ form.quantidade_inicial|as_crispy_field }}
@@ -107,10 +142,228 @@
         // Executa quando muda o produto
         selectProduto.addEventListener('change', verificarProduto);
         
-        // Executa ao carregar a página 
-        if (selectProduto.value) {
-            verificarProduto();
+        // =====================================================================
+        // LÓGICA DO MODAL DE BUSCA DE PRODUTOS (ENTRADA DE MERCADORIA)
+        // =====================================================================
+
+        function normalizarTextoEntrada(txt) {
+            if (!txt) return '';
+            return txt.toString()
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/[^\w\s]/gi, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
         }
+
+        const btnAbrirModalProdEntrada = document.getElementById('btnAbrirModalProdEntrada');
+        const cardProdSelEntrada = document.getElementById('cardProdSelEntrada');
+        const cardProdNomeEntrada = document.getElementById('cardProdNomeEntrada');
+        const cardProdBadgesEntrada = document.getElementById('cardProdBadgesEntrada');
+        const btnLimparProdEntrada = document.getElementById('btnLimparProdEntrada');
+        const modalProdEntradaEl = document.getElementById('modalBuscaProdutoEntrada');
+        const inputBuscaProdEntrada = document.getElementById('inputBuscaProdEntrada');
+        const btnLimparBuscaProdEntrada = document.getElementById('btnLimparBuscaProdEntrada');
+        const listaProdutosEntradaEl = document.getElementById('listaProdutosModalEntrada');
+        const contadorProdEntradaModal = document.getElementById('contadorProdutosModalEntrada');
+        const msgSemProdutosEntrada = document.getElementById('msgSemProdutosEntrada');
+
+        function atualizarCardProdutoEntrada() {
+            const opt = selectProduto.options[selectProduto.selectedIndex];
+            if (!selectProduto.value || !opt) {
+                btnAbrirModalProdEntrada.classList.remove('d-none');
+                cardProdSelEntrada.classList.add('d-none');
+                return;
+            }
+
+            btnAbrirModalProdEntrada.classList.add('d-none');
+            cardProdSelEntrada.classList.remove('d-none');
+
+            // Encontra dados no item do modal
+            const itemModal = listaProdutosEntradaEl.querySelector(`[data-id="${selectProduto.value}"]`);
+            const nome = itemModal ? itemModal.dataset.nome : opt.textContent;
+            const sku = itemModal ? itemModal.dataset.sku : '';
+            const ean = itemModal ? itemModal.dataset.ean : '';
+            const cat = itemModal ? itemModal.dataset.categoria : '';
+            const loc = itemModal ? itemModal.dataset.localizacao : '';
+
+            cardProdNomeEntrada.textContent = nome;
+
+            let badges = '';
+            if (sku) badges += `<span class="badge bg-secondary-subtle text-secondary border">SKU: ${sku}</span>`;
+            if (ean) badges += `<span class="badge bg-secondary-subtle text-secondary border"><i class="bi bi-upc-scan me-1"></i>${ean}</span>`;
+            if (cat) badges += `<span class="badge bg-success-subtle text-success border border-success-subtle">${cat}</span>`;
+            if (loc) badges += `<span class="badge bg-info-subtle text-dark border">Local: ${loc}</span>`;
+
+            cardProdBadgesEntrada.innerHTML = badges;
+        }
+
+        btnLimparProdEntrada.addEventListener('click', function() {
+            selectProduto.value = '';
+            selectProduto.dispatchEvent(new Event('change'));
+            atualizarCardProdutoEntrada();
+            verificarProduto();
+        });
+
+        // Filtro em tempo real no modal
+        function filtrarProdutosEntradaModal() {
+            const query = normalizarTextoEntrada(inputBuscaProdEntrada.value);
+            const termos = query.split(' ').filter(t => t.length > 0);
+            const itens = listaProdutosEntradaEl.querySelectorAll('.item-produto-entrada');
+            let visiveis = 0;
+
+            itens.forEach(item => {
+                const searchData = item.dataset.searchNormalized || '';
+                const bateTodos = termos.every(termo => searchData.includes(termo));
+
+                if (bateTodos) {
+                    item.classList.remove('d-none');
+                    visiveis++;
+                } else {
+                    item.classList.add('d-none');
+                }
+            });
+
+            contadorProdEntradaModal.textContent = `${visiveis} produto(s)`;
+            if (visiveis === 0) {
+                msgSemProdutosEntrada.classList.remove('d-none');
+            } else {
+                msgSemProdutosEntrada.classList.add('d-none');
+            }
+        }
+
+        listaProdutosEntradaEl.querySelectorAll('.item-produto-entrada').forEach(item => {
+            item.dataset.searchNormalized = normalizarTextoEntrada(item.dataset.searchTerms);
+            item.addEventListener('click', function() {
+                const prodId = this.dataset.id;
+                selectProduto.value = prodId;
+                selectProduto.dispatchEvent(new Event('change'));
+                atualizarCardProdutoEntrada();
+                verificarProduto();
+                bootstrap.Modal.getInstance(modalProdEntradaEl).hide();
+            });
+        });
+
+        inputBuscaProdEntrada.addEventListener('input', filtrarProdutosEntradaModal);
+        btnLimparBuscaProdEntrada.addEventListener('click', function() {
+            inputBuscaProdEntrada.value = '';
+            filtrarProdutosEntradaModal();
+            inputBuscaProdEntrada.focus();
+        });
+
+        inputBuscaProdEntrada.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const primeiro = listaProdutosEntradaEl.querySelector('.item-produto-entrada:not(.d-none)');
+                if (primeiro) {
+                    primeiro.click();
+                }
+            }
+        });
+
+        modalProdEntradaEl.addEventListener('shown.bs.modal', function() {
+            inputBuscaProdEntrada.focus();
+            inputBuscaProdEntrada.select();
+        });
+
+        // Inicializa o card se já houver produto selecionado
+        atualizarCardProdutoEntrada();
     });
 </script>
+
+<!-- ========================================================================= -->
+<!-- MODAL DE BUSCA INTELIGENTE DE PRODUTO (ENTRADA DE MERCADORIA) -->
+<!-- ========================================================================= -->
+<div class="modal fade" id="modalBuscaProdutoEntrada" tabindex="-1" aria-labelledby="modalBuscaProdutoEntradaLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content shadow-lg border-0">
+            <div class="modal-header bg-success text-white py-3">
+                <h5 class="modal-title fw-bold d-flex align-items-center gap-2" id="modalBuscaProdutoEntradaLabel">
+                    <i class="bi bi-box-seam"></i> Selecionar Produto para Entrada
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body p-0">
+                <!-- Barra de Pesquisa Fixa com Foco Automático -->
+                <div class="p-3 bg-light border-bottom sticky-top shadow-sm">
+                    <div class="input-group input-group-lg">
+                        <span class="input-group-text bg-white border-end-0 text-success">
+                            <i class="bi bi-search"></i>
+                        </span>
+                        <input type="text" id="inputBuscaProdEntrada" class="form-control border-start-0 border-end-0 ps-0" 
+                               placeholder="Buscar por Nome, SKU, Código de Barras, Categoria, Localização..." autocomplete="off">
+                        <button class="btn btn-white bg-white border border-start-0 text-muted" type="button" id="btnLimparBuscaProdEntrada" title="Limpar busca">
+                            <i class="bi bi-x-circle"></i>
+                        </button>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mt-2 px-1">
+                        <small class="text-muted">
+                            <i class="bi bi-keyboard me-1"></i> Pressione <strong>Enter</strong> para selecionar o primeiro item filtrado.
+                        </small>
+                        <span id="contadorProdutosModalEntrada" class="badge bg-success-subtle text-success fw-semibold">
+                            {{ produtos|length }} produto(s)
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Lista de Produtos -->
+                <div class="list-group list-group-flush" id="listaProdutosModalEntrada">
+                    {% for p in produtos %}
+                        <div class="list-group-item list-group-item-action p-3 item-produto-entrada cursor-pointer" 
+                             style="cursor: pointer;"
+                             data-id="{{ p.id }}"
+                             data-nome="{{ p.nome }}"
+                             data-sku="{{ p.sku|default:'' }}"
+                             data-ean="{{ p.ean|default:'' }}"
+                             data-categoria="{{ p.categoria.nome|default:'' }}"
+                             data-localizacao="{{ p.localizacao.nome|default:'' }}"
+                             data-search-terms="{{ p.nome }} {{ p.sku|default:'' }} {{ p.ean|default:'' }} {{ p.categoria.nome|default:'' }} {{ p.localizacao.nome|default:'' }} {{ p.get_unidade_display }}">
+                            <div class="d-flex justify-content-between align-items-center gap-3">
+                                <div class="flex-grow-1">
+                                    <div class="fw-bold text-dark fs-6 d-flex align-items-center gap-2">
+                                        {{ p.nome }}
+                                    </div>
+                                    <div class="d-flex flex-wrap gap-1 mt-1 small">
+                                        {% if p.sku %}
+                                            <span class="badge bg-secondary-subtle text-secondary border">SKU: {{ p.sku }}</span>
+                                        {% endif %}
+                                        {% if p.ean %}
+                                            <span class="badge bg-secondary-subtle text-secondary border"><i class="bi bi-upc-scan me-1"></i>{{ p.ean }}</span>
+                                        {% endif %}
+                                        {% if p.categoria %}
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle">{{ p.categoria.nome }}</span>
+                                        {% endif %}
+                                        {% if p.localizacao %}
+                                            <span class="badge bg-light text-muted border">Local: {{ p.localizacao.nome }}</span>
+                                        {% endif %}
+                                        <span class="badge bg-light text-muted border">Unidade: {{ p.get_unidade_display }}</span>
+                                    </div>
+                                </div>
+                                <div class="text-end">
+                                    <button type="button" class="btn btn-sm btn-outline-success fw-semibold px-3">
+                                        Selecionar <i class="bi bi-check-lg ms-1"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    {% empty %}
+                        <div class="p-4 text-center text-muted">
+                            <i class="bi bi-box fs-1 d-block mb-2 text-secondary"></i>
+                            Nenhum produto cadastrado no sistema.
+                        </div>
+                    {% endfor %}
+
+                    <div id="msgSemProdutosEntrada" class="p-4 text-center text-muted d-none">
+                        <i class="bi bi-search fs-1 d-block mb-2 text-secondary"></i>
+                        Nenhum produto encontrado com os termos digitados.
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer bg-light py-2">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

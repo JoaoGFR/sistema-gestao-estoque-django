@@ -1,0 +1,206 @@
+{% extends 'estoque/base.html' %}
+
+{% block title %}Histórico de Vendas | JGTECH Estoque{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-3">
+
+    <!-- Cabeçalho & Ações -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <h2 class="h3 fw-bold mb-1 d-flex align-items-center gap-2">
+                <i class="bi bi-receipt text-primary"></i> Histórico de Vendas
+            </h2>
+            <p class="text-muted mb-0">Consulte todas as operações de venda realizadas, formas de pagamento e status de recebimento.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'painel_crediario' %}" class="btn btn-outline-warning d-flex align-items-center gap-2">
+                <i class="bi bi-credit-card-2-front"></i> Painel do Crediário
+            </a>
+            <a href="{% url 'registrar_venda' %}" class="btn btn-success d-flex align-items-center gap-2 shadow-sm">
+                <i class="bi bi-cart-plus-fill"></i> Nova Venda (PDV)
+            </a>
+        </div>
+    </div>
+
+    <!-- Cards de Resumo -->
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-md-6 col-xl-4">
+            <div class="card border-0 shadow-sm rounded-3 h-100 bg-white">
+                <div class="card-body d-flex align-items-center gap-3">
+                    <div class="bg-success-subtle text-success p-3 rounded-circle fs-3">
+                        <i class="bi bi-cash-stack"></i>
+                    </div>
+                    <div>
+                        <span class="text-muted small fw-semibold text-uppercase">Total Faturado no Filtro</span>
+                        <h3 class="fw-bold mb-0 text-success">R$ {{ total_faturado|floatformat:2 }}</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Barra de Filtros -->
+    <div class="card border-0 shadow-sm rounded-3 mb-4">
+        <div class="card-body p-3">
+            <form method="GET" class="row g-2 align-items-end">
+                <div class="col-12 col-md-3">
+                    <label class="form-label small fw-semibold text-muted mb-1">Buscar</label>
+                    <input type="text" name="q" value="{{ q }}" class="form-control form-control-sm" placeholder="Código VD ou nome do cliente...">
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label small fw-semibold text-muted mb-1">Pagamento</label>
+                    <select name="forma_pagamento" class="form-select form-select-sm">
+                        <option value="">Todas</option>
+                        <option value="DINHEIRO" {% if forma_pagamento == 'DINHEIRO' %}selected{% endif %}>Dinheiro</option>
+                        <option value="PIX" {% if forma_pagamento == 'PIX' %}selected{% endif %}>PIX</option>
+                        <option value="DEBITO" {% if forma_pagamento == 'DEBITO' %}selected{% endif %}>Débito</option>
+                        <option value="CREDITO" {% if forma_pagamento == 'CREDITO' %}selected{% endif %}>Crédito</option>
+                        <option value="CREDIARIO" {% if forma_pagamento == 'CREDIARIO' %}selected{% endif %}>Crediário</option>
+                    </select>
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label small fw-semibold text-muted mb-1">Status</label>
+                    <select name="status_pagamento" class="form-select form-select-sm">
+                        <option value="">Todos</option>
+                        <option value="PAGO" {% if status_pagamento == 'PAGO' %}selected{% endif %}>Pago</option>
+                        <option value="PENDENTE" {% if status_pagamento == 'PENDENTE' %}selected{% endif %}>Em Aberto</option>
+                        <option value="PARCIAL" {% if status_pagamento == 'PARCIAL' %}selected{% endif %}>Parcial</option>
+                        <option value="CANCELADO" {% if status_pagamento == 'CANCELADO' %}selected{% endif %}>Cancelado</option>
+                    </select>
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label small fw-semibold text-muted mb-1">De</label>
+                    <input type="date" name="data_inicio" value="{{ data_inicio }}" class="form-control form-control-sm">
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label small fw-semibold text-muted mb-1">Até</label>
+                    <input type="date" name="data_fim" value="{{ data_fim }}" class="form-control form-control-sm">
+                </div>
+                <div class="col-12 col-md-1 d-flex gap-1">
+                    <button type="submit" class="btn btn-sm btn-primary w-100" title="Filtrar">
+                        <i class="bi bi-funnel"></i>
+                    </button>
+                    {% if q or forma_pagamento or status_pagamento or data_inicio or data_fim %}
+                        <a href="{% url 'lista_vendas' %}" class="btn btn-sm btn-outline-danger" title="Limpar">
+                            <i class="bi bi-x-lg"></i>
+                        </a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tabela de Vendas -->
+    <div class="card border-0 shadow-sm rounded-3">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3">Data / Hora</th>
+                        <th>Código da Venda</th>
+                        <th>Cliente</th>
+                        <th>Vendedor</th>
+                        <th>Forma de Pagamento</th>
+                        <th class="text-end">Valor Total</th>
+                        <th class="text-center">Status Venda</th>
+                        <th class="text-center">Pagamento</th>
+                        <th class="text-end pe-3">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for venda in page_obj %}
+                    <tr>
+                        <td class="ps-3 text-muted small">{{ venda.data_venda|date:"d/m/Y H:i" }}</td>
+                        <td>
+                            <a href="{% url 'detalhe_venda' venda.pk %}" class="fw-bold text-dark text-decoration-none">
+                                {{ venda.codigo_venda }}
+                            </a>
+                        </td>
+                        <td>
+                            {% if venda.cliente %}
+                                <a href="{% url 'detalhe_cliente' venda.cliente.pk %}" class="fw-semibold text-dark text-decoration-none">
+                                    {{ venda.cliente.nome }}
+                                </a>
+                            {% else %}
+                                <span class="text-muted">Consumidor Final</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="small text-muted">{{ venda.usuario.get_full_name|default:venda.usuario.username }}</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-light text-dark border">{{ venda.get_forma_pagamento_display }}</span>
+                        </td>
+                        <td class="text-end fw-bold text-dark">
+                            R$ {{ venda.valor_total|floatformat:2 }}
+                        </td>
+                        <td class="text-center">
+                            {% if venda.status == 'CONCLUIDA' %}
+                                <span class="badge bg-success-subtle text-success">Concluída</span>
+                            {% else %}
+                                <span class="badge bg-danger-subtle text-danger">Cancelada</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if venda.status_pagamento == 'PAGO' %}
+                                <span class="badge bg-success">Pago</span>
+                            {% elif venda.status_pagamento == 'PENDENTE' %}
+                                <span class="badge bg-warning text-dark">A Prazo (Aberto)</span>
+                            {% elif venda.status_pagamento == 'PARCIAL' %}
+                                <span class="badge bg-info text-dark">Parcial</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Cancelado</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end pe-3">
+                            <div class="d-inline-flex gap-1">
+                                <button type="button" class="btn btn-sm btn-outline-dark" onclick="window.open('{% url 'imprimir_cupom_venda' venda.pk %}', 'Cupom', 'width=420,height=680,menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=yes')" title="Imprimir Cupom Térmico">
+                                    <i class="bi bi-printer-fill"></i>
+                                </button>
+                                <a href="{% url 'detalhe_venda' venda.pk %}" class="btn btn-sm btn-outline-primary" title="Ver Detalhes">
+                                    <i class="bi bi-eye"></i> Detalhes
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="text-center py-5 text-muted">
+                            <i class="bi bi-cart-x fs-1 d-block text-secondary mb-2"></i>
+                            Nenhuma venda encontrada para os filtros selecionados.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Paginação -->
+        {% if page_obj.has_other_pages %}
+        <div class="card-footer bg-white border-top-0 py-3">
+            <nav>
+                <ul class="pagination pagination-sm justify-content-center mb-0">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if q %}&q={{ q }}{% endif %}{% if forma_pagamento %}&forma_pagamento={{ forma_pagamento }}{% endif %}{% if status_pagamento %}&status_pagamento={{ status_pagamento }}{% endif %}">Anterior</a>
+                        </li>
+                    {% endif %}
+                    
+                    <li class="page-item disabled">
+                        <span class="page-link">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+                    </li>
+
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if q %}&q={{ q }}{% endif %}{% if forma_pagamento %}&forma_pagamento={{ forma_pagamento }}{% endif %}{% if status_pagamento %}&status_pagamento={{ status_pagamento }}{% endif %}">Próxima</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}

@@ -58,15 +58,37 @@
                         </div>
                     </td>
                     
-                    <td class="text-muted small">{{ saida.motivo }}</td>
+                    <td class="text-muted small">
+                        {% if saida.codigo_grupo %}
+                            {% if saida.codigo_grupo|slice:":3" == "VD-" %}
+                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle me-1" title="Venda Comercial Realizada">
+                                    <i class="bi bi-cart-check-fill text-primary"></i> {{ saida.codigo_grupo }}
+                                </span>
+                            {% else %}
+                                <span class="badge bg-light text-dark border me-1" title="Código da Baixa Múltipla">
+                                    <i class="bi bi-collection text-danger"></i> {{ saida.codigo_grupo }}
+                                </span>
+                            {% endif %}
+                        {% endif %}
+                        {{ saida.motivo }}
+                    </td>
                     
                     <td class="text-end">
-                        {% if user.userprofile.e_dono or user.is_superuser %} <form action="{% url 'excluir_saida' saida.pk %}" method="post" class="d-inline" onsubmit="return confirm('🚨 ATENÇÃO CRÍTICA: Deseja realmente cancelar e excluir esta baixa? A quantidade de {{ saida.quantidade }} un. retornará exatamente para o Lote correspondente no estoque.');">
-                                {% csrf_token %}
-                                <button type="submit" class="btn btn-sm btn-outline-danger" data-bs-toggle="tooltip" title="Cancelar e Devolver ao Estoque">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            </form>
+                        {% if user.userprofile.e_dono or user.is_superuser %}
+                            {% if saida.codigo_grupo|slice:":3" == "VD-" or saida.itens_venda.exists %}
+                                <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" title="Baixa vinculada à venda {{ saida.codigo_grupo }}. Para estornar os itens, cancele a venda pelo menu de Vendas.">
+                                    <button type="button" class="btn btn-sm btn-light text-secondary border" disabled style="cursor: not-allowed;">
+                                        <i class="bi bi-lock-fill"></i>
+                                    </button>
+                                </span>
+                            {% else %}
+                                <form action="{% url 'excluir_saida' saida.pk %}" method="post" class="d-inline" onsubmit="return confirm('🚨 ATENÇÃO CRÍTICA: Deseja realmente cancelar e excluir esta baixa? A quantidade de {{ saida.quantidade }} un. retornará exatamente para o Lote correspondente no estoque.');">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" data-bs-toggle="tooltip" title="Cancelar e Devolver ao Estoque">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            {% endif %}
                         {% endif %}
                     </td>
                 </tr>

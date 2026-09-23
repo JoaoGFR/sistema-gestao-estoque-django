@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Produto, Emprestimo, SaidaEstoque, Empresa, UserProfile, AliquotaImposto, SimulacaoPreco
+from .models import Produto, Emprestimo, SaidaEstoque, Empresa, UserProfile, AliquotaImposto, SimulacaoPreco, HistoricoPreco
 
 # Configuração para editar o UserProfile dentro da tela de Usuário
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
@@ -23,3 +23,4 @@ admin.site.register(Emprestimo)
 admin.site.register(SaidaEstoque)
 admin.site.register(AliquotaImposto)
 admin.site.register(SimulacaoPreco)
+admin.site.register(HistoricoPreco)

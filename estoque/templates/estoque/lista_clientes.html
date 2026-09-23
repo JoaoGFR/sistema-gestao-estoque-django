@@ -1,0 +1,218 @@
+{% extends 'estoque/base.html' %}
+
+{% block title %}Clientes | JGTECH Estoque{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-3">
+
+    <!-- Cabeçalho & Ações -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <h2 class="h3 fw-bold mb-1 d-flex align-items-center gap-2">
+                <i class="bi bi-people-fill text-warning"></i> Gestão de Clientes
+            </h2>
+            <p class="text-muted mb-0">Cadastre clientes, gerencie limites de crediário e consulte extratos de compras e dívidas.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'painel_crediario' %}" class="btn btn-outline-info d-flex align-items-center gap-2">
+                <i class="bi bi-credit-card-2-front"></i> Contas a Receber
+            </a>
+            <a href="{% url 'criar_cliente' %}" class="btn btn-primary d-flex align-items-center gap-2 shadow-sm">
+                <i class="bi bi-person-plus-fill"></i> Novo Cliente
+            </a>
+        </div>
+    </div>
+
+    <!-- Cards de Resumo -->
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="card border-0 shadow-sm rounded-3 h-100 bg-white">
+                <div class="card-body d-flex align-items-center gap-3">
+                    <div class="bg-primary-subtle text-primary p-3 rounded-circle fs-4">
+                        <i class="bi bi-people"></i>
+                    </div>
+                    <div>
+                        <span class="text-muted small fw-semibold text-uppercase">Total de Clientes</span>
+                        <h3 class="fw-bold mb-0 text-dark">{{ total_cadastrados }}</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="card border-0 shadow-sm rounded-3 h-100 bg-white">
+                <div class="card-body d-flex align-items-center gap-3">
+                    <div class="bg-danger-subtle text-danger p-3 rounded-circle fs-4">
+                        <i class="bi bi-exclamation-octagon"></i>
+                    </div>
+                    <div>
+                        <span class="text-muted small fw-semibold text-uppercase">Inadimplentes</span>
+                        <h3 class="fw-bold mb-0 text-danger">{{ clientes_inadimplentes }}</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Barra de Filtros e Busca -->
+    <div class="card border-0 shadow-sm rounded-3 mb-4">
+        <div class="card-body p-3">
+            <form method="GET" class="row g-2 align-items-center">
+                <div class="col-12 col-md-5">
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-end-0 text-muted">
+                            <i class="bi bi-search"></i>
+                        </span>
+                        <input type="text" name="q" value="{{ q }}" class="form-control border-start-0 bg-light" placeholder="Buscar por nome, CPF/CNPJ, telefone ou cidade...">
+                    </div>
+                </div>
+                <div class="col-12 col-md-4">
+                    <div class="btn-group w-100" role="group">
+                        <a href="?filtro=todos{% if q %}&q={{ q }}{% endif %}" class="btn btn-sm {% if filtro == 'todos' %}btn-primary{% else %}btn-outline-secondary{% endif %}">Todos</a>
+                        <a href="?filtro=ativos{% if q %}&q={{ q }}{% endif %}" class="btn btn-sm {% if filtro == 'ativos' %}btn-primary{% else %}btn-outline-secondary{% endif %}">Ativos</a>
+                        <a href="?filtro=com_debito{% if q %}&q={{ q }}{% endif %}" class="btn btn-sm {% if filtro == 'com_debito' %}btn-primary{% else %}btn-outline-secondary{% endif %}">Com Débito</a>
+                        <a href="?filtro=inativos{% if q %}&q={{ q }}{% endif %}" class="btn btn-sm {% if filtro == 'inativos' %}btn-primary{% else %}btn-outline-secondary{% endif %}">Inativos</a>
+                    </div>
+                </div>
+                <div class="col-12 col-md-3 d-flex gap-2">
+                    <button type="submit" class="btn btn-secondary w-100">
+                        <i class="bi bi-funnel"></i> Filtrar
+                    </button>
+                    {% if q or filtro != 'todos' %}
+                        <a href="{% url 'lista_clientes' %}" class="btn btn-outline-danger" title="Limpar filtros">
+                            <i class="bi bi-x-lg"></i>
+                        </a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tabela de Clientes -->
+    <div class="card border-0 shadow-sm rounded-3">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3">Cliente</th>
+                        <th>CPF / CNPJ</th>
+                        <th>Telefone / Contato</th>
+                        <th>Cidade</th>
+                        <th class="text-end">Limite Crediário</th>
+                        <th class="text-end">Saldo Devedor</th>
+                        <th class="text-center">Status</th>
+                        <th class="text-end pe-3">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cliente in page_obj %}
+                    <tr>
+                        <td class="ps-3">
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="avatar-circle bg-secondary-subtle text-secondary fw-bold rounded-circle d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
+                                    {{ cliente.nome|slice:":1"|upper }}
+                                </div>
+                                <div>
+                                    <a href="{% url 'detalhe_cliente' cliente.pk %}" class="fw-bold text-dark text-decoration-none">
+                                        {{ cliente.nome }}
+                                    </a>
+                                    <div class="small text-muted">{{ cliente.get_tipo_pessoa_display }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            {% if cliente.cpf_cnpj %}
+                                <span class="badge bg-light text-dark border">{{ cliente.cpf_cnpj }}</span>
+                            {% else %}
+                                <span class="text-muted small">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if cliente.telefone %}
+                                <div class="d-flex align-items-center gap-1">
+                                    <i class="bi bi-telephone text-muted"></i>
+                                    <span>{{ cliente.telefone }}</span>
+                                </div>
+                            {% else %}
+                                <span class="text-muted small">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if cliente.cidade %}
+                                <span class="text-muted">{{ cliente.cidade }}</span>
+                            {% else %}
+                                <span class="text-muted small">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end fw-semibold text-secondary">
+                            R$ {{ cliente.limite_credito|floatformat:2 }}
+                        </td>
+                        <td class="text-end">
+                            {% if cliente.saldo_devedor > 0 %}
+                                <span class="fw-bold text-danger">R$ {{ cliente.saldo_devedor|floatformat:2 }}</span>
+                                {% if cliente.tem_debitos_vencidos %}
+                                    <div><span class="badge bg-danger">Vencido</span></div>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-success small fw-semibold">
+                                    <i class="bi bi-check-circle"></i> Em dia
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if cliente.ativo %}
+                                <span class="badge bg-success-subtle text-success">Ativo</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Inativo</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end pe-3">
+                            <div class="btn-group btn-group-sm">
+                                <a href="{% url 'detalhe_cliente' cliente.pk %}" class="btn btn-outline-primary" title="Ficha do Cliente">
+                                    <i class="bi bi-file-earmark-person"></i> Ficha
+                                </a>
+                                <a href="{% url 'editar_cliente' cliente.pk %}" class="btn btn-outline-secondary" title="Editar">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center py-5 text-muted">
+                            <i class="bi bi-person-x fs-1 d-block mb-2 text-secondary"></i>
+                            Nenhum cliente encontrado com os filtros selecionados.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Paginação -->
+        {% if page_obj.has_other_pages %}
+        <div class="card-footer bg-white border-top-0 py-3">
+            <nav>
+                <ul class="pagination pagination-sm justify-content-center mb-0">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if q %}&q={{ q }}{% endif %}{% if filtro %}&filtro={{ filtro }}{% endif %}">Anterior</a>
+                        </li>
+                    {% endif %}
+                    
+                    <li class="page-item disabled">
+                        <span class="page-link">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+                    </li>
+
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if q %}&q={{ q }}{% endif %}{% if filtro %}&filtro={{ filtro }}{% endif %}">Próxima</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}

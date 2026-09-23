@@ -1,0 +1,263 @@
+{% extends 'estoque/base.html' %}
+
+{% block content %}
+<div class="container-fluid py-3">
+    <!-- Título da Página -->
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 pb-3 mb-4 border-bottom">
+        <div>
+            <h1 class="h2 fw-bold text-dark mb-1">
+                <i class="bi bi-shield-check text-primary me-2"></i>Minha Assinatura
+            </h1>
+            <p class="text-muted small mb-0">Gerencie sua assinatura, vigência do plano e histórico de pagamentos.</p>
+        </div>
+        <div>
+            <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-1"></i> Voltar ao Painel
+            </a>
+        </div>
+    </div>
+
+    <!-- Alerta de Bloqueio ou Expiração (Paywall) -->
+    {% if bloqueado or not empresa.assinatura_valida %}
+    <div class="alert alert-danger border-0 shadow-sm rounded-4 p-4 mb-4">
+        <div class="d-flex align-items-start gap-3">
+            <div class="bg-danger text-white rounded-circle p-3 d-flex align-items-center justify-content-center flex-shrink-0" style="width: 52px; height: 52px;">
+                <i class="bi bi-lock-fill fs-3"></i>
+            </div>
+            <div>
+                <h4 class="alert-heading fw-bold text-danger mb-1">Acesso Temporariamente Bloqueado</h4>
+                <p class="mb-2 text-secondary">
+                    {% if empresa.status_assinatura == 'TRIAL' or not empresa.assinatura_fim %}
+                        Seu período de <strong>teste grátis de 3 dias</strong> expirou. Para desbloquear instantaneamente todas as funcionalidades do sistema (PDV, Estoque, Crediário e Relatórios), confirme o pagamento da sua assinatura mensal.
+                    {% else %}
+                        Sua assinatura mensal de <strong>R$ 50,00</strong> expirou. Renove sua mensalidade abaixo para restabelecer o acesso completo ao sistema da sua empresa.
+                    {% endif %}
+                </p>
+                <div class="d-flex flex-wrap gap-2 align-items-center">
+                    <span class="badge bg-danger px-3 py-2 fs-6">Plano Padrão: R$ 50,00 / mês</span>
+                    <span class="text-muted small">• Liberação automática em segundos via Pix ou Cartão</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row g-4">
+        <!-- Card Principal da Assinatura -->
+        <div class="col-12 col-lg-7">
+            <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
+                <div class="card-header bg-dark text-white p-4">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <div>
+                            <span class="badge bg-primary px-3 py-1 mb-2 text-uppercase fw-semibold">Plano Oficial JGTECH</span>
+                            <h3 class="fw-bold mb-0">Assinatura JGTECH Completa</h3>
+                        </div>
+                        <div class="text-lg-end">
+                            <span class="text-white-50 small d-block">Valor mensal</span>
+                            <h2 class="fw-bold mb-0 text-warning">R$ 50,00 <span class="fs-6 text-white-50 fw-normal">/ mês</span></h2>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-body p-4">
+                    <!-- Status Atual da Empresa -->
+                    <div class="p-3 bg-light rounded-3 mb-4 border">
+                        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                            <div>
+                                <span class="text-muted small text-uppercase fw-semibold d-block">Situação Atual:</span>
+                                {% if empresa.em_trial %}
+                                    <h5 class="fw-bold text-primary mb-0">
+                                        <i class="bi bi-clock-history me-1"></i> Período de Teste Grátis
+                                    </h5>
+                                    <span class="text-muted small">
+                                        Restam <strong>{{ empresa.dias_restantes_trial }} dia(s)</strong> (aproximadamente {{ empresa.horas_restantes_trial }} horas restantes)
+                                    </span>
+                                {% elif empresa.status_assinatura == 'ATIVA' %}
+                                    <h5 class="fw-bold text-success mb-0">
+                                        <i class="bi bi-check-circle-fill me-1"></i> Assinatura Ativa
+                                    </h5>
+                                    <span class="text-muted small">
+                                        Válida até <strong>{{ empresa.assinatura_fim|date:"d/m/Y \à\s H:i" }}</strong> (restam {{ empresa.dias_restantes_assinatura }} dias)
+                                    </span>
+                                {% else %}
+                                    <h5 class="fw-bold text-danger mb-0">
+                                        <i class="bi bi-exclamation-octagon-fill me-1"></i> Assinatura Vencida / Inativa
+                                    </h5>
+                                    <span class="text-muted small">Efetue o pagamento da mensalidade para reativar o acesso.</span>
+                                {% endif %}
+                            </div>
+                            <div>
+                                {% if empresa.assinatura_valida %}
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 rounded-pill fs-6">
+                                        Acesso Liberado
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-3 py-2 rounded-pill fs-6">
+                                        Acesso Restrito
+                                    </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Benefícios Inclusos -->
+                    <h6 class="fw-bold text-dark mb-3">Tudo que está incluso na sua assinatura:</h6>
+                    <div class="row g-2 mb-4 small text-secondary">
+                        <div class="col-12 col-md-6">
+                            <i class="bi bi-check2-circle text-success me-1"></i> Controle de estoque com lotes e validades
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <i class="bi bi-check2-circle text-success me-1"></i> Frente de Caixa (PDV) com cupom e troco
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <i class="bi bi-check2-circle text-success me-1"></i> Crediário com controle de parcelas e limites
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <i class="bi bi-check2-circle text-success me-1"></i> Gestão de empréstimo de ferramentas
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <i class="bi bi-check2-circle text-success me-1"></i> Simulador de formação de preços e markup
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <i class="bi bi-check2-circle text-success me-1"></i> Multi-usuários e equipe com permissões
+                        </div>
+                    </div>
+
+                    <!-- Botão de Ação Mercado Pago -->
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'iniciar_checkout_mercadopago' %}" class="btn btn-primary btn-lg py-3 fw-bold shadow-sm d-flex align-items-center justify-content-center gap-2">
+                            <i class="bi bi-credit-card-2-front-fill fs-5"></i>
+                            Pagar R$ 50,00 no Mercado Pago (Pix ou Cartão)
+                        </a>
+                    </div>
+
+                    <!-- Aviso de Simulação quando MP não configurado no .env -->
+                    {% if not mp_configurado %}
+                    <div class="alert alert-info border-0 rounded-3 mt-4 p-3 bg-info bg-opacity-10">
+                        <div class="d-flex align-items-start gap-2">
+                            <i class="bi bi-info-circle-fill text-info mt-1"></i>
+                            <div class="small">
+                                <strong>Modo Demonstração / Sandbox do Mercado Pago Ativo:</strong>
+                                <p class="mb-2 text-muted">
+                                    As credenciais de produção do Mercado Pago ainda não foram adicionadas no arquivo <code>.env</code>. Para testar e validar o fluxo de ativação imediatamente, utilize o atalho de simulação abaixo:
+                                </p>
+                                <a href="{% url 'simular_pagamento_mp' %}" class="btn btn-sm btn-info text-white fw-semibold">
+                                    <i class="bi bi-play-circle-fill me-1"></i> Simular Aprovação de Pagamento (+30 dias)
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Informações e Segurança -->
+        <div class="col-12 col-lg-5">
+            <!-- Card de Confiança / Pagamento Seguro -->
+            <div class="card border-0 shadow-sm rounded-4 mb-4 bg-white">
+                <div class="card-body p-4">
+                    <h5 class="fw-bold text-dark mb-3">
+                        <i class="bi bi-shield-lock-fill text-success me-2"></i>Pagamento 100% Seguro
+                    </h5>
+                    <p class="text-secondary small mb-3">
+                        Todas as transações de assinatura são processadas pelo <strong>Mercado Pago</strong> com criptografia de ponta a ponta. Não armazenamos dados de cartões no nosso servidor.
+                    </p>
+                    <div class="d-flex align-items-center gap-3 p-3 bg-light rounded-3 border mb-3">
+                        <div class="fs-2 text-primary"><i class="bi bi-qr-code-scan"></i></div>
+                        <div>
+                            <strong class="d-block text-dark small">Pix Instantâneo</strong>
+                            <span class="text-muted small">Liberação imediata assim que o pagamento for detectado.</span>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center gap-3 p-3 bg-light rounded-3 border">
+                        <div class="fs-2 text-primary"><i class="bi bi-credit-card"></i></div>
+                        <div>
+                            <strong class="d-block text-dark small">Cartão de Crédito ou Débito</strong>
+                            <span class="text-muted small">Aprovação em segundos com comprovante por e-mail.</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dados da Empresa -->
+            <div class="card border-0 shadow-sm rounded-4 bg-white">
+                <div class="card-body p-4">
+                    <h6 class="text-muted text-uppercase small fw-semibold mb-3">Dados Cadastrais</h6>
+                    <ul class="list-unstyled mb-0 small">
+                        <li class="d-flex justify-content-between py-2 border-bottom">
+                            <span class="text-muted">Empresa:</span>
+                            <strong class="text-dark">{{ empresa.nome }}</strong>
+                        </li>
+                        <li class="d-flex justify-content-between py-2 border-bottom">
+                            <span class="text-muted">CNPJ:</span>
+                            <strong class="text-dark">{{ empresa.cnpj|default:"Não informado" }}</strong>
+                        </li>
+                        <li class="d-flex justify-content-between py-2 border-bottom">
+                            <span class="text-muted">Responsável:</span>
+                            <strong class="text-dark">{{ empresa.dono.get_full_name|default:empresa.dono.username }}</strong>
+                        </li>
+                        <li class="d-flex justify-content-between py-2">
+                            <span class="text-muted">Cadastro:</span>
+                            <strong class="text-dark">{{ empresa.data_criacao|date:"d/m/Y" }}</strong>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Histórico de Pagamentos -->
+    <div class="card border-0 shadow-sm rounded-4 mt-4">
+        <div class="card-header bg-white py-3 px-4 border-bottom">
+            <h5 class="fw-bold text-dark mb-0">
+                <i class="bi bi-receipt-cutoff text-primary me-2"></i>Histórico de Pagamentos de Assinatura
+            </h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-4">Data</th>
+                        <th>Valor</th>
+                        <th>Método</th>
+                        <th>Status</th>
+                        <th>Dias Liberados</th>
+                        <th>Identificador MP</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in pagamentos %}
+                    <tr>
+                        <td class="ps-4">
+                            <strong class="text-dark">{{ p.data_criacao|date:"d/m/Y H:i" }}</strong>
+                        </td>
+                        <td class="fw-bold text-primary">R$ {{ p.valor|floatformat:2 }}</td>
+                        <td>
+                            <span class="badge bg-light text-dark border">{{ p.get_metodo_display }}</span>
+                        </td>
+                        <td>
+                            {% if p.status == 'APROVADO' %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle">Aprovado</span>
+                            {% elif p.status == 'PENDENTE' %}
+                                <span class="badge bg-warning-subtle text-warning border border-warning-subtle">Pendente</span>
+                            {% else %}
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle">{{ p.get_status_display }}</span>
+                            {% endif %}
+                        </td>
+                        <td>+{{ p.dias_concedidos }} dias</td>
+                        <td class="font-monospace small text-muted">{{ p.mp_payment_id|default:p.mp_preference_id|default:"-" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center py-4 text-muted">
+                            Nenhum pagamento registrado até o momento.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

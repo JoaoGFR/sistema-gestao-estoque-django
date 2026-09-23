@@ -1,86 +1,217 @@
 {% extends 'estoque/base.html' %}
 
 {% block content %}
-<div class="row mb-4">
+<div class="row align-items-center mb-4 g-3">
     <div class="col-md-8">
-        <h2><i class="bi bi-shield-check text-primary"></i> Gerenciador de Backups</h2>
-        <p class="text-muted">Crie, restaure e baixe cópias de segurança de todo o banco de dados da JGTECH.</p>
+        <h2 class="fw-bold mb-1 d-flex align-items-center gap-2">
+            <i class="bi bi-shield-check text-primary"></i> Gerenciador de Backups
+        </h2>
+        <p class="text-muted mb-0">Crie cópias de segurança e restaure o banco de dados do sistema com total tranquilidade.</p>
     </div>
-    <div class="col-md-4 text-end">
+    <div class="col-md-4 text-md-end">
         <form action="{% url 'criar_backup' %}" method="post" class="d-inline">
             {% csrf_token %}
-            <button type="submit" class="btn btn-primary btn-lg shadow-sm">
-                <i class="bi bi-cloud-download"></i> Gerar Novo Backup
+            <button type="submit" class="btn btn-primary rounded-pill px-4 shadow-sm fw-bold">
+                <i class="bi bi-cloud-download me-1"></i> Gerar Novo Backup
             </button>
         </form>
     </div>
 </div>
 
-<div class="alert alert-warning shadow-sm">
-    <i class="bi bi-exclamation-triangle-fill"></i> <strong>Aviso Importante:</strong>
-    {% if modo_serverless %}
-        No ambiente em nuvem (Vercel), o backup é gerado e baixado diretamente. Clique em "Gerar Novo Backup" e o arquivo será salvo automaticamente no seu computador.
-    {% else %}
-        Após gerar um backup, sempre clique em "Baixar" para salvar uma cópia segura no seu computador.
-    {% endif %}
-</div>
-
-<div class="card shadow-sm">
-    <div class="card-body">
-        {% if modo_serverless %}
-        <div class="text-center py-5 text-muted">
-            <i class="bi bi-cloud-check fs-1 d-block mb-2 text-primary"></i>
-            <p>Você está no ambiente em nuvem (Vercel).<br>
-            O backup é gerado e baixado diretamente — não há arquivos armazenados no servidor.</p>
+<!-- AVISO DE CONTEXTO DO AMBIENTE -->
+<div class="alert alert-info border-0 rounded-4 shadow-sm mb-4">
+    <div class="d-flex align-items-start gap-2">
+        <i class="bi bi-info-circle-fill fs-5 text-primary flex-shrink-0 mt-0.5"></i>
+        <div class="small">
+            {% if modo_serverless %}
+                <strong>Ambiente em Nuvem (Vercel):</strong> Ao clicar em <em>"Gerar Novo Backup"</em>, o arquivo <code>.json</code> é compilado e baixado diretamente para a pasta de downloads do seu computador. Para restaurar qualquer versão anterior, utilize o painel de restauração abaixo.
+            {% else %}
+                <strong>Ambiente Local / Servidor:</strong> Os backups gerados são armazenados com segurança no servidor e também podem ser baixados para o seu computador. Você também pode enviar qualquer arquivo <code>.json</code> do seu PC para restauração.
+            {% endif %}
         </div>
-        {% else %}
-        <table class="table table-hover align-middle">
-            <thead class="table-light">
-                <tr>
-                    <th>Nome do Arquivo</th>
-                    <th>Data de Criação</th>
-                    <th>Tamanho</th>
-                    <th class="text-end">Ações</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for arquivo in arquivos %}
-                <tr>
-                    <td class="fw-bold text-success"><i class="bi bi-filetype-json"></i> {{ arquivo.nome }}</td>
-                    <td>{{ arquivo.data|date:"d/m/Y \u00e0s H:i" }}</td>
-                    <td>{{ arquivo.tamanho }}</td>
-                    <td class="text-end">
-                        
-                        <a href="{% url 'baixar_backup' arquivo.nome %}" class="btn btn-sm btn-outline-success" data-bs-toggle="tooltip" title="Salvar no PC">
-                            <i class="bi bi-download"></i> Baixar
-                        </a>
-
-                        <form action="{% url 'restaurar_backup' arquivo.nome %}" method="post" class="d-inline" onsubmit="return confirm('\u26a0\ufe0f ATEN\u00c7\u00c3O EXTREMA: Restaurar um backup vai SOBRESCREVER os dados atuais. O sistema voltar\u00e1 exatamente para o momento em que este backup foi feito. Tem certeza?');">
-                            {% csrf_token %}
-                            <button type="submit" class="btn btn-sm btn-outline-warning ms-1" data-bs-toggle="tooltip" title="Restaurar Sistema">
-                                <i class="bi bi-arrow-counterclockwise"></i> Restaurar
-                            </button>
-                        </form>
-
-                        <form action="{% url 'excluir_backup' arquivo.nome %}" method="post" class="d-inline" onsubmit="return confirm('Deseja excluir este arquivo de backup definitivamente?');">
-                            {% csrf_token %}
-                            <button type="submit" class="btn btn-sm btn-outline-danger ms-1" data-bs-toggle="tooltip" title="Apagar Arquivo">
-                                <i class="bi bi-trash"></i>
-                            </button>
-                        </form>
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="4" class="text-center py-5 text-muted">
-                        <i class="bi bi-inbox fs-1 d-block mb-2"></i>
-                        Nenhum backup encontrado no sistema.
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        {% endif %}
     </div>
 </div>
+
+<div class="row g-4 mb-4">
+    <!-- CARD 1: RESTAURAR BACKUP DO COMPUTADOR (UPLOAD) -->
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm rounded-4 h-100 bg-white">
+            <div class="card-header bg-white border-bottom border-light pt-3 px-4 pb-2">
+                <h5 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                    <i class="bi bi-upload text-warning fs-5"></i> Restaurar Backup do Computador
+                </h5>
+            </div>
+            <div class="card-body p-4 d-flex flex-column justify-content-between">
+                <div>
+                    <p class="text-muted small mb-3">
+                        Selecione um arquivo de backup <code>.json</code> que você baixou previamente para o seu computador para restaurar as tabelas e dados no banco.
+                    </p>
+                    <form action="{% url 'restaurar_backup_upload' %}" method="post" enctype="multipart/form-data" id="formRestaurarUpload">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="arquivo_backup" class="form-label small fw-bold text-secondary mb-1">
+                                Arquivo de Backup (.json)
+                            </label>
+                            <input class="form-control" type="file" id="arquivo_backup" name="arquivo_backup" accept=".json" required>
+                            <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">
+                                Suporte a backups gerados pelo sistema JGTECH (máximo 50 MB).
+                            </small>
+                        </div>
+
+                        <div class="alert alert-warning border-0 rounded-3 p-2.5 mb-3" style="font-size: 0.8rem;">
+                            <i class="bi bi-exclamation-triangle-fill text-warning me-1"></i>
+                            <strong>Atenção:</strong> A restauração irá carregar os registros contidos no arquivo no banco de dados ativo.
+                        </div>
+
+                        <button type="button" class="btn btn-warning text-dark fw-bold rounded-pill px-4 shadow-sm w-100" data-bs-toggle="modal" data-bs-target="#modalConfirmarRestauracaoUpload" id="btnGatilhoRestauracao">
+                            <i class="bi bi-arrow-counterclockwise me-1"></i> Restaurar do Computador
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CARD 2: BACKUPS SALVOS NO SERVIDOR OU GUIA NUVEM -->
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm rounded-4 h-100 bg-white">
+            <div class="card-header bg-white border-bottom border-light pt-3 px-4 pb-2">
+                <h5 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                    <i class="bi bi-server text-primary fs-5"></i>
+                    {% if modo_serverless %}
+                        Armazenamento em Nuvem
+                    {% else %}
+                        Cópias Salvas no Servidor
+                    {% endif %}
+                </h5>
+            </div>
+            <div class="card-body p-4">
+                {% if modo_serverless %}
+                    <div class="text-center py-4 text-muted">
+                        <div class="bg-primary-subtle text-primary rounded-circle d-inline-flex p-3 mb-3">
+                            <i class="bi bi-cloud-check-fill fs-2"></i>
+                        </div>
+                        <h6 class="fw-bold text-dark mb-1">Operação Nuvem Serverless</h6>
+                        <p class="small text-muted mb-0">
+                            Por questões de segurança e integridade na Vercel, todos os backups são baixados e mantidos no seu computador local.
+                            <br><br>
+                            Para recuperar um ponto de restauração, basta usar o formulário ao lado com o seu arquivo salvo.
+                        </p>
+                    </div>
+                {% else %}
+                    <div class="table-responsive" style="max-height: 280px; overflow-y: auto;">
+                        <table class="table table-hover align-middle small mb-0">
+                            <thead class="table-light sticky-top">
+                                <tr>
+                                    <th>Arquivo</th>
+                                    <th>Data</th>
+                                    <th>Tamanho</th>
+                                    <th class="text-end">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for arquivo in arquivos %}
+                                <tr>
+                                    <td class="fw-bold text-primary">
+                                        <i class="bi bi-filetype-json me-1"></i>{{ arquivo.nome }}
+                                    </td>
+                                    <td class="text-muted">{{ arquivo.data|date:"d/m/Y H:i" }}</td>
+                                    <td><span class="badge bg-light text-secondary border">{{ arquivo.tamanho }}</span></td>
+                                    <td class="text-end text-nowrap">
+                                        <a href="{% url 'baixar_backup' arquivo.nome %}" class="btn btn-xs btn-outline-success rounded p-1 px-2" title="Salvar no PC">
+                                            <i class="bi bi-download"></i>
+                                        </a>
+
+                                        <form action="{% url 'restaurar_backup' arquivo.nome %}" method="post" class="d-inline" onsubmit="return confirm('⚠️ ATENÇÃO: Restaurar este backup irá carregar os registros dele no banco atual. Deseja prosseguir?');">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-xs btn-outline-warning rounded p-1 px-2 ms-1" title="Restaurar este backup">
+                                                <i class="bi bi-arrow-counterclockwise"></i>
+                                            </button>
+                                        </form>
+
+                                        <form action="{% url 'excluir_backup' arquivo.nome %}" method="post" class="d-inline" onsubmit="return confirm('Deseja excluir este arquivo de backup do servidor?');">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-xs btn-outline-danger rounded p-1 px-2 ms-1" title="Apagar do servidor">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center py-4 text-muted">
+                                        <i class="bi bi-inbox fs-3 d-block mb-1"></i>
+                                        Nenhum backup em disco no servidor.
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL DE CONFIRMAÇÃO DUPLA PARA RESTAURAÇÃO VIA UPLOAD -->
+<div class="modal fade" id="modalConfirmarRestauracaoUpload" tabindex="-1" aria-labelledby="modalConfirmarRestauracaoUploadLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header bg-danger text-white py-3">
+                <h5 class="modal-title fw-bold d-flex align-items-center gap-2" id="modalConfirmarRestauracaoUploadLabel">
+                    <i class="bi bi-exclamation-triangle-fill"></i> Confirmação de Restauração
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <p class="text-dark mb-2">
+                    Você está prestes a carregar os dados do arquivo selecionado no banco de dados do sistema.
+                </p>
+                <div class="alert alert-danger border-0 rounded-3 mb-3 small">
+                    <strong>⚠️ AVISO CRÍTICO:</strong> Registros existentes correspondentes poderão ser atualizados ou reinseridos conforme o conteúdo do arquivo. Certifique-se de que selecionou o arquivo correto.
+                </div>
+                <p class="text-muted small mb-0">
+                    Deseja prosseguir com a restauração agora?
+                </p>
+            </div>
+            <div class="modal-footer bg-light py-2 border-0">
+                <button type="button" class="btn btn-secondary rounded-pill px-3" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger rounded-pill px-4 fw-bold" id="btnConfirmarRestauracaoEfetiva">
+                    <span class="spinner-border spinner-border-sm d-none me-1" id="spinnerRestauracao"></span>
+                    Sim, Restaurar Banco de Dados
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const formRestaurar = document.getElementById('formRestaurarUpload');
+    const inputArquivo = document.getElementById('arquivo_backup');
+    const btnGatilho = document.getElementById('btnGatilhoRestauracao');
+    const btnConfirmar = document.getElementById('btnConfirmarRestauracaoEfetiva');
+    const spinner = document.getElementById('spinnerRestauracao');
+
+    btnGatilho.addEventListener('click', function(e) {
+        if (!inputArquivo.value) {
+            e.preventDefault();
+            e.stopPropagation();
+            alert("Por favor, selecione um arquivo .json antes de restaurar.");
+            inputArquivo.focus();
+        }
+    });
+
+    btnConfirmar.addEventListener('click', function() {
+        if (!inputArquivo.value) {
+            alert("Por favor, selecione um arquivo .json.");
+            return;
+        }
+        btnConfirmar.disabled = true;
+        spinner.classList.remove('d-none');
+        formRestaurar.submit();
+    });
+});
+</script>
 {% endblock %}

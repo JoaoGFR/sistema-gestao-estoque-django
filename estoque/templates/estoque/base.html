@@ -50,12 +50,28 @@
             vertical-align: middle;
             margin-left: 0.35em;
         }
+        /* Otimizações de responsividade para smartphones */
+        @media (max-width: 576px) {
+            .container-fluid {
+                padding-left: 0.75rem !important;
+                padding-right: 0.75rem !important;
+            }
+            .card-body {
+                padding: 1rem !important;
+            }
+            .modal-dialog {
+                margin: 0.5rem;
+            }
+            input, select, textarea {
+                font-size: 16px !important; /* Previne auto-zoom indesejado no iOS Safari */
+            }
+        }
     </style>
   </head>
   <body class="bg-light">
 
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4 shadow d-print-none">
-      <div class="container-fluid px-4"> <a class="navbar-brand fw-bold d-flex align-items-center gap-2" href="{% if user.is_authenticated %}{% url 'dashboard' %}{% else %}{% url 'login' %}{% endif %}">
+      <div class="container-fluid px-4"> <a class="navbar-brand fw-bold d-flex align-items-center gap-2" href="{% if user.is_authenticated %}{% url 'dashboard' %}{% else %}{% url 'landing_page' %}{% endif %}">
             <i class="bi bi-box-seam fs-4"></i> 
             <span>JGTECH Estoque</span>
         </a>
@@ -124,6 +140,60 @@
                         </ul>
                     </li>
 
+                    <!-- Vendas Dropdown -->
+                    <li class="nav-item dropdown ms-lg-2">
+                        <a class="nav-link dropdown-toggle text-primary fw-semibold" href="#" id="navbarVendas" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <div class="nav-item-content d-inline-flex">
+                                <i class="bi bi-cart-check-fill"></i> Vendas
+                            </div>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-dark border-0 shadow-lg mt-2" aria-labelledby="navbarVendas">
+                            <li>
+                                <a class="dropdown-item py-2" href="{% url 'registrar_venda' %}">
+                                    <i class="bi bi-cart-plus text-primary me-2"></i> Nova Venda (PDV)
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item py-2" href="{% url 'lista_vendas' %}">
+                                    <i class="bi bi-receipt text-info me-2"></i> Histórico de Vendas
+                                </a>
+                            </li>
+                            <li><hr class="dropdown-divider border-secondary"></li>
+                            <li>
+                                <a class="dropdown-item py-2" href="{% url 'tabela_precos' %}">
+                                    <i class="bi bi-tags-fill text-success me-2"></i> Tabela de Preços
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+
+                    <!-- Clientes & Crediário Dropdown -->
+                    <li class="nav-item dropdown ms-lg-2">
+                        <a class="nav-link dropdown-toggle text-warning fw-semibold" href="#" id="navbarClientes" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <div class="nav-item-content d-inline-flex">
+                                <i class="bi bi-people-fill"></i> Clientes & Crediário
+                            </div>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-dark border-0 shadow-lg mt-2" aria-labelledby="navbarClientes">
+                            <li>
+                                <a class="dropdown-item py-2" href="{% url 'lista_clientes' %}">
+                                    <i class="bi bi-person-lines-fill text-warning me-2"></i> Ver Clientes
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item py-2" href="{% url 'criar_cliente' %}">
+                                    <i class="bi bi-person-plus-fill text-success me-2"></i> Novo Cliente
+                                </a>
+                            </li>
+                            <li><hr class="dropdown-divider border-secondary"></li>
+                            <li>
+                                <a class="dropdown-item py-2" href="{% url 'painel_crediario' %}">
+                                    <i class="bi bi-credit-card-2-front-fill text-info me-2"></i> Painel do Crediário
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+
                     <!-- Preços & Simulações Dropdown -->
                     <li class="nav-item dropdown ms-lg-2">
                         <a class="nav-link dropdown-toggle text-warning fw-semibold" href="#" id="navbarPrecos" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -132,6 +202,12 @@
                             </div>
                         </a>
                         <ul class="dropdown-menu dropdown-menu-dark border-0 shadow-lg mt-2" aria-labelledby="navbarPrecos">
+                            <li>
+                                <a class="dropdown-item py-2" href="{% url 'tabela_precos' %}">
+                                    <i class="bi bi-tags-fill text-success me-2"></i> Tabela de Preços de Venda
+                                </a>
+                            </li>
+                            <li><hr class="dropdown-divider border-secondary"></li>
                             <li>
                                 <a class="dropdown-item py-2" href="{% url 'simulador_preco' %}">
                                     <i class="bi bi-calculator text-warning me-2"></i> Simulador de Preço
@@ -163,6 +239,11 @@
                                 </div>
                             </a>
                             <ul class="dropdown-menu dropdown-menu-dark border-0 shadow-lg mt-2" aria-labelledby="navbarAdmin">
+                                <li>
+                                    <a class="dropdown-item py-2" href="{% url 'minha_assinatura' %}">
+                                        <i class="bi bi-shield-check text-success me-2"></i> Minha Assinatura
+                                    </a>
+                                </li>
                                 {% if user.userprofile.e_dono %}
                                     <li>
                                         <a class="dropdown-item py-2" href="{% url 'lista_funcionarios' %}">
@@ -171,6 +252,12 @@
                                     </li>
                                 {% endif %}
                                 {% if user.is_superuser %}
+                                    <li><hr class="dropdown-divider border-secondary"></li>
+                                    <li>
+                                        <a class="dropdown-item py-2 text-warning fw-semibold" href="{% url 'painel_superadmin_assinaturas' %}">
+                                            <i class="bi bi-speedometer2 text-warning me-2"></i> Assinaturas & Empresas SaaS
+                                        </a>
+                                    </li>
                                     <li>
                                         <a class="dropdown-item py-2" href="{% url 'painel_backups' %}">
                                             <i class="bi bi-shield-lock-fill text-warning me-2"></i> Painel de Backups
@@ -184,32 +271,72 @@
                 {% endif %}
             </ul>
 
-            <ul class="navbar-nav ms-auto align-items-center gap-3">
+            <ul class="navbar-nav ms-auto align-items-center gap-2 mt-2 mt-lg-0">
                 {% if user.is_authenticated %}
-                    <li class="nav-item d-flex align-items-center text-light">
-                        <div class="d-flex flex-column align-items-end me-2 lh-1">
-                            <span style="font-size: 0.8rem;" class="text-muted">Logado como</span>
-                            <span class="fw-bold">{{ user.username }}</span>
+                    <li class="nav-item">
+                        <div class="d-flex align-items-center gap-2 py-1 px-3 rounded-pill bg-dark bg-opacity-75 border border-secondary border-opacity-50 text-light shadow-sm">
+                            <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold shadow-xs flex-shrink-0" style="width: 32px; height: 32px; font-size: 0.85rem;">
+                                {{ user.first_name|slice:":1"|default:user.username|slice:":1"|upper }}
+                            </div>
+                            <div class="d-flex flex-column text-start lh-sm pe-1">
+                                <span class="fw-bold text-white text-truncate" style="font-size: 0.88rem; max-width: 180px;" title="{{ user.get_full_name|default:user.first_name|default:user.username }}">
+                                    {{ user.get_full_name|default:user.first_name|default:user.username }}
+                                </span>
+                                {% if user.userprofile.empresa %}
+                                    <span class="text-white-50 text-truncate" style="font-size: 0.72rem; max-width: 180px;" title="{{ user.userprofile.empresa.nome }}">
+                                        <i class="bi bi-building me-1"></i>{{ user.userprofile.empresa.nome }}
+                                    </span>
+                                {% else %}
+                                    <span class="text-white-50 text-truncate" style="font-size: 0.72rem; max-width: 180px;">
+                                        @{{ user.username }}
+                                    </span>
+                                {% endif %}
+                            </div>
                         </div>
-                        <i class="bi bi-person-circle fs-3"></i>
                     </li>
                     <li class="nav-item">
-                        <form action="{% url 'logout' %}" method="post" class="d-inline">
+                        <form action="{% url 'logout' %}" method="post" class="d-inline mb-0">
                             {% csrf_token %}
-                            <button type="submit" class="btn btn-outline-secondary btn-sm" style="border: none;">
-                                <i class="bi bi-box-arrow-right text-danger fs-5"></i>
+                            <button type="submit" class="btn btn-outline-secondary btn-sm rounded-circle p-2 d-flex align-items-center justify-content-center" title="Sair do sistema" style="width: 34px; height: 34px; border: none; background: rgba(255,255,255,0.08);">
+                                <i class="bi bi-box-arrow-right text-danger fs-6"></i>
                             </button>
                         </form>
                     </li>
                 {% else %}
                     <li class="nav-item">
-                        <a href="{% url 'login' %}" class="btn btn-primary btn-sm px-4 rounded-pill">Entrar</a>
+                        <a href="{% url 'landing_page' %}" class="btn btn-outline-light btn-sm px-3 rounded-pill">
+                            <i class="bi bi-house-door me-1"></i> Início
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'login' %}" class="btn btn-outline-primary btn-sm px-3 rounded-pill">Entrar</a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'cadastro_saas' %}" class="btn btn-primary btn-sm px-3 rounded-pill fw-semibold">
+                            Criar Conta
+                        </a>
                     </li>
                 {% endif %}
             </ul>
         </div>
       </div>
     </nav>
+
+    {% if user.is_authenticated and not user.is_superuser and request.info_assinatura.em_trial %}
+    <div class="bg-warning text-dark py-2 px-3 border-bottom shadow-sm">
+        <div class="container d-flex justify-content-between align-items-center flex-wrap gap-2 small">
+            <div>
+                <i class="bi bi-hourglass-split me-1 text-dark"></i>
+                <strong>Período de Degustação Grátis:</strong> Restam <strong>{{ request.info_assinatura.dias_restantes_trial }} dia(s)</strong> para utilizar o sistema completo.
+            </div>
+            <div>
+                <a href="{% url 'minha_assinatura' %}" class="btn btn-sm btn-dark fw-bold px-3 py-1">
+                    <i class="bi bi-patch-check-fill text-warning me-1"></i> Assinar Plano (R$ 50,00/mês)
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
     <div class="container">
         {% if messages %}

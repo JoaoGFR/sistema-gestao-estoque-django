@@ -1,120 +1,256 @@
 {% extends 'estoque/base.html' %}
 
 {% block content %}
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-    <h1 class="h2">Dashboard</h1>
-    <div class="btn-toolbar mb-2 mb-md-0">
-        <div class="btn-group me-2">
-        </div>
+<!-- HEADER DO DASHBOARD COM BOAS-VINDAS E ATALHOS -->
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 pt-2 pb-3 mb-4 border-bottom">
+    <div>
+        <h1 class="h3 fw-bold text-dark mb-1 d-flex align-items-center gap-2">
+            <i class="bi bi-speedometer2 text-primary"></i> Painel Geral de Controle
+        </h1>
+        <p class="text-muted small mb-0">
+            Visão estratégica em tempo real de vendas, estoque e contas a receber.
+        </p>
+    </div>
+    
+    <!-- ATALHOS RÁPIDOS OPERACIONAIS -->
+    <div class="d-flex flex-wrap gap-2">
+        <a href="{% url 'registrar_venda' %}" class="btn btn-success fw-bold shadow-sm d-flex align-items-center gap-2">
+            <i class="bi bi-cart-plus-fill fs-5"></i>
+            <span>Nova Venda (PDV)</span>
+        </a>
+        <a href="{% url 'entrada_estoque' %}" class="btn btn-primary fw-semibold shadow-sm d-flex align-items-center gap-2">
+            <i class="bi bi-box-arrow-in-down"></i>
+            <span>Entrada</span>
+        </a>
+        <a href="{% url 'painel_crediario' %}" class="btn btn-outline-dark shadow-sm d-flex align-items-center gap-2">
+            <i class="bi bi-calendar-check"></i>
+            <span>Crediário</span>
+        </a>
+        <a href="{% url 'simulador_preco' %}" class="btn btn-outline-warning text-dark shadow-sm d-flex align-items-center gap-2">
+            <i class="bi bi-calculator"></i>
+            <span>Simulador</span>
+        </a>
     </div>
 </div>
 
-<div class="row">
-    <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card border-left-primary shadow h-100 py-2 border-start border-4 border-primary">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
-                            Total de Produtos</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_produtos }}</div>
+<!-- LINHA 1: CARDS DE MÉTRICAS / KPIS DE ALTO NÍVEL -->
+<div class="row g-3 mb-4">
+    
+    <!-- KPI 1: FATURAMENTO DO MÊS -->
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card shadow-sm border-0 rounded-3 h-100 border-start border-4 border-success">
+            <div class="card-body p-3">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <span class="text-muted text-uppercase fw-bold" style="font-size: 0.75rem;">Faturamento no Mês</span>
+                        <h3 class="fw-bold text-dark my-1">R$ {{ faturamento_mes|floatformat:2 }}</h3>
+                        <span class="badge bg-success-subtle text-success border border-success-subtle small">
+                            <i class="bi bi-bag-check-fill me-1"></i> {{ qtd_vendas_mes }} vendas concluídas
+                        </span>
                     </div>
-                    <div class="col-auto">
-                        <i class="bi bi-box-seam fs-2 text-gray-300"></i>
+                    <div class="bg-success bg-opacity-10 text-success rounded-3 p-3">
+                        <i class="bi bi-cash-coin fs-3"></i>
                     </div>
+                </div>
+                <hr class="my-2 opacity-25">
+                <div class="d-flex justify-content-between align-items-center text-muted" style="font-size: 0.8rem;">
+                    <span>Hoje: <strong>R$ {{ vendas_hoje_total|floatformat:2 }}</strong></span>
+                    <span>Ticket Médio: <strong>R$ {{ ticket_medio|floatformat:2 }}</strong></span>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card border-left-success shadow h-100 py-2 border-start border-4 border-success">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
-                            Valor em Estoque (Custo)</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">R$ {{ valor_total_estoque|floatformat:2 }}</div>
+    <!-- KPI 2: VALOR TOTAL EM ESTOQUE (PATRIMÔNIO) -->
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card shadow-sm border-0 rounded-3 h-100 border-start border-4 border-primary">
+            <div class="card-body p-3">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <span class="text-muted text-uppercase fw-bold" style="font-size: 0.75rem;">Patrimônio em Estoque</span>
+                        <h3 class="fw-bold text-dark my-1">R$ {{ valor_total_estoque|floatformat:2 }}</h3>
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle small">
+                            <i class="bi bi-box-seam me-1"></i> {{ total_itens_estoque }} itens físicos
+                        </span>
                     </div>
-                    <div class="col-auto">
-                        <i class="bi bi-currency-dollar fs-2 text-gray-300"></i>
+                    <div class="bg-primary bg-opacity-10 text-primary rounded-3 p-3">
+                        <i class="bi bi-boxes fs-3"></i>
                     </div>
+                </div>
+                <hr class="my-2 opacity-25">
+                <div class="d-flex justify-content-between align-items-center text-muted" style="font-size: 0.8rem;">
+                    <span>Produtos: <strong>{{ total_produtos }}</strong></span>
+                    <span>Categorias: <strong>{{ total_categorias }}</strong></span>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card border-left-danger shadow h-100 py-2 border-start border-4 border-danger">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
-                            Itens com Estoque Baixo</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ estoque_baixo }}</div>
+    <!-- KPI 3: CREDIÁRIO A RECEBER -->
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card shadow-sm border-0 rounded-3 h-100 border-start border-4 border-warning">
+            <div class="card-body p-3">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <span class="text-muted text-uppercase fw-bold" style="font-size: 0.75rem;">Crediário em Aberto</span>
+                        <h3 class="fw-bold text-dark my-1">R$ {{ total_crediario_aberto|floatformat:2 }}</h3>
+                        {% if qtd_contas_vencidas > 0 %}
+                            <span class="badge bg-danger text-white small">
+                                <i class="bi bi-exclamation-circle me-1"></i> {{ qtd_contas_vencidas }} vencidas (R$ {{ total_crediario_vencido|floatformat:2 }})
+                            </span>
+                        {% else %}
+                            <span class="badge bg-success-subtle text-success border border-success-subtle small">
+                                <i class="bi bi-check-circle me-1"></i> Contas em dia
+                            </span>
+                        {% endif %}
                     </div>
-                    <div class="col-auto">
-                        <i class="bi bi-exclamation-triangle-fill fs-2 text-gray-300"></i>
+                    <div class="bg-warning bg-opacity-10 text-warning rounded-3 p-3">
+                        <i class="bi bi-calendar-check fs-3"></i>
                     </div>
+                </div>
+                <hr class="my-2 opacity-25">
+                <div class="d-flex justify-content-between align-items-center text-muted" style="font-size: 0.8rem;">
+                    <span>Recebido no mês:</span>
+                    <strong class="text-success">R$ {{ total_recebido_mes|floatformat:2 }}</strong>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card border-left-warning shadow h-100 py-2 border-start border-4 border-warning">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
-                            Empréstimos Pendentes</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ emprestimos_pendentes }}</div>
+    <!-- KPI 4: ALERTAS OPERACIONAIS -->
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card shadow-sm border-0 rounded-3 h-100 border-start border-4 {% if estoque_baixo > 0 or qtd_lotes_vencendo > 0 %}border-danger{% else %}border-info{% endif %}">
+            <div class="card-body p-3">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <span class="text-muted text-uppercase fw-bold" style="font-size: 0.75rem;">Atenção Operacional</span>
+                        <h3 class="fw-bold text-dark my-1">{{ estoque_baixo }}</h3>
+                        <span class="badge {% if estoque_baixo > 0 %}bg-danger{% else %}bg-secondary{% endif %} text-white small">
+                            <i class="bi bi-exclamation-triangle me-1"></i> Itens com estoque baixo
+                        </span>
                     </div>
-                    <div class="col-auto">
-                        <i class="bi bi-person-badge fs-2 text-gray-300"></i>
+                    <div class="bg-danger bg-opacity-10 text-danger rounded-3 p-3">
+                        <i class="bi bi-shield-exclamation fs-3"></i>
                     </div>
+                </div>
+                <hr class="my-2 opacity-25">
+                <div class="d-flex justify-content-between align-items-center text-muted" style="font-size: 0.8rem;">
+                    <span>Vencendo em 90 dias: <strong class="text-danger">{{ qtd_lotes_vencendo }}</strong></span>
+                    <span>Empréstimos: <strong>{{ emprestimos_pendentes }}</strong></span>
                 </div>
             </div>
         </div>
     </div>
+
 </div>
 
-<div class="row mt-4">
-    <div class="col-md-8 mb-4">
-        <div class="card shadow">
-            <div class="card-header py-3 bg-white">
-                <h6 class="m-0 font-weight-bold text-primary">Últimas Saídas / Baixas</h6>
+<!-- LINHA 2: GRÁFICOS VISUAIS INTERATIVOS (CHART.JS) -->
+<div class="row g-3 mb-4">
+    
+    <!-- GRÁFICO 1: EVOLUÇÃO DAS VENDAS (ÚLTIMOS 7 DIAS) -->
+    <div class="col-12 col-lg-8">
+        <div class="card shadow-sm border-0 rounded-3 h-100">
+            <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-graph-up text-primary fs-5"></i>
+                    <h6 class="fw-bold text-dark mb-0">Evolução do Faturamento (Últimos 7 Dias)</h6>
+                </div>
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle">Vendas Diárias</span>
             </div>
-            <div class="card-body">
+            <div class="card-body p-3">
+                <div style="position: relative; height: 260px;">
+                    <canvas id="graficoVendasDias"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- GRÁFICO 2: FORMAS DE PAGAMENTO NO MÊS -->
+    <div class="col-12 col-lg-4">
+        <div class="card shadow-sm border-0 rounded-3 h-100">
+            <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-pie-chart-fill text-info fs-5"></i>
+                    <h6 class="fw-bold text-dark mb-0">Formas de Pagamento</h6>
+                </div>
+                <span class="badge bg-light text-secondary border">Mês Atual</span>
+            </div>
+            <div class="card-body p-3 d-flex flex-column justify-content-center align-items-center">
+                <div id="wrapperGraficoFormas" style="position: relative; width: 100%; height: 230px;">
+                    <canvas id="graficoFormasPagamento"></canvas>
+                </div>
+                <div id="emptyFormasMsg" class="d-none text-center text-muted py-4 small">
+                    <i class="bi bi-inbox fs-2 d-block text-secondary mb-1"></i>
+                    Nenhuma venda registrada no mês atual.
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- LINHA 3: TABELAS E PAINEL OPERACIONAL -->
+<div class="row g-3 mb-4">
+    
+    <!-- ÚLTIMAS VENDAS REALIZADAS -->
+    <div class="col-12 col-lg-7">
+        <div class="card shadow-sm border-0 rounded-3 h-100">
+            <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-receipt text-success fs-5"></i>
+                    <h6 class="fw-bold text-dark mb-0">Últimas Vendas Realizadas</h6>
+                </div>
+                <a href="{% url 'lista_vendas' %}" class="btn btn-sm btn-outline-secondary">
+                    Ver Todas <i class="bi bi-arrow-right ms-1"></i>
+                </a>
+            </div>
+            <div class="card-body p-0">
                 <div class="table-responsive">
-                    <table class="table table-bordered" width="100%" cellspacing="0">
-                        <thead>
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light text-muted small">
                             <tr>
-                                <th>Produto</th>
-                                <th>Qtd</th>
-                                <th>Motivo</th>
+                                <th class="ps-3">Venda</th>
+                                <th>Cliente</th>
+                                <th>Pagamento</th>
                                 <th>Data</th>
-                                <th>Valor Unitario</th>
+                                <th class="text-end">Total</th>
+                                <th class="text-center pe-3">Ação</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% for saida in ultimas_saidas %}
+                            {% for venda in ultimas_vendas %}
                             <tr>
-                                <td>{{ saida.produto.nome }}</td>
-                                <td>{{ saida.quantidade }}</td>
-                                <td>{{ saida.motivo }}</td>
-                                <td>{{ saida.data|date:"d/m/Y H:i" }}</td>
-                                <td class="fw-bold text-success">
-                                    {% if saida.valor_venda %}
-                                         R$ {{ saida.valor_venda|floatformat:2 }}
-                                        {% else %}
-                            <span class="text-muted small">-</span>
-                                {% endif %}
-                            </td>
+                                <td class="ps-3">
+                                    <span class="fw-bold text-primary font-monospace">{{ venda.codigo_venda }}</span>
+                                </td>
+                                <td>
+                                    <div class="fw-semibold text-dark text-truncate" style="max-width: 150px;">
+                                        {{ venda.cliente.nome|default:"Cliente Avulso" }}
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-light text-dark border">
+                                        {{ venda.get_forma_pagamento_display }}
+                                    </span>
+                                </td>
+                                <td class="small text-muted">
+                                    {{ venda.data_venda|date:"d/m/Y H:i" }}
+                                </td>
+                                <td class="text-end fw-bold text-success">
+                                    R$ {{ venda.valor_total|floatformat:2 }}
+                                </td>
+                                <td class="text-center pe-3">
+                                    <a href="{% url 'detalhe_venda' venda.id %}" class="btn btn-sm btn-outline-primary py-1 px-2" title="Ver Comprovante">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                </td>
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="4" class="text-center text-muted">Nenhuma movimentação recente.</td>
+                                <td colspan="6" class="text-center py-4 text-muted small">
+                                    <i class="bi bi-cart-x fs-3 d-block text-secondary mb-1"></i>
+                                    Nenhuma venda realizada até o momento.
+                                </td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -124,32 +260,244 @@
         </div>
     </div>
 
-    <div class="col-md-4 mb-4">
-        <div class="card shadow">
-            <div class="card-header py-3 bg-danger text-white">
-                <h6 class="m-0 font-weight-bold"><i class="bi bi-calendar-x"></i> Vencendo em 180 dias</h6>
+    <!-- PAINEL DE ATENÇÃO: VALIDADES, ESTOQUE CRÍTICO E SAÍDAS -->
+    <div class="col-12 col-lg-5">
+        <div class="card shadow-sm border-0 rounded-3 h-100">
+            <div class="card-header bg-white py-2 border-0">
+                <ul class="nav nav-tabs card-header-tabs" id="tabAlertasDashboard" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active fw-semibold small text-danger py-2" id="tab-vencendo" data-bs-toggle="tab" data-bs-target="#content-vencendo" type="button" role="tab">
+                            <i class="bi bi-calendar-x me-1"></i> Validades ({{ lotes_vencendo|length }})
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link fw-semibold small text-warning py-2" id="tab-critico" data-bs-toggle="tab" data-bs-target="#content-critico" type="button" role="tab">
+                            <i class="bi bi-exclamation-triangle me-1"></i> Estoque Baixo ({{ estoque_baixo }})
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link fw-semibold small text-secondary py-2" id="tab-saidas" data-bs-toggle="tab" data-bs-target="#content-saidas" type="button" role="tab">
+                            <i class="bi bi-arrow-up-right me-1"></i> Últimas Baixas
+                        </button>
+                    </li>
+                </ul>
             </div>
-            <div class="card-body">
-                {% if lotes_vencendo %}
-                    <ul class="list-group list-group-flush">
-                        {% for lote in lotes_vencendo %}
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            <div>
-                                <strong>{{ lote.produto.nome }}</strong>
-                                <br>
-                                <small class="text-muted">Lote: {{ lote.numero_lote }}</small>
+            
+            <div class="card-body p-3">
+                <div class="tab-content" id="tabAlertasContent">
+                    
+                    <!-- ABA 1: LOTES VENCENDO -->
+                    <div class="tab-pane fade show active" id="content-vencendo" role="tabpanel">
+                        {% if lotes_vencendo %}
+                            <div class="list-group list-group-flush">
+                                {% for lote in lotes_vencendo %}
+                                <div class="list-group-item d-flex justify-content-between align-items-center px-0 py-2 border-bottom">
+                                    <div>
+                                        <strong class="text-dark small d-block">{{ lote.produto.nome }}</strong>
+                                        <span class="text-muted" style="font-size: 0.75rem;">
+                                            Lote: <strong>{{ lote.numero_lote }}</strong> • Saldo: <strong>{{ lote.quantidade_atual }} {{ lote.produto.get_unidade_display }}</strong>
+                                        </span>
+                                    </div>
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle small">
+                                        {{ lote.data_validade|date:"d/m/Y" }}
+                                    </span>
+                                </div>
+                                {% endfor %}
                             </div>
-                            <span class="badge bg-danger rounded-pill">
-                                {{ lote.data_validade|date:"d/m/Y" }}
-                            </span>
-                        </li>
-                        {% endfor %}
-                    </ul>
-                {% else %}
-                    <p class="text-center text-muted my-3">Nenhum produto vencendo em breve.</p>
-                {% endif %}
+                        {% else %}
+                            <div class="text-center py-4 text-muted small">
+                                <i class="bi bi-shield-check fs-2 text-success d-block mb-1"></i>
+                                Nenhum lote com vencimento nos próximos 90 dias.
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- ABA 2: ESTOQUE CRÍTICO -->
+                    <div class="tab-pane fade" id="content-critico" role="tabpanel">
+                        {% if produtos_criticos %}
+                            <div class="list-group list-group-flush">
+                                {% for p in produtos_criticos %}
+                                <div class="list-group-item d-flex justify-content-between align-items-center px-0 py-2 border-bottom">
+                                    <div>
+                                        <strong class="text-dark small d-block">{{ p.nome }}</strong>
+                                        <span class="text-muted" style="font-size: 0.75rem;">
+                                            Mínimo: {{ p.estoque_minimo }} • Saldo Real: <strong class="text-danger">{{ p.qtd_real }}</strong>
+                                        </span>
+                                    </div>
+                                    <a href="{% url 'entrada_estoque' %}" class="btn btn-sm btn-outline-primary py-0 px-2" style="font-size: 0.75rem;">
+                                        + Entrada
+                                    </a>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="text-center py-4 text-muted small">
+                                <i class="bi bi-check-all fs-2 text-success d-block mb-1"></i>
+                                Todos os produtos estão com estoque regular.
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- ABA 3: ÚLTIMAS BAIXAS -->
+                    <div class="tab-pane fade" id="content-saidas" role="tabpanel">
+                        {% if ultimas_saidas %}
+                            <div class="list-group list-group-flush">
+                                {% for s in ultimas_saidas %}
+                                <div class="list-group-item d-flex justify-content-between align-items-center px-0 py-2 border-bottom">
+                                    <div>
+                                        <strong class="text-dark small d-block">{{ s.produto.nome }}</strong>
+                                        <span class="text-muted" style="font-size: 0.75rem;">
+                                            Qtd: <strong>{{ s.quantidade }}</strong> • {{ s.motivo|truncatechars:25 }}
+                                        </span>
+                                    </div>
+                                    <span class="text-muted" style="font-size: 0.75rem;">
+                                        {{ s.data|date:"d/m H:i" }}
+                                    </span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="text-center py-4 text-muted small">
+                                <i class="bi bi-inbox fs-2 text-secondary d-block mb-1"></i>
+                                Nenhuma movimentação recente registrada.
+                            </div>
+                        {% endif %}
+                    </div>
+
+                </div>
             </div>
         </div>
     </div>
+
 </div>
+
+<!-- CHART.JS INTEGRATION -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 1. GRÁFICO DE FATURAMENTO DIÁRIO (ÚLTIMOS 7 DIAS)
+    const diasLabels = JSON.parse('{{ dias_labels_json|escapejs }}') || [];
+    const diasValores = JSON.parse('{{ dias_valores_json|escapejs }}') || [];
+
+    const ctxDias = document.getElementById('graficoVendasDias');
+    if (ctxDias) {
+        new Chart(ctxDias, {
+            type: 'line',
+            data: {
+                labels: diasLabels,
+                datasets: [{
+                    label: 'Faturamento (R$)',
+                    data: diasValores,
+                    borderColor: '#2563eb',
+                    backgroundColor: 'rgba(37, 99, 235, 0.08)',
+                    borderWidth: 2.5,
+                    fill: true,
+                    tension: 0.35,
+                    pointBackgroundColor: '#2563eb',
+                    pointBorderColor: '#ffffff',
+                    pointBorderWidth: 2,
+                    pointRadius: 4,
+                    pointHoverRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let val = context.parsed.y || 0;
+                                return ' Faturamento: R$ ' + val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: {
+                            display: false
+                        },
+                        ticks: {
+                            font: { size: 11 }
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: '#f1f5f9'
+                        },
+                        ticks: {
+                            font: { size: 11 },
+                            callback: function(value) {
+                                return 'R$ ' + value;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // 2. GRÁFICO DE FORMAS DE PAGAMENTO NO MÊS (ROSCA/DONUT)
+    const formasLabels = JSON.parse('{{ formas_labels_json|escapejs }}') || [];
+    const formasValores = JSON.parse('{{ formas_valores_json|escapejs }}') || [];
+
+    const ctxFormas = document.getElementById('graficoFormasPagamento');
+    const wrapperFormas = document.getElementById('wrapperGraficoFormas');
+    const emptyFormasMsg = document.getElementById('emptyFormasMsg');
+
+    if (formasValores.length === 0 || formasValores.every(v => v === 0)) {
+        if (wrapperFormas) wrapperFormas.classList.add('d-none');
+        if (emptyFormasMsg) emptyFormasMsg.classList.remove('d-none');
+    } else if (ctxFormas) {
+        new Chart(ctxFormas, {
+            type: 'doughnut',
+            data: {
+                labels: formasLabels,
+                datasets: [{
+                    data: formasValores,
+                    backgroundColor: [
+                        '#10b981', // Verde (Dinheiro)
+                        '#06b6d4', // Ciano (PIX)
+                        '#3b82f6', // Azul (Débito)
+                        '#8b5cf6', // Roxo (Crédito)
+                        '#f59e0b'  // Amarelo (Crediário)
+                    ],
+                    borderWidth: 2,
+                    borderColor: '#ffffff',
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            boxWidth: 12,
+                            padding: 14,
+                            font: { size: 11 }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.label || '';
+                                let val = context.parsed || 0;
+                                return ' ' + label + ': R$ ' + val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                            }
+                        }
+                    }
+                },
+                cutout: '68%'
+            }
+        });
+    }
+});
+</script>
 {% endblock %}

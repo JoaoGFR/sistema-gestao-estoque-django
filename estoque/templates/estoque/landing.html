@@ -3,127 +3,529 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>JGTECH - Controle de Estoque Gratuito</title>
+    <title>JGTECH - Sistema Simples de Estoque, Vendas e Crediário</title>
+    <meta name="description" content="Sistema simples e completo para controlar estoque, realizar vendas no balcão e gerenciar crediário para seus clientes.">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Bootstrap 5 & Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     
     <style>
-        .hero-section {
-           
-            background: linear-gradient(135deg, #0d6efd 0%, #0043a8 100%);
-            color: white;
-            padding: 100px 0;
+        :root {
+            --jg-primary: #2563eb;
+            --jg-primary-dark: #1d4ed8;
+            --jg-secondary: #0f172a;
+            --jg-surface: #ffffff;
+            --jg-bg: #f8fafc;
+            --jg-border: #e2e8f0;
         }
-        .feature-icon {
-            font-size: 2.5rem;
-            color: #0d6efd; 
-            margin-bottom: 1rem;
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            color: #334155;
+            background-color: var(--jg-bg);
+            overflow-x: hidden;
+        }
+
+        h1, h2, h3, h4, h5, h6, .navbar-brand, .font-heading {
+            font-family: 'Outfit', sans-serif;
+        }
+
+        /* Navbar Vidro Fosco */
+        .navbar-glass {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--jg-border);
+        }
+
+        /* Hero Section */
+        .hero-wrap {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: #ffffff;
+            padding: 120px 0 80px;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 16px;
+            border-radius: 9999px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            font-size: 0.85rem;
+            color: #93c5fd;
+            margin-bottom: 20px;
+        }
+
+        .hero-title {
+            font-size: clamp(2.2rem, 4.5vw, 3.4rem);
+            font-weight: 800;
+            line-height: 1.2;
+            letter-spacing: -0.02em;
+        }
+
+        .hero-gradient-text {
+            background: linear-gradient(135deg, #60a5fa 0%, #38bdf8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Mockup do Painel no Hero */
+        .dashboard-preview-card {
+            background: #1e293b;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 18px;
+            box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5);
+        }
+
+        /* CARDS DE FUNCIONALIDADES - CORRIGIDO DISPLAY E RESPONSIVIDADE */
+        .feature-box {
+            background: #ffffff;
+            border: 1px solid var(--jg-border);
+            border-radius: 16px;
+            padding: 28px 24px;
+            height: 100%;
+            display: flex;
+            flex-direction: column; /* Garante empilhamento vertical correto */
+            align-items: flex-start;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .feature-box:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px -8px rgba(37, 99, 235, 0.12);
+            border-color: #bfdbfe;
+        }
+        .feature-icon-wrapper {
+            width: 52px;
+            height: 52px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin-bottom: 16px;
+        }
+
+        /* Tabela de Preços */
+        .pricing-card {
+            background: #ffffff;
+            border-radius: 18px;
+            border: 1px solid var(--jg-border);
+            padding: 36px 28px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            transition: transform 0.2s ease;
+        }
+        .pricing-card.featured {
+            border: 2px solid var(--jg-primary);
+            box-shadow: 0 16px 32px -10px rgba(37, 99, 235, 0.2);
+        }
+
+        /* Botões */
+        .btn-jg-primary {
+            background: #2563eb;
+            color: #ffffff;
+            font-weight: 600;
+            border-radius: 10px;
+            padding: 12px 24px;
+            border: none;
+            transition: all 0.2s ease;
+        }
+        .btn-jg-primary:hover {
+            background: #1d4ed8;
+            color: #ffffff;
+            transform: translateY(-1px);
+        }
+
+        .btn-jg-light {
+            background: #ffffff;
+            color: #0f172a;
+            font-weight: 700;
+            border-radius: 10px;
+            padding: 12px 28px;
+            border: none;
+            transition: all 0.2s ease;
+        }
+        .btn-jg-light:hover {
+            background: #f1f5f9;
+            color: var(--jg-primary);
         }
     </style>
 </head>
 <body>
 
-    <nav class="navbar navbar-expand-lg navbar-light bg-light shadow-sm fixed-top">
+    <!-- NAVBAR NAVEGAÇÃO -->
+    <nav class="navbar navbar-expand-lg navbar-glass fixed-top py-3">
         <div class="container">
-            <a class="navbar-brand fw-bold text-primary" href="#">
-                <i class="bi bi-box-seam-fill"></i> JGTECH
+            <a class="navbar-brand fw-bold text-dark d-flex align-items-center gap-2 fs-4" href="{% url 'landing_page' %}">
+                <div class="bg-primary text-white rounded-3 p-1 px-2 d-flex align-items-center justify-content-center">
+                    <i class="bi bi-box-seam-fill fs-5"></i>
+                </div>
+                <span>JGTECH <span class="text-primary fs-6 fw-semibold">Sistemas</span></span>
             </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarLanding" aria-controls="navbarLanding" aria-expanded="false" aria-label="Menu">
                 <span class="navbar-toggler-icon"></span>
             </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto align-items-center">
-                    <li class="nav-item ms-lg-3">
-                        <a href="{% url 'login' %}" class="btn btn-outline-primary me-2">Já tenho conta</a>
+
+            <div class="collapse navbar-collapse" id="navbarLanding">
+                <ul class="navbar-nav mx-auto align-items-lg-center gap-1 gap-lg-3 my-3 my-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link text-secondary fw-medium" href="#recursos">Recursos</a>
                     </li>
                     <li class="nav-item">
-                        <a href="{% url 'cadastro_saas' %}" class="btn btn-primary fw-bold">Criar Conta Grátis</a>
+                        <a class="nav-link text-secondary fw-medium" href="#planos">Planos & Valores</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-secondary fw-medium" href="#faq">Dúvidas</a>
                     </li>
                 </ul>
+
+                <div class="d-flex align-items-center gap-2">
+                    {% if user.is_authenticated %}
+                        <a href="{% url 'dashboard' %}" class="btn btn-jg-primary shadow-sm">
+                            <i class="bi bi-speedometer2 me-1"></i> Acessar Meu Painel
+                        </a>
+                    {% else %}
+                        <a href="{% url 'login' %}" class="btn btn-outline-secondary border-0 fw-semibold px-3">
+                            <i class="bi bi-person me-1"></i> Entrar
+                        </a>
+                        <a href="{% url 'cadastro_saas' %}" class="btn btn-jg-primary shadow-sm">
+                            <i class="bi bi-rocket-takeoff me-1"></i> Criar Conta Grátis
+                        </a>
+                    {% endif %}
+                </div>
             </div>
         </div>
     </nav>
 
-    <section class="hero-section text-center mt-5">
+    <!-- HERO SECTION -->
+    <header class="hero-wrap">
         <div class="container">
-            <div class="row justify-content-center">
-                <div class="col-lg-8">
-                    <h1 class="display-4 fw-bold mb-4">Controle de Estoque Simples e Gratuito</h1>
-                    <p class="lead mb-5 opacity-75">
-                        Gerencie peças, ferramentas e empréstimos sem planilhas complicadas. 
-                        O sistema ideal para organizar sua oficina ou pequena empresa hoje mesmo.
+            <div class="row justify-content-center text-center">
+                <div class="col-12 col-lg-9 col-xl-8">
+                    <div class="hero-badge">
+                        <i class="bi bi-shield-check text-info"></i>
+                        <span>Plataforma Completa de Gestão Comercial</span>
+                    </div>
+
+                    <h1 class="hero-title mb-4">
+                        O sistema definitivo para <span class="hero-gradient-text">organizar seu estoque e acelerar suas vendas</span>.
+                    </h1>
+
+                    <p class="lead text-white-50 mb-4 fs-5 mx-auto" style="max-width: 680px;">
+                        Abandone anotações manuais e planilhas confusas. Tenha controle do que entra e sai, faça vendas ágeis no balcão e gerencie crediário próprio para os seus clientes com total segurança.
                     </p>
-                    
-                    <a href="{% url 'cadastro_saas' %}" class="btn btn-light btn-lg px-5 py-3 fw-bold text-primary shadow">
-                        <i class="bi bi-rocket-takeoff"></i> Começar Agora - É Grátis
-                    </a>
-                    <p class="mt-3 small text-white-50">Sem cartão de crédito. Sem letras miúdas.</p>
+
+                    <div class="d-flex flex-column flex-sm-row justify-content-center gap-3 mb-4">
+                        {% if user.is_authenticated %}
+                            <a href="{% url 'dashboard' %}" class="btn btn-jg-light btn-lg px-4 py-3 shadow">
+                                <i class="bi bi-speedometer2 me-2 text-primary"></i> Ir para o Painel de Controle
+                            </a>
+                        {% else %}
+                            <a href="{% url 'cadastro_saas' %}" class="btn btn-jg-light btn-lg px-4 py-3 shadow">
+                                <i class="bi bi-rocket-takeoff me-2 text-primary"></i> Começar Agora
+                            </a>
+                            <a href="{% url 'login' %}" class="btn btn-outline-light btn-lg px-4 py-3">
+                                Já tenho conta
+                            </a>
+                        {% endif %}
+                    </div>
+
+                    <div class="d-flex flex-wrap align-items-center justify-content-center gap-3 text-white-50 small">
+                        <span><i class="bi bi-check-lg text-success me-1"></i> Acesso imediato</span>
+                        <span>•</span>
+                        <span><i class="bi bi-shield-check text-info me-1"></i> Sem carência ou fidelidade</span>
+                        <span>•</span>
+                        <span><i class="bi bi-headset text-warning me-1"></i> Suporte humanizado</span>
+                    </div>
                 </div>
             </div>
         </div>
-    </section>
+    </header>
 
+    <!-- SEÇÃO PRINCIPAL DE RECURSOS (CARDS RESPONSIVOS E SIMPLIFICADOS) -->
     <section id="recursos" class="py-5">
-        <div class="container">
-            <div class="text-center mb-5">
-                <h2 class="fw-bold">Tudo o que você precisa</h2>
-                <p class="text-muted">Ferramentas essenciais liberadas para você crescer.</p>
+        <div class="container py-4">
+            <div class="text-center max-w-700 mx-auto mb-5">
+                <span class="badge bg-primary-subtle text-primary fw-bold px-3 py-2 rounded-pill text-uppercase mb-2" style="font-size: 0.75rem;">
+                    O Que o Sistema Faz
+                </span>
+                <h2 class="fw-bold fs-1 mb-3">Tudo para facilitar o seu dia a dia</h2>
+                <p class="text-muted fs-5">
+                    Ferramentas práticas criadas para você economizar tempo e ter controle total do seu comércio.
+                </p>
             </div>
-            
-            <div class="row text-center g-4">
-                <div class="col-md-4">
-                    <div class="p-4 border rounded shadow-sm h-100">
-                        <i class="bi bi-tools feature-icon"></i>
-                        <h4>Controle de Ferramentas</h4>
-                        <p class="text-muted">Saiba quem pegou cada ferramenta e a data de devolução. Acabe com a perda de equipamentos.</p>
+
+            <!-- GRID RESPONSIVA DE CARDS (3 COLUNAS NO DESKTOP, 2 NO TABLET, 1 NO CELULAR) -->
+            <div class="row g-4">
+                
+                <!-- 1. Controle de Estoque & Lotes -->
+                <div class="col-12 col-md-6 col-lg-4">
+                    <div class="feature-box">
+                        <div class="feature-icon-wrapper bg-primary-subtle text-primary">
+                            <i class="bi bi-boxes"></i>
+                        </div>
+                        <h4 class="fw-bold fs-5 mb-2 text-dark">Estoque & Lotes</h4>
+                        <p class="text-muted small mb-3 flex-grow-1">
+                            Cadastre seus produtos, acompanhe a quantidade em tempo real e saiba exatamente quando o estoque estiver acabando ou perto da validade.
+                        </p>
+                        <div class="d-flex flex-wrap gap-2 mt-auto pt-2">
+                            <span class="badge bg-light text-secondary border">Aviso de estoque baixo</span>
+                            <span class="badge bg-light text-secondary border">Data de validade</span>
+                        </div>
                     </div>
                 </div>
-                <div class="col-md-4">
-                    <div class="p-4 border rounded shadow-sm h-100">
-                        <i class="bi bi-boxes feature-icon"></i>
-                        <h4>Estoque de Peças</h4>
-                        <p class="text-muted">Gestão completa de insumos e peças de reposição com alertas de estoque baixo.</p>
+
+                <!-- 2. Frente de Caixa (PDV) -->
+                <div class="col-12 col-md-6 col-lg-4">
+                    <div class="feature-box">
+                        <div class="feature-icon-wrapper bg-success-subtle text-success">
+                            <i class="bi bi-cart-check-fill"></i>
+                        </div>
+                        <h4 class="fw-bold fs-5 mb-2 text-dark">Frente de Caixa (PDV)</h4>
+                        <p class="text-muted small mb-3 flex-grow-1">
+                            Venda no balcão de forma rápida: selecione itens rapidamente, use leitor de código de barras, calcule troco automático e imprima comprovantes.
+                        </p>
+                        <div class="d-flex flex-wrap gap-2 mt-auto pt-2">
+                            <span class="badge bg-light text-secondary border">Dinheiro e Troco</span>
+                            <span class="badge bg-light text-secondary border">PIX e Cartões</span>
+                        </div>
                     </div>
                 </div>
-                <div class="col-md-4">
-                    <div class="p-4 border rounded shadow-sm h-100">
-                        <i class="bi bi-people-fill feature-icon"></i>
-                        <h4>Acesso para Equipe</h4>
-                        <p class="text-muted">Crie login para até 4 funcionários trabalharem simultaneamente no sistema.</p>
+
+                <!-- 3. Crediário & Clientes -->
+                <div class="col-12 col-md-6 col-lg-4">
+                    <div class="feature-box">
+                        <div class="feature-icon-wrapper bg-warning-subtle text-warning">
+                            <i class="bi bi-calendar-check-fill"></i>
+                        </div>
+                        <h4 class="fw-bold fs-5 mb-2 text-dark">Crediário & Clientes</h4>
+                        <p class="text-muted small mb-3 flex-grow-1">
+                            Venda fiado ou a prazo com tranquilidade: defina limite para cada cliente, parcele compras e saiba na hora quem está devendo.
+                        </p>
+                        <div class="d-flex flex-wrap gap-2 mt-auto pt-2">
+                            <span class="badge bg-light text-secondary border">Parcelamento em até 12x</span>
+                            <span class="badge bg-light text-secondary border">Extrato de dívidas</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. Simulador de Preço & Lucro -->
+                <div class="col-12 col-md-6 col-lg-4">
+                    <div class="feature-box">
+                        <div class="feature-icon-wrapper bg-info-subtle text-info">
+                            <i class="bi bi-calculator-fill"></i>
+                        </div>
+                        <h4 class="fw-bold fs-5 mb-2 text-dark">Simulador de Preço</h4>
+                        <p class="text-muted small mb-3 flex-grow-1">
+                            Descubra por quanto vender suas mercadorias para ter lucro real. O sistema calcula custos, taxas e mostra quanto vai sobrar no seu bolso.
+                        </p>
+                        <div class="d-flex flex-wrap gap-2 mt-auto pt-2">
+                            <span class="badge bg-light text-secondary border">Lucro em tempo real</span>
+                            <span class="badge bg-light text-secondary border">Orçamentos em PDF</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 5. Baixas e Saídas -->
+                <div class="col-12 col-md-6 col-lg-4">
+                    <div class="feature-box">
+                        <div class="feature-icon-wrapper bg-danger-subtle text-danger">
+                            <i class="bi bi-box-arrow-up-right"></i>
+                        </div>
+                        <h4 class="fw-bold fs-5 mb-2 text-dark">Baixas de Mercadorias</h4>
+                        <p class="text-muted small mb-3 flex-grow-1">
+                            Dê saída de produtos usados na sua empresa, avariados ou descartados, mantendo seu estoque sempre conferido e batendo com a realidade.
+                        </p>
+                        <div class="d-flex flex-wrap gap-2 mt-auto pt-2">
+                            <span class="badge bg-light text-secondary border">Uso interno ou avaria</span>
+                            <span class="badge bg-light text-secondary border">Histórico por data</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 6. Empréstimo de Ferramentas -->
+                <div class="col-12 col-md-6 col-lg-4">
+                    <div class="feature-box">
+                        <div class="feature-icon-wrapper bg-secondary-subtle text-secondary">
+                            <i class="bi bi-tools"></i>
+                        </div>
+                        <h4 class="fw-bold fs-5 mb-2 text-dark">Controle de Ferramentas</h4>
+                        <p class="text-muted small mb-3 flex-grow-1">
+                            Registre ferramentas e equipamentos emprestados para colaboradores ou clientes, com data de devolução para evitar sumiços e perdas.
+                        </p>
+                        <div class="d-flex flex-wrap gap-2 mt-auto pt-2">
+                            <span class="badge bg-light text-secondary border">Evite perdas de peças</span>
+                            <span class="badge bg-light text-secondary border">Prazos de devolução</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- SEÇÃO DE PLANOS E VALORES SIMPLIFICADA -->
+    <section id="planos" class="py-5 bg-light border-top">
+        <div class="container py-4">
+            <div class="text-center max-w-700 mx-auto mb-5">
+                <span class="badge bg-primary-subtle text-primary fw-bold px-3 py-2 rounded-pill text-uppercase mb-2" style="font-size: 0.75rem;">
+                    Assinatura Única
+                </span>
+                <h2 class="fw-bold fs-1 mb-3">Valor simples e transparente</h2>
+                <p class="text-muted fs-5">
+                    Sem surpresas no fim do mês. Tenha acesso a todas as ferramentas do sistema por um único valor fixo.
+                </p>
+            </div>
+
+            <div class="row justify-content-center">
+                <div class="col-12 col-md-8 col-lg-6 col-xl-5">
+                    <div class="pricing-card featured shadow-lg p-4 p-md-5">
+                        <div>
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h3 class="fw-bold text-dark mb-0">Assinatura JGTECH</h3>
+                                <span class="badge bg-primary text-white px-3 py-2 rounded-pill fw-semibold">Completa</span>
+                            </div>
+                            <p class="text-muted small mb-4">Acesso total e irrestrito a todas as funcionalidades do sistema.</p>
+                            
+                            <div class="bg-light p-3 rounded-3 mb-4 text-center border">
+                                <div class="d-flex align-items-baseline justify-content-center">
+                                    <span class="fs-1 fw-bold text-primary font-heading">R$ 50,00</span>
+                                    <span class="text-muted ms-2 fs-6">/mês</span>
+                                </div>
+                                <small class="text-muted d-block mt-1">Cobrança mensal simples • Sem taxas de adesão</small>
+                            </div>
+
+                            <hr class="my-4">
+
+                            <h6 class="fw-bold text-dark mb-3 small text-uppercase">Tudo o que está incluso:</h6>
+                            <ul class="list-unstyled d-flex flex-column gap-2 small text-secondary mb-4">
+                                <li><i class="bi bi-check-circle-fill text-primary me-2"></i> <strong>Controle de Estoque & Lotes</strong> com validades</li>
+                                <li><i class="bi bi-check-circle-fill text-primary me-2"></i> <strong>Frente de Caixa (PDV)</strong> com leitor de código de barras</li>
+                                <li><i class="bi bi-check-circle-fill text-primary me-2"></i> <strong>Módulo de Crediário Próprio</strong> com parcelamento</li>
+                                <li><i class="bi bi-check-circle-fill text-primary me-2"></i> <strong>Controle de Cobrança e Inadimplência</strong></li>
+                                <li><i class="bi bi-check-circle-fill text-primary me-2"></i> <strong>Simulador de Preço de Venda & Lucro Real</strong></li>
+                                <li><i class="bi bi-check-circle-fill text-primary me-2"></i> <strong>Comprovantes de Venda</strong> para impressão</li>
+                                <li><i class="bi bi-check-circle-fill text-primary me-2"></i> <strong>Controle de Ferramentas e Empréstimos</strong></li>
+                                <li><i class="bi bi-check-circle-fill text-primary me-2"></i> <strong>Equipe Multi-Usuário</strong> (Dono e Operadores)</li>
+                                <li><i class="bi bi-check-circle-fill text-primary me-2"></i> <strong>Relatórios Gerenciais e Histórico de Vendas</strong></li>
+                            </ul>
+                        </div>
+
+                        <div class="mt-2">
+                            <a href="{% url 'cadastro_saas' %}" class="btn btn-jg-primary w-100 py-3 fw-bold shadow">
+                                <i class="bi bi-rocket-takeoff me-2"></i> Começar Agora
+                            </a>
+                            <div class="text-center mt-3">
+                                <small class="text-muted"><i class="bi bi-shield-check me-1"></i> Cancele a qualquer momento sem burocracia</small>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </section>
 
+    <!-- SEÇÃO DE DÚVIDAS SIMPLIFICADA (FAQ) -->
+    <section id="faq" class="py-5 bg-white border-top">
+        <div class="container py-4">
+            <div class="text-center max-w-700 mx-auto mb-5">
+                <span class="badge bg-primary-subtle text-primary fw-bold px-3 py-2 rounded-pill text-uppercase mb-2" style="font-size: 0.75rem;">
+                    Dúvidas Frequentes
+                </span>
+                <h2 class="fw-bold fs-1 mb-3">Perguntas Frequentes</h2>
+                <p class="text-muted fs-5">Respostas simples para as dúvidas mais comuns.</p>
+            </div>
+
+            <div class="row justify-content-center">
+                <div class="col-12 col-lg-8">
+                    <div class="accordion accordion-flush shadow-sm rounded-4 border overflow-hidden" id="faqAccordion">
+                        
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="faq1">
+                                <button class="accordion-button collapsed py-3" type="button" data-bs-toggle="collapse" data-bs-target="#collapse1" aria-expanded="false" aria-controls="collapse1">
+                                    <i class="bi bi-question-circle-fill text-primary me-2"></i> Preciso instalar algum programa no computador?
+                                </button>
+                            </h2>
+                            <div id="collapse1" class="accordion-collapse collapse" aria-labelledby="faq1" data-bs-parent="#faqAccordion">
+                                <div class="accordion-body text-secondary">
+                                    Não! O JGTECH funciona diretamente na internet. Você pode abrir e usar de qualquer navegador de forma rápida e segura, sem precisar instalar nada.
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="faq2">
+                                <button class="accordion-button collapsed py-3" type="button" data-bs-toggle="collapse" data-bs-target="#collapse2" aria-expanded="false" aria-controls="collapse2">
+                                    <i class="bi bi-upc-scan text-info me-2"></i> O sistema funciona com leitor de código de barras?
+                                </button>
+                            </h2>
+                            <div id="collapse2" class="accordion-collapse collapse" aria-labelledby="faq2" data-bs-parent="#faqAccordion">
+                                <div class="accordion-body text-secondary">
+                                    Sim! Qualquer leitor de código de barras USB ou sem fio funciona perfeitamente na hora de fazer vendas no balcão ou localizar produtos.
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="faq3">
+                                <button class="accordion-button collapsed py-3" type="button" data-bs-toggle="collapse" data-bs-target="#collapse3" aria-expanded="false" aria-controls="collapse3">
+                                    <i class="bi bi-cash-coin text-warning me-2"></i> Como funciona a venda no crediário?
+                                </button>
+                            </h2>
+                            <div id="collapse3" class="accordion-collapse collapse" aria-labelledby="faq3" data-bs-parent="#faqAccordion">
+                                <div class="accordion-body text-secondary">
+                                    Na hora de fechar a venda, você escolhe "Crediário". O sistema divide as parcelas para o cliente, imprime o comprovante e guarda as datas de vencimento para você acompanhar quem já pagou e quem está em atraso.
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="faq4">
+                                <button class="accordion-button collapsed py-3" type="button" data-bs-toggle="collapse" data-bs-target="#collapse4" aria-expanded="false" aria-controls="collapse4">
+                                    <i class="bi bi-shield-check text-success me-2"></i> Preciso informar cartão de crédito para testar?
+                                </button>
+                            </h2>
+                            <div id="collapse4" class="accordion-collapse collapse" aria-labelledby="faq4" data-bs-parent="#faqAccordion">
+                                <div class="accordion-body text-secondary">
+                                    Não! O cadastro é imediato, sem necessidade de dados bancários ou cartão para iniciar.
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- BANNER FINAL DE CADASTRO -->
     <section class="py-5 bg-light">
         <div class="container">
-            <div class="text-center mb-5">
-                <h2 class="fw-bold">Comece sem custos</h2>
-                <p class="text-muted">Aproveite nossa fase de lançamento.</p>
-            </div>
-
-            <div class="row justify-content-center">
-                <div class="col-lg-4 col-md-6">
-                    <div class="card border-0 shadow-lg">
-                        <div class="card-header bg-primary text-white text-center py-4">
-                            <h4 class="mb-0">Acesso Antecipado</h4>
-                        </div>
-                        <div class="card-body text-center p-5">
-                            <h1 class="display-4 fw-bold">R$ 0,00</h1>
-                            <p class="text-muted">/mês</p>
-                            
-                            <ul class="list-unstyled text-start my-4">
-                                <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i> Estoque Completo</li>
-                                <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i> <strong>Até 4 Usuários</strong></li>
-                                <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i> Gestão de Empréstimos</li>
-                                <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i> Atualizações Gratuitas</li>
-                            </ul>
-
-                            <a href="{% url 'cadastro_saas' %}" class="btn btn-primary w-100 btn-lg">
-                                Criar Minha Conta
+            <div class="p-5 text-center rounded-4 text-white" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);">
+                <div class="row justify-content-center">
+                    <div class="col-12 col-lg-8">
+                        <h2 class="display-6 fw-bold mb-3">Pronto para organizar sua empresa?</h2>
+                        <p class="text-white-50 fs-5 mb-4">
+                            Cadastre seu negócio em menos de 1 minuto e comece a usar agora mesmo.
+                        </p>
+                        
+                        <div class="d-flex flex-column flex-sm-row justify-content-center gap-3">
+                            <a href="{% url 'cadastro_saas' %}" class="btn btn-jg-light btn-lg px-5 py-3 shadow">
+                                <i class="bi bi-rocket-takeoff me-2 text-primary"></i> Criar Minha Conta Grátis
                             </a>
-                            <p class="mt-3 small text-muted">Não pedimos dados bancários.</p>
+                            <a href="{% url 'login' %}" class="btn btn-outline-light btn-lg px-4 py-3">
+                                Já Tenho Conta
+                            </a>
                         </div>
                     </div>
                 </div>
@@ -131,12 +533,46 @@
         </div>
     </section>
 
-    <footer class="bg-dark text-white py-4 mt-auto">
-        <div class="container text-center">
-            <p class="mb-0">&copy; 2026 JGTECH Sistemas. Todos os direitos reservados.</p>
+    <!-- FOOTER INSTITUCIONAL SIMPLIFICADO -->
+    <footer class="bg-dark text-white pt-5 pb-4 border-top border-secondary border-opacity-25">
+        <div class="container">
+            <div class="row g-4 mb-4">
+                
+                <div class="col-12 col-md-6">
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                        <div class="bg-primary text-white rounded-3 p-1 px-2">
+                            <i class="bi bi-box-seam-fill fs-5"></i>
+                        </div>
+                        <span class="fs-4 fw-bold font-heading">JGTECH <span class="text-primary fs-6">Sistemas</span></span>
+                    </div>
+                    <p class="text-white-50 small mb-0">
+                        O sistema inteligente e simples para controle de estoque, vendas e crediário.
+                    </p>
+                </div>
+
+                <div class="col-12 col-md-6 text-md-end">
+                    <ul class="list-inline mb-0 small text-white-50">
+                        <li class="list-inline-item"><a href="#recursos" class="text-white-50 text-decoration-none">Recursos</a></li>
+                        <li class="list-inline-item mx-2">•</li>
+                        <li class="list-inline-item"><a href="#planos" class="text-white-50 text-decoration-none">Planos</a></li>
+                        <li class="list-inline-item mx-2">•</li>
+                        <li class="list-inline-item"><a href="#faq" class="text-white-50 text-decoration-none">Dúvidas</a></li>
+                        <li class="list-inline-item mx-2">•</li>
+                        <li class="list-inline-item"><a href="{% url 'login' %}" class="text-white text-decoration-none fw-semibold">Entrar</a></li>
+                        <li class="list-inline-item mx-2">•</li>
+                        <li class="list-inline-item"><a href="{% url 'cadastro_saas' %}" class="text-primary text-decoration-none fw-semibold">Criar Conta</a></li>
+                    </ul>
+                </div>
+
+            </div>
+
+            <div class="border-top border-secondary border-opacity-25 pt-3 text-center text-white-50 small">
+                <p class="mb-0">&copy; 2026 JGTECH Sistemas. Todos os direitos reservados.</p>
+            </div>
         </div>
     </footer>
 
+    <!-- Bootstrap 5 JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

@@ -1,0 +1,1120 @@
+{% extends 'estoque/base.html' %}
+
+{% block title %}Nova Venda (PDV) | JGTECH Estoque{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-3">
+
+    <!-- Cabeçalho -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+        <div>
+            <h2 class="h3 fw-bold mb-1 d-flex align-items-center gap-2">
+                <i class="bi bi-cart-check-fill text-primary"></i> Terminal de Vendas (PDV)
+            </h2>
+            <p class="text-muted mb-0">Registre vendas, selecione a forma de pagamento e gere débitos no crediário com baixa automática no estoque.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'lista_vendas' %}" class="btn btn-outline-secondary d-flex align-items-center gap-2">
+                <i class="bi bi-receipt"></i> Histórico de Vendas
+            </a>
+            <a href="{% url 'criar_cliente' %}" class="btn btn-outline-warning d-flex align-items-center gap-2">
+                <i class="bi bi-person-plus"></i> Novo Cliente
+            </a>
+        </div>
+    </div>
+
+    {% if error_message %}
+        <div class="alert alert-danger alert-dismissible fade show shadow-sm mb-3" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i> {{ error_message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    {% endif %}
+
+    <div class="row g-3">
+
+        <!-- COLUNA ESQUERDA: SELEÇÃO DE PRODUTOS -->
+        <div class="col-12 col-lg-5">
+            <div class="card border-0 shadow-sm rounded-3 h-100">
+                <div class="card-header bg-white py-3 border-0">
+                    <h5 class="fw-bold mb-0 text-dark d-flex align-items-center gap-2">
+                        <i class="bi bi-box-seam text-primary"></i> Adicionar Produtos
+                    </h5>
+                </div>
+                <div class="card-body pt-0">
+
+                    <!-- Seletor de Produto com Modal Pop-up -->
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Produto <span class="text-danger">*</span></label>
+                        
+                        <!-- Select oculto para integração e submissão -->
+                        <select id="selProduto" class="d-none">
+                            <option value="">-- Selecione o produto --</option>
+                            {% for p in produtos %}
+                                <option value="{{ p.id }}" 
+                                        data-nome="{{ p.nome }}"
+                                        data-sku="{{ p.sku|default:'' }}"
+                                        data-ean="{{ p.ean|default:'' }}"
+                                        data-categoria="{{ p.categoria.nome|default:'' }}"
+                                        data-localizacao="{{ p.localizacao.nome|default:'' }}"
+                                        data-saldo="{{ p.qtd_real }}"
+                                        data-unidade="{{ p.unidade }}"
+                                        data-preco="{{ p.preco_medio|default:'0.00' }}"
+                                        data-preco-venda="{{ p.preco_venda|stringformat:'.2f'|default:'0.00' }}"
+                                        data-disponivel-venda="{{ p.disponivel_venda|yesno:'true,false' }}">
+                                    {{ p.nome }} (Saldo: {{ p.qtd_real }} {{ p.unidade }})
+                                </option>
+                            {% endfor %}
+                        </select>
+
+                        <!-- Botão de abertura quando vazio -->
+                        <div id="btnAbrirModalProduto" class="card border border-2 border-dashed p-3 text-center cursor-pointer bg-light hover-bg-white shadow-sm" style="cursor: pointer;" data-bs-toggle="modal" data-bs-target="#modalBuscarProduto">
+                            <div class="d-flex align-items-center justify-content-center gap-2 text-primary fw-semibold">
+                                <i class="bi bi-search fs-5"></i>
+                                <span>Clique para buscar e selecionar produto...</span>
+                            </div>
+                            <div class="text-muted small mt-1">Pesquise por nome, SKU, código de barras, categoria ou qualquer dado</div>
+                        </div>
+
+                        <!-- Card de exibição do produto selecionado -->
+                        <div id="cardProdutoSelecionado" class="card border-primary bg-primary-subtle p-3 shadow-sm d-none">
+                            <div class="d-flex justify-content-between align-items-start gap-2">
+                                <div>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="badge bg-primary text-white"><i class="bi bi-box-seam"></i></span>
+                                        <strong class="text-dark fs-6" id="cardProdNome">-</strong>
+                                    </div>
+                                    <div class="d-flex flex-wrap gap-1 mt-2 small" id="cardProdBadges">
+                                        <!-- Badges dinâmicos inseridos via JS -->
+                                    </div>
+                                </div>
+                                <div class="d-flex gap-1">
+                                    <button type="button" class="btn btn-sm btn-outline-primary bg-white" data-bs-toggle="modal" data-bs-target="#modalBuscarProduto" title="Trocar Produto">
+                                        <i class="bi bi-arrow-repeat"></i> Trocar
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-danger bg-white" id="btnLimparProduto" title="Remover Produto">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="saldoInfo" class="form-text mt-1 text-muted d-none">
+                            Saldo em estoque: <strong id="txtSaldo" class="text-primary">0</strong> | 
+                            Preço Custo Médio: <strong id="txtPrecoCusto" class="text-secondary">R$ 0,00</strong>
+                        </div>
+                    </div>
+
+                    <!-- Seletor de Lote (Opcional) -->
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Lote de Origem</label>
+                        <select id="selLote" class="form-select" disabled>
+                            <option value="">Automático (FIFO/FEFO - Mais antigo primeiro)</option>
+                        </select>
+                        <div class="form-text">Deixe em automático para debitar dos lotes mais antigos.</div>
+                    </div>
+
+                    <!-- Quantidade e Atalhos -->
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Quantidade <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <input type="number" id="inputQtd" class="form-control" min="1" value="1">
+                            <span class="input-group-text bg-light text-muted" id="txtUnidade">UN</span>
+                        </div>
+                        <div class="d-flex gap-1 mt-2">
+                            <button type="button" class="btn btn-sm btn-outline-secondary px-2 btn-add-qtd" data-val="1">+1</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary px-2 btn-add-qtd" data-val="5">+5</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary px-2 btn-add-qtd" data-val="10">+10</button>
+                            <button type="button" class="btn btn-sm btn-outline-primary px-2" id="btnMaxQtd">Máx</button>
+                        </div>
+                    </div>
+
+                    <!-- Preço Unitário de Venda -->
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">Preço Unitário de Venda (R$) <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light">R$</span>
+                            <input type="number" id="inputPreco" class="form-control" step="0.01" min="0" placeholder="0,00">
+                        </div>
+                        <div id="infoPrecoTabela" class="form-text text-success d-none mt-1">
+                            <i class="bi bi-tag-fill me-1"></i> Preço carregado automaticamente da Tabela de Preços.
+                        </div>
+                        <div id="infoPrecoManual" class="form-text text-muted d-none mt-1">
+                            <i class="bi bi-info-circle me-1"></i> Item sem preço fixado na tabela. Digite o valor de venda.
+                        </div>
+                    </div>
+
+                    <!-- Botão Adicionar -->
+                    <button type="button" id="btnAdicionar" class="btn btn-primary w-100 py-2 fw-semibold shadow-sm">
+                        <i class="bi bi-cart-plus me-1"></i> Adicionar ao Carrinho
+                    </button>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- COLUNA DIREITA: CARRINHO DA VENDA & FINALIZAÇÃO -->
+        <div class="col-12 col-lg-7">
+            <div class="card border-0 shadow-sm rounded-3">
+                <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
+                    <h5 class="fw-bold mb-0 text-dark d-flex align-items-center gap-2">
+                        <i class="bi bi-basket2-fill text-success"></i> Carrinho da Venda
+                    </h5>
+                    <span id="badgeContador" class="badge bg-primary-subtle text-primary fw-semibold fs-6">0 itens</span>
+                </div>
+                <div class="card-body pt-0">
+
+                    <form method="POST" id="formVenda">
+                        {% csrf_token %}
+                        <input type="hidden" name="itens_json" id="itens_json">
+
+                        <!-- Cliente e Alerta de Limite com Modal Pop-up -->
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Cliente <span class="text-muted small">(Opcional para à vista, obrigatório no Crediário)</span></label>
+                            
+                            <!-- Select oculto para integração e submissão -->
+                            <select name="cliente_id" id="selCliente" class="d-none">
+                                <option value="">-- Consumidor Final (Venda Avulsa) --</option>
+                                {% for c in clientes %}
+                                    <option value="{{ c.id }}"
+                                            data-nome="{{ c.nome }}"
+                                            data-cpf="{{ c.cpf_cnpj|default:'' }}"
+                                            data-telefone="{{ c.telefone|default:'' }}"
+                                            data-email="{{ c.email|default:'' }}"
+                                            data-cidade="{{ c.cidade|default:'' }}"
+                                            data-endereco="{{ c.endereco|default:'' }}"
+                                            data-limite="{{ c.limite_credito|stringformat:'.2f' }}"
+                                            data-saldo="{{ c.saldo_devedor|stringformat:'.2f' }}"
+                                            data-disponivel="{{ c.limite_disponivel|stringformat:'.2f' }}"
+                                            data-vencido="{% if c.tem_debitos_vencidos %}true{% else %}false{% endif %}"
+                                            {% if request.GET.cliente_id == c.id|stringformat:'s' %}selected{% endif %}>
+                                        {{ c.nome }}{% if c.cpf_cnpj %} - {{ c.cpf_cnpj }}{% endif %}
+                                    </option>
+                                {% endfor %}
+                            </select>
+
+                            <!-- Botão de abertura quando consumidor final -->
+                            <div id="btnAbrirModalCliente" class="card border border-2 border-dashed p-3 text-center cursor-pointer bg-light hover-bg-white shadow-sm" style="cursor: pointer;" data-bs-toggle="modal" data-bs-target="#modalBuscarCliente">
+                                <div class="d-flex align-items-center justify-content-center gap-2 text-dark fw-semibold">
+                                    <i class="bi bi-person-check fs-5 text-secondary"></i>
+                                    <span id="txtBtnCliente">Consumidor Final (Clique para selecionar cliente...)</span>
+                                </div>
+                                <div class="text-muted small mt-1">Pesquise por nome, CPF/CNPJ, telefone, e-mail, cidade ou endereço</div>
+                            </div>
+
+                            <!-- Card de exibição do cliente selecionado -->
+                            <div id="cardClienteSelecionado" class="card border-info bg-info-subtle p-3 shadow-sm d-none">
+                                <div class="d-flex justify-content-between align-items-start gap-2">
+                                    <div>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="badge bg-info text-dark"><i class="bi bi-person-fill"></i></span>
+                                            <strong class="text-dark fs-6" id="cardCliNome">-</strong>
+                                        </div>
+                                        <div class="d-flex flex-wrap gap-1 mt-2 small" id="cardCliBadges">
+                                            <!-- Badges dinâmicos inseridos via JS -->
+                                        </div>
+                                    </div>
+                                    <div class="d-flex gap-1">
+                                        <button type="button" class="btn btn-sm btn-outline-dark bg-white" data-bs-toggle="modal" data-bs-target="#modalBuscarCliente" title="Trocar Cliente">
+                                            <i class="bi bi-arrow-repeat"></i> Trocar
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-danger bg-white" id="btnLimparCliente" title="Voltar para Consumidor Final">
+                                            <i class="bi bi-x-lg"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Painel Dinâmico de Crédito do Cliente -->
+                            <div id="clienteCreditoCard" class="alert alert-light border mt-2 py-2 px-3 d-none">
+                                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 small">
+                                    <div>
+                                        <span class="text-muted">Limite:</span> <strong id="txtCliLimite">R$ 0,00</strong> |
+                                        <span class="text-muted">Dívida Atual:</span> <strong id="txtCliSaldo" class="text-danger">R$ 0,00</strong> |
+                                        <span class="text-muted">Disponível:</span> <strong id="txtCliDisponivel" class="text-success">R$ 0,00</strong>
+                                    </div>
+                                    <div id="badgeCliVencido" class="badge bg-danger d-none">Possui Parcelas Vencidas</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tabela de Itens no Carrinho -->
+                        <div class="table-responsive mb-3 border rounded-2" style="min-height: 180px; max-height: 280px; overflow-y: auto;">
+                            <table class="table table-sm table-hover align-middle mb-0">
+                                <thead class="table-light sticky-top">
+                                    <tr>
+                                        <th class="ps-3">Produto</th>
+                                        <th>Lote</th>
+                                        <th class="text-center">Qtd</th>
+                                        <th class="text-end">Preço Unit.</th>
+                                        <th class="text-end">Subtotal</th>
+                                        <th class="text-center pe-3" style="width: 40px;"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tabelaCarrinho">
+                                    <tr id="linhaVazia">
+                                        <td colspan="6" class="text-center py-4 text-muted">
+                                            <i class="bi bi-cart3 fs-3 d-block text-secondary mb-1"></i>
+                                            Nenhum produto adicionado ao carrinho.
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Forma de Pagamento e Condições -->
+                        <div class="row g-3 mb-3">
+                            <div class="col-12 col-md-6">
+                                <label class="form-label fw-semibold">Forma de Pagamento <span class="text-danger">*</span></label>
+                                <select name="forma_pagamento" id="selFormaPagamento" class="form-select fw-semibold">
+                                    <option value="DINHEIRO">Dinheiro</option>
+                                    <option value="PIX">PIX</option>
+                                    <option value="DEBITO">Cartão de Débito</option>
+                                    <option value="CREDITO">Cartão de Crédito</option>
+                                    <option value="CREDIARIO" class="text-primary fw-bold">Crediário / A Prazo (Fiado)</option>
+                                </select>
+                            </div>
+
+                            <div class="col-12 col-md-6">
+                                <label class="form-label fw-semibold">Desconto Total (R$)</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light">R$</span>
+                                    <input type="number" name="desconto" id="inputDesconto" class="form-control" step="0.01" min="0" value="0.00">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- PAINEL DINÂMICO 1: DINHEIRO (TROCO) -->
+                        <div id="painelDinheiro" class="card bg-light border-0 p-3 mb-3">
+                            <div class="row g-2 align-items-center">
+                                <div class="col-12 col-md-6">
+                                    <label class="form-label small fw-semibold text-muted mb-1">Valor Recebido do Cliente (R$)</label>
+                                    <input type="number" id="inputValorRecebido" class="form-control" step="0.01" min="0" placeholder="0,00">
+                                </div>
+                                <div class="col-12 col-md-6 text-md-end">
+                                    <span class="small text-muted d-block">Troco a Devolver:</span>
+                                    <span id="txtTroco" class="fs-4 fw-bold text-success">R$ 0,00</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- PAINEL DINÂMICO 2: CREDIÁRIO (PARCELAS) -->
+                        <div id="painelCrediario" class="card bg-warning-subtle border-warning border-opacity-50 p-3 mb-3 d-none">
+                            <h6 class="fw-bold text-dark d-flex align-items-center gap-1 mb-2">
+                                <i class="bi bi-credit-card-2-front"></i> Condições do Crediário
+                            </h6>
+                            <div class="row g-2">
+                                <div class="col-12 col-md-4">
+                                    <label class="form-label small fw-semibold">Nº de Parcelas</label>
+                                    <select name="num_parcelas" id="selNumParcelas" class="form-select form-select-sm">
+                                        <option value="1">1x (Parcela Única)</option>
+                                        <option value="2">2x</option>
+                                        <option value="3">3x</option>
+                                        <option value="4">4x</option>
+                                        <option value="5">5x</option>
+                                        <option value="6">6x</option>
+                                        <option value="10">10x</option>
+                                        <option value="12">12x</option>
+                                    </select>
+                                </div>
+                                <div class="col-12 col-md-4">
+                                    <label class="form-label small fw-semibold">1º Vencimento</label>
+                                    <input type="date" name="primeiro_vencimento" id="inputVencimento" class="form-control form-control-sm" value="{{ primeiro_venc_padrao }}">
+                                </div>
+                                <div class="col-12 col-md-4">
+                                    <label class="form-label small fw-semibold">Intervalo</label>
+                                    <select name="intervalo_dias" id="selIntervalo" class="form-select form-select-sm">
+                                        <option value="30">A cada 30 dias</option>
+                                        <option value="15">A cada 15 dias (Quinzenal)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="mt-2 text-dark small fw-semibold" id="txtResumoParcelas">
+                                Valor por parcela: R$ 0,00
+                            </div>
+                        </div>
+
+                        <!-- Totalizadores -->
+                        <div class="card bg-white border p-3 mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span class="text-muted">Subtotal:</span>
+                                <span class="fw-bold text-dark" id="lblSubtotal">R$ 0,00</span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span class="text-muted">Desconto:</span>
+                                <span class="text-danger fw-semibold" id="lblDesconto">- R$ 0,00</span>
+                            </div>
+                            <hr class="my-2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="fs-5 fw-bold text-dark">Total a Pagar:</span>
+                                <span class="fs-3 fw-bold text-primary" id="lblTotalFinal">R$ 0,00</span>
+                            </div>
+                        </div>
+
+                        <!-- Botão Finalizar -->
+                        <button type="submit" id="btnFinalizar" class="btn btn-success btn-lg w-100 py-3 fw-bold shadow" disabled>
+                            <i class="bi bi-check-circle-fill me-2"></i> Finalizar Venda
+                        </button>
+                    </form>
+
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+<!-- SCRIPT DO TERMINAL DE VENDAS -->
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const selProduto = document.getElementById('selProduto');
+    const selLote = document.getElementById('selLote');
+    const inputQtd = document.getElementById('inputQtd');
+    const inputPreco = document.getElementById('inputPreco');
+    const txtUnidade = document.getElementById('txtUnidade');
+    const saldoInfo = document.getElementById('saldoInfo');
+    const txtSaldo = document.getElementById('txtSaldo');
+    const txtPrecoCusto = document.getElementById('txtPrecoCusto');
+    const btnAdicionar = document.getElementById('btnAdicionar');
+    const btnMaxQtd = document.getElementById('btnMaxQtd');
+
+    const selCliente = document.getElementById('selCliente');
+    const clienteCreditoCard = document.getElementById('clienteCreditoCard');
+    const txtCliLimite = document.getElementById('txtCliLimite');
+    const txtCliSaldo = document.getElementById('txtCliSaldo');
+    const txtCliDisponivel = document.getElementById('txtCliDisponivel');
+    const badgeCliVencido = document.getElementById('badgeCliVencido');
+
+    const tabelaCarrinho = document.getElementById('tabelaCarrinho');
+    const linhaVazia = document.getElementById('linhaVazia');
+    const badgeContador = document.getElementById('badgeContador');
+    const selFormaPagamento = document.getElementById('selFormaPagamento');
+    const inputDesconto = document.getElementById('inputDesconto');
+    const lblSubtotal = document.getElementById('lblSubtotal');
+    const lblDesconto = document.getElementById('lblDesconto');
+    const lblTotalFinal = document.getElementById('lblTotalFinal');
+    const btnFinalizar = document.getElementById('btnFinalizar');
+    const itensJsonInput = document.getElementById('itens_json');
+
+    const painelDinheiro = document.getElementById('painelDinheiro');
+    const inputValorRecebido = document.getElementById('inputValorRecebido');
+    const txtTroco = document.getElementById('txtTroco');
+
+    const painelCrediario = document.getElementById('painelCrediario');
+    const selNumParcelas = document.getElementById('selNumParcelas');
+    const txtResumoParcelas = document.getElementById('txtResumoParcelas');
+
+    let carrinho = [];
+
+    // 1. Mudança de Produto
+    selProduto.addEventListener('change', function () {
+        const opt = this.options[this.selectedIndex];
+        const infoPrecoTabela = document.getElementById('infoPrecoTabela');
+        const infoPrecoManual = document.getElementById('infoPrecoManual');
+
+        if (!this.value) {
+            saldoInfo.classList.add('d-none');
+            selLote.innerHTML = '<option value="">Automático (FIFO/FEFO)</option>';
+            selLote.disabled = true;
+            inputPreco.value = '';
+            if (infoPrecoTabela) infoPrecoTabela.classList.add('d-none');
+            if (infoPrecoManual) infoPrecoManual.classList.add('d-none');
+            return;
+        }
+
+        const saldo = parseFloat(opt.dataset.saldo || 0);
+        const unidade = opt.dataset.unidade || 'UN';
+        const precoCusto = parseFloat(opt.dataset.preco || 0);
+        const precoVenda = parseFloat(opt.dataset.precoVenda || 0);
+
+        txtSaldo.textContent = `${saldo} ${unidade}`;
+        txtUnidade.textContent = unidade;
+        txtPrecoCusto.textContent = `R$ ${precoCusto.toFixed(2).replace('.', ',')}`;
+        saldoInfo.classList.remove('d-none');
+
+        // Puxa automaticamente o preço de venda da tabela de preços se configurado
+        if (precoVenda > 0) {
+            inputPreco.value = precoVenda.toFixed(2);
+            if (infoPrecoTabela) infoPrecoTabela.classList.remove('d-none');
+            if (infoPrecoManual) infoPrecoManual.classList.add('d-none');
+        } else {
+            inputPreco.value = '';
+            if (infoPrecoTabela) infoPrecoTabela.classList.add('d-none');
+            if (infoPrecoManual) infoPrecoManual.classList.remove('d-none');
+        }
+
+        // Carrega lotes via API
+        fetch(`/api/lotes/${this.value}/`)
+            .then(res => res.json())
+            .then(data => {
+                selLote.innerHTML = '<option value="">Automático (FIFO/FEFO - Mais antigo primeiro)</option>';
+                if (data.length > 0) {
+                    data.forEach(l => {
+                        const optL = document.createElement('option');
+                        optL.value = l.id;
+                        optL.textContent = `${l.texto} (Disp: ${l.qtd_disponivel})`;
+                        optL.dataset.saldo = l.qtd_disponivel;
+                        selLote.appendChild(optL);
+                    });
+                    selLote.disabled = false;
+                } else {
+                    selLote.disabled = true;
+                }
+            })
+            .catch(() => {
+                selLote.disabled = true;
+            });
+    });
+
+    // Atalhos de quantidade
+    document.querySelectorAll('.btn-add-qtd').forEach(btn => {
+        btn.addEventListener('click', function () {
+            const val = parseInt(this.dataset.val, 10);
+            inputQtd.value = (parseInt(inputQtd.value, 10) || 0) + val;
+        });
+    });
+
+    btnMaxQtd.addEventListener('click', function () {
+        const optLote = selLote.options[selLote.selectedIndex];
+        if (selLote.value && optLote && optLote.dataset.saldo) {
+            inputQtd.value = parseInt(optLote.dataset.saldo, 10) || 1;
+        } else {
+            const optProd = selProduto.options[selProduto.selectedIndex];
+            if (optProd && optProd.dataset.saldo) {
+                inputQtd.value = parseInt(optProd.dataset.saldo, 10) || 1;
+            }
+        }
+    });
+
+    // 2. Mudança de Cliente
+    selCliente.addEventListener('change', function () {
+        const opt = this.options[this.selectedIndex];
+        if (!this.value) {
+            clienteCreditoCard.classList.add('d-none');
+            return;
+        }
+        const limite = parseFloat(opt.dataset.limite || 0);
+        const saldo = parseFloat(opt.dataset.saldo || 0);
+        const disponivel = parseFloat(opt.dataset.disponivel || 0);
+        const vencido = opt.dataset.vencido === 'true';
+
+        txtCliLimite.textContent = `R$ ${limite.toFixed(2).replace('.', ',')}`;
+        txtCliSaldo.textContent = `R$ ${saldo.toFixed(2).replace('.', ',')}`;
+        txtCliDisponivel.textContent = `R$ ${disponivel.toFixed(2).replace('.', ',')}`;
+
+        if (vencido) {
+            badgeCliVencido.classList.remove('d-none');
+        } else {
+            badgeCliVencido.classList.add('d-none');
+        }
+        clienteCreditoCard.classList.remove('d-none');
+    });
+
+    // 3. Adicionar Produto ao Carrinho
+    btnAdicionar.addEventListener('click', function () {
+        const prodId = selProduto.value;
+        if (!prodId) {
+            alert("Selecione um produto.");
+            return;
+        }
+
+        const qtd = parseInt(inputQtd.value, 10);
+        if (!qtd || qtd <= 0) {
+            alert("Informe uma quantidade válida.");
+            return;
+        }
+
+        const precoUnit = parseFloat(inputPreco.value.replace(',', '.'));
+        if (isNaN(precoUnit) || precoUnit < 0) {
+            alert("Informe um preço unitário de venda válido.");
+            return;
+        }
+
+        const optProd = selProduto.options[selProduto.selectedIndex];
+        const optLote = selLote.options[selLote.selectedIndex];
+        const loteId = selLote.value || null;
+        const loteTexto = loteId ? optLote.textContent : "Automático";
+
+        const item = {
+            produto_id: parseInt(prodId, 10),
+            produto_nome: optProd.textContent.split(' (Saldo:')[0].trim(),
+            lote_id: loteId ? parseInt(loteId, 10) : null,
+            lote_texto: loteTexto,
+            quantidade: qtd,
+            preco_unitario: precoUnit,
+            subtotal: parseFloat((qtd * precoUnit).toFixed(2))
+        };
+
+        carrinho.push(item);
+        atualizarInterfaceCarrinho();
+
+        // Limpa campos
+        inputQtd.value = 1;
+        inputPreco.value = '';
+    });
+
+    // 4. Exclusão de Item
+    window.removerItem = function (idx) {
+        carrinho.splice(idx, 1);
+        atualizarInterfaceCarrinho();
+    };
+
+    // 5. Atualização da Interface
+    function atualizarInterfaceCarrinho() {
+        if (carrinho.length === 0) {
+            linhaVazia.classList.remove('d-none');
+            tabelaCarrinho.innerHTML = '';
+            tabelaCarrinho.appendChild(linhaVazia);
+            badgeContador.textContent = '0 itens';
+            btnFinalizar.disabled = true;
+        } else {
+            linhaVazia.classList.add('d-none');
+            tabelaCarrinho.innerHTML = '';
+
+            carrinho.forEach((it, idx) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="ps-3 fw-semibold text-dark">${it.produto_nome}</td>
+                    <td><span class="badge bg-light text-dark border">${it.lote_texto}</span></td>
+                    <td class="text-center fw-bold">${it.quantidade}</td>
+                    <td class="text-end">R$ ${it.preco_unitario.toFixed(2).replace('.', ',')}</td>
+                    <td class="text-end fw-bold text-success">R$ ${it.subtotal.toFixed(2).replace('.', ',')}</td>
+                    <td class="text-center pe-3">
+                        <button type="button" class="btn btn-sm text-danger p-0" onclick="removerItem(${idx})">
+                            <i class="bi bi-trash fs-6"></i>
+                        </button>
+                    </td>
+                `;
+                tabelaCarrinho.appendChild(tr);
+            });
+
+            badgeContador.textContent = `${carrinho.length} item(ns)`;
+            btnFinalizar.disabled = false;
+        }
+
+        recalcularTotais();
+    }
+
+    function recalcularTotais() {
+        const subtotal = carrinho.reduce((acc, it) => acc + it.subtotal, 0);
+        const desc = parseFloat(inputDesconto.value.replace(',', '.') || 0);
+        const total = Math.max(0, subtotal - desc);
+
+        lblSubtotal.textContent = `R$ ${subtotal.toFixed(2).replace('.', ',')}`;
+        lblDesconto.textContent = `- R$ ${desc.toFixed(2).replace('.', ',')}`;
+        lblTotalFinal.textContent = `R$ ${total.toFixed(2).replace('.', ',')}`;
+
+        // Cálculo do troco em dinheiro
+        if (selFormaPagamento.value === 'DINHEIRO') {
+            const recebido = parseFloat(inputValorRecebido.value.replace(',', '.') || 0);
+            const troco = Math.max(0, recebido - total);
+            txtTroco.textContent = `R$ ${troco.toFixed(2).replace('.', ',')}`;
+        }
+
+        // Cálculo das parcelas no crediário
+        if (selFormaPagamento.value === 'CREDIARIO') {
+            const nParc = parseInt(selNumParcelas.value, 10) || 1;
+            const vParc = (total / nParc).toFixed(2).replace('.', ',');
+            txtResumoParcelas.textContent = `${nParc}x de R$ ${vParc} (Total: R$ ${total.toFixed(2).replace('.', ',')})`;
+        }
+
+        itensJsonInput.value = JSON.stringify(carrinho);
+    }
+
+    // Eventos de alteração financeira
+    inputDesconto.addEventListener('input', recalcularTotais);
+    inputValorRecebido.addEventListener('input', recalcularTotais);
+    selNumParcelas.addEventListener('change', recalcularTotais);
+
+    // Alternância da Forma de Pagamento
+    selFormaPagamento.addEventListener('change', function () {
+        if (this.value === 'DINHEIRO') {
+            painelDinheiro.classList.remove('d-none');
+            painelCrediario.classList.add('d-none');
+        } else if (this.value === 'CREDIARIO') {
+            painelCrediario.classList.remove('d-none');
+            painelDinheiro.classList.add('d-none');
+            if (!selCliente.value) {
+                alert("Para compras no crediário, você precisa selecionar um cliente cadastrado.");
+                selCliente.focus();
+            }
+        } else {
+            painelDinheiro.classList.add('d-none');
+            painelCrediario.classList.add('d-none');
+        }
+        recalcularTotais();
+    });
+
+    // Dispara mudança de cliente se já houver cliente na URL
+    if (selCliente.value) {
+        selCliente.dispatchEvent(new Event('change'));
+    }
+
+    // =========================================================================
+    // LÓGICA DOS MODAIS DE BUSCA INTELIGENTE (PRODUTO & CLIENTE)
+    // =========================================================================
+
+    function normalizarTexto(txt) {
+        if (!txt) return '';
+        return txt.toString()
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^\w\s]/gi, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
+    // --- PRODUTO PICKER ---
+    const btnAbrirModalProd = document.getElementById('btnAbrirModalProduto');
+    const cardProdSel = document.getElementById('cardProdutoSelecionado');
+    const cardProdNome = document.getElementById('cardProdNome');
+    const cardProdBadges = document.getElementById('cardProdBadges');
+    const btnLimparProd = document.getElementById('btnLimparProduto');
+    const modalProdEl = document.getElementById('modalBuscarProduto');
+    const inputBuscaProd = document.getElementById('inputBuscaProduto');
+    const btnLimparBuscaProd = document.getElementById('btnLimparBuscaProduto');
+    const listaProdutosEl = document.getElementById('listaProdutosModal');
+    const contadorProdModal = document.getElementById('contadorProdutosModal');
+    const msgSemProdutos = document.getElementById('msgSemProdutos');
+
+    function atualizarCardProduto() {
+        const opt = selProduto.options[selProduto.selectedIndex];
+        if (!selProduto.value || !opt) {
+            btnAbrirModalProd.classList.remove('d-none');
+            cardProdSel.classList.add('d-none');
+            return;
+        }
+
+        btnAbrirModalProd.classList.add('d-none');
+        cardProdSel.classList.remove('d-none');
+
+        const nome = opt.dataset.nome || opt.textContent.split(' (Saldo:')[0].trim();
+        const sku = opt.dataset.sku;
+        const ean = opt.dataset.ean;
+        const cat = opt.dataset.categoria;
+        const loc = opt.dataset.localizacao;
+        const saldo = parseFloat(opt.dataset.saldo || 0);
+        const unidade = opt.dataset.unidade || 'UN';
+
+        cardProdNome.textContent = nome;
+
+        let badges = '';
+        if (sku) badges += `<span class="badge bg-secondary-subtle text-secondary border">SKU: ${sku}</span>`;
+        if (ean) badges += `<span class="badge bg-secondary-subtle text-secondary border">EAN: ${ean}</span>`;
+        if (cat) badges += `<span class="badge bg-primary-subtle text-primary border border-primary-subtle">${cat}</span>`;
+        if (loc) badges += `<span class="badge bg-info-subtle text-dark border">Local: ${loc}</span>`;
+
+        if (saldo > 0) {
+            badges += `<span class="badge bg-success text-white">Saldo: ${saldo} ${unidade}</span>`;
+        } else {
+            badges += `<span class="badge bg-danger text-white">Sem Estoque</span>`;
+        }
+
+        const precoVenda = parseFloat(opt.dataset.precoVenda || 0);
+        if (precoVenda > 0) {
+            badges += `<span class="badge bg-success-subtle text-success border border-success-subtle"><i class="bi bi-tag-fill me-1"></i>Preço: R$ ${precoVenda.toFixed(2).replace('.', ',')}</span>`;
+        }
+
+        cardProdBadges.innerHTML = badges;
+    }
+
+    btnLimparProd.addEventListener('click', function () {
+        selProduto.value = '';
+        selProduto.dispatchEvent(new Event('change'));
+        atualizarCardProduto();
+    });
+
+    // Filtro instantâneo no modal de produtos
+    function filtrarProdutosModal() {
+        const query = normalizarTexto(inputBuscaProd.value);
+        const termos = query.split(' ').filter(t => t.length > 0);
+        const itens = listaProdutosEl.querySelectorAll('.item-produto-busca');
+        let visiveis = 0;
+
+        itens.forEach(item => {
+            const searchData = item.dataset.searchNormalized || '';
+            const bateTodos = termos.every(termo => searchData.includes(termo));
+
+            if (bateTodos) {
+                item.classList.remove('d-none');
+                visiveis++;
+            } else {
+                item.classList.add('d-none');
+            }
+        });
+
+        contadorProdModal.textContent = `${visiveis} produto(s)`;
+        if (visiveis === 0) {
+            msgSemProdutos.classList.remove('d-none');
+        } else {
+            msgSemProdutos.classList.add('d-none');
+        }
+    }
+
+    // Inicializa strings normalizadas de busca nos itens
+    listaProdutosEl.querySelectorAll('.item-produto-busca').forEach(item => {
+        item.dataset.searchNormalized = normalizarTexto(item.dataset.searchTerms);
+        item.addEventListener('click', function () {
+            const prodId = this.dataset.id;
+            selProduto.value = prodId;
+            selProduto.dispatchEvent(new Event('change'));
+            atualizarCardProduto();
+            bootstrap.Modal.getInstance(modalProdEl).hide();
+        });
+    });
+
+    inputBuscaProd.addEventListener('input', filtrarProdutosModal);
+    btnLimparBuscaProd.addEventListener('click', function () {
+        inputBuscaProd.value = '';
+        filtrarProdutosModal();
+        inputBuscaProd.focus();
+    });
+
+    inputBuscaProd.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const primeiro = listaProdutosEl.querySelector('.item-produto-busca:not(.d-none)');
+            if (primeiro) {
+                primeiro.click();
+            }
+        }
+    });
+
+    modalProdEl.addEventListener('shown.bs.modal', function () {
+        inputBuscaProd.focus();
+        inputBuscaProd.select();
+    });
+
+    // --- CLIENTE PICKER ---
+    const btnAbrirModalCli = document.getElementById('btnAbrirModalCliente');
+    const cardCliSel = document.getElementById('cardClienteSelecionado');
+    const cardCliNome = document.getElementById('cardCliNome');
+    const cardCliBadges = document.getElementById('cardCliBadges');
+    const btnLimparCli = document.getElementById('btnLimparCliente');
+    const modalCliEl = document.getElementById('modalBuscarCliente');
+    const inputBuscaCli = document.getElementById('inputBuscaCliente');
+    const btnLimparBuscaCli = document.getElementById('btnLimparBuscaCliente');
+    const listaClientesEl = document.getElementById('listaClientesModal');
+    const contadorCliModal = document.getElementById('contadorClientesModal');
+    const msgSemClientes = document.getElementById('msgSemClientes');
+    const btnConsumidorFinalModal = document.getElementById('btnConsumidorFinalModal');
+
+    function atualizarCardCliente() {
+        const opt = selCliente.options[selCliente.selectedIndex];
+        if (!selCliente.value || !opt) {
+            btnAbrirModalCli.classList.remove('d-none');
+            cardCliSel.classList.add('d-none');
+            return;
+        }
+
+        btnAbrirModalCli.classList.add('d-none');
+        cardCliSel.classList.remove('d-none');
+
+        const nome = opt.dataset.nome || opt.textContent;
+        const cpf = opt.dataset.cpf;
+        const tel = opt.dataset.telefone;
+        const email = opt.dataset.email;
+        const cidade = opt.dataset.cidade;
+        const vencido = opt.dataset.vencido === 'true';
+
+        cardCliNome.textContent = nome;
+
+        let badges = '';
+        if (cpf) badges += `<span class="badge bg-secondary-subtle text-secondary border">CPF/CNPJ: ${cpf}</span>`;
+        if (tel) badges += `<span class="badge bg-success-subtle text-success border border-success-subtle"><i class="bi bi-whatsapp me-1"></i>${tel}</span>`;
+        if (email) badges += `<span class="badge bg-light text-dark border">${email}</span>`;
+        if (cidade) badges += `<span class="badge bg-light text-dark border">${cidade}</span>`;
+
+        if (vencido) {
+            badges += `<span class="badge bg-danger text-white"><i class="bi bi-exclamation-triangle-fill me-1"></i>Possui Débitos Vencidos</span>`;
+        }
+
+        cardCliBadges.innerHTML = badges;
+    }
+
+    btnLimparCli.addEventListener('click', function () {
+        selCliente.value = '';
+        selCliente.dispatchEvent(new Event('change'));
+        atualizarCardCliente();
+    });
+
+    if (btnConsumidorFinalModal) {
+        btnConsumidorFinalModal.addEventListener('click', function () {
+            selCliente.value = '';
+            selCliente.dispatchEvent(new Event('change'));
+            atualizarCardCliente();
+            bootstrap.Modal.getInstance(modalCliEl).hide();
+        });
+    }
+
+    // Filtro instantâneo no modal de clientes
+    function filtrarClientesModal() {
+        const query = normalizarTexto(inputBuscaCli.value);
+        const termos = query.split(' ').filter(t => t.length > 0);
+        const itens = listaClientesEl.querySelectorAll('.item-cliente-busca');
+        let visiveis = 0;
+
+        itens.forEach(item => {
+            const searchData = item.dataset.searchNormalized || '';
+            const bateTodos = termos.every(termo => searchData.includes(termo));
+
+            if (bateTodos) {
+                item.classList.remove('d-none');
+                visiveis++;
+            } else {
+                item.classList.add('d-none');
+            }
+        });
+
+        contadorCliModal.textContent = `${visiveis} cliente(s)`;
+        if (visiveis === 0) {
+            msgSemClientes.classList.remove('d-none');
+        } else {
+            msgSemClientes.classList.add('d-none');
+        }
+    }
+
+    listaClientesEl.querySelectorAll('.item-cliente-busca').forEach(item => {
+        item.dataset.searchNormalized = normalizarTexto(item.dataset.searchTerms);
+        item.addEventListener('click', function () {
+            const cliId = this.dataset.id;
+            selCliente.value = cliId;
+            selCliente.dispatchEvent(new Event('change'));
+            atualizarCardCliente();
+            bootstrap.Modal.getInstance(modalCliEl).hide();
+        });
+    });
+
+    inputBuscaCli.addEventListener('input', filtrarClientesModal);
+    btnLimparBuscaCli.addEventListener('click', function () {
+        inputBuscaCli.value = '';
+        filtrarClientesModal();
+        inputBuscaCli.focus();
+    });
+
+    inputBuscaCli.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const primeiro = listaClientesEl.querySelector('.item-cliente-busca:not(.d-none)');
+            if (primeiro) {
+                primeiro.click();
+            }
+        }
+    });
+
+    modalCliEl.addEventListener('shown.bs.modal', function () {
+        inputBuscaCli.focus();
+        inputBuscaCli.select();
+    });
+
+    // Se já havia cliente ou produto selecionado, renderiza o card
+    atualizarCardProduto();
+    atualizarCardCliente();
+});
+</script>
+
+<!-- ========================================================================= -->
+<!-- MODAL DE BUSCA INTELIGENTE DE PRODUTO -->
+<!-- ========================================================================= -->
+<div class="modal fade" id="modalBuscarProduto" tabindex="-1" aria-labelledby="modalBuscarProdutoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content shadow-lg border-0">
+            <div class="modal-header bg-primary text-white py-3">
+                <h5 class="modal-title fw-bold d-flex align-items-center gap-2" id="modalBuscarProdutoLabel">
+                    <i class="bi bi-box-seam"></i> Selecionar Produto
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body p-0">
+                <!-- Barra de Pesquisa Fixa com Foco Automático -->
+                <div class="p-3 bg-light border-bottom sticky-top shadow-sm">
+                    <div class="input-group input-group-lg">
+                        <span class="input-group-text bg-white border-end-0 text-primary">
+                            <i class="bi bi-search"></i>
+                        </span>
+                        <input type="text" id="inputBuscaProduto" class="form-control border-start-0 border-end-0 ps-0" 
+                               placeholder="Buscar por Nome, SKU, Código de Barras, Categoria, Localização..." autocomplete="off">
+                        <button class="btn btn-white bg-white border border-start-0 text-muted" type="button" id="btnLimparBuscaProduto" title="Limpar busca">
+                            <i class="bi bi-x-circle"></i>
+                        </button>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mt-2 px-1">
+                        <small class="text-muted">
+                            <i class="bi bi-keyboard me-1"></i> Pressione <strong>Enter</strong> para selecionar o primeiro item filtrado.
+                        </small>
+                        <span id="contadorProdutosModal" class="badge bg-primary-subtle text-primary fw-semibold">
+                            {{ produtos|length }} produto(s)
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Lista de Produtos -->
+                <div class="list-group list-group-flush" id="listaProdutosModal">
+                    {% for p in produtos %}
+                        <div class="list-group-item list-group-item-action p-3 item-produto-busca cursor-pointer" 
+                             style="cursor: pointer;"
+                             data-id="{{ p.id }}"
+                             data-search-terms="{{ p.nome }} {{ p.sku|default:'' }} {{ p.ean|default:'' }} {{ p.categoria.nome|default:'' }} {{ p.localizacao.nome|default:'' }} {{ p.unidade }} {{ p.preco_venda|stringformat:'.2f' }} {% if p.disponivel_venda %}venda tabela{% endif %}">
+                            <div class="d-flex justify-content-between align-items-center gap-3">
+                                <div class="flex-grow-1">
+                                    <div class="fw-bold text-dark fs-6 d-flex align-items-center gap-2">
+                                        {{ p.nome }}
+                                        {% if p.disponivel_venda and p.preco_venda > 0 %}
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size: 0.75rem;">
+                                                <i class="bi bi-tag-fill me-1"></i>Venda
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="d-flex flex-wrap gap-1 mt-1 small">
+                                        {% if p.sku %}
+                                            <span class="badge bg-secondary-subtle text-secondary border">SKU: {{ p.sku }}</span>
+                                        {% endif %}
+                                        {% if p.ean %}
+                                            <span class="badge bg-secondary-subtle text-secondary border"><i class="bi bi-upc-scan me-1"></i>{{ p.ean }}</span>
+                                        {% endif %}
+                                        {% if p.categoria %}
+                                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle">{{ p.categoria.nome }}</span>
+                                        {% endif %}
+                                        {% if p.localizacao %}
+                                            <span class="badge bg-light text-muted border">Local: {{ p.localizacao.nome }}</span>
+                                        {% endif %}
+                                        {% if p.qtd_real > 0 %}
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                                <i class="bi bi-box me-1"></i>Saldo: {{ p.qtd_real }} {{ p.unidade }}
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
+                                                Sem estoque
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="text-end">
+                                    {% if p.preco_venda > 0 %}
+                                        <div class="fw-bold text-success fs-6 mb-1">R$ {{ p.preco_venda|floatformat:2 }}</div>
+                                    {% endif %}
+                                    <button type="button" class="btn btn-sm btn-outline-primary fw-semibold px-3">
+                                        Selecionar <i class="bi bi-check-lg ms-1"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    {% empty %}
+                        <div class="p-4 text-center text-muted">
+                            <i class="bi bi-box fs-1 d-block mb-2 text-secondary"></i>
+                            Nenhum produto cadastrado no sistema.
+                        </div>
+                    {% endfor %}
+
+                    <div id="msgSemProdutos" class="p-4 text-center text-muted d-none">
+                        <i class="bi bi-search fs-1 d-block mb-2 text-secondary"></i>
+                        Nenhum produto encontrado com os termos digitados.
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer bg-light py-2">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODAL DE BUSCA INTELIGENTE DE CLIENTE -->
+<!-- ========================================================================= -->
+<div class="modal fade" id="modalBuscarCliente" tabindex="-1" aria-labelledby="modalBuscarClienteLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content shadow-lg border-0">
+            <div class="modal-header bg-dark text-white py-3">
+                <h5 class="modal-title fw-bold d-flex align-items-center gap-2" id="modalBuscarClienteLabel">
+                    <i class="bi bi-person-bounding-box"></i> Selecionar Cliente
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body p-0">
+                <!-- Barra de Pesquisa Fixa com Foco Automático -->
+                <div class="p-3 bg-light border-bottom sticky-top shadow-sm">
+                    <div class="input-group input-group-lg">
+                        <span class="input-group-text bg-white border-end-0 text-dark">
+                            <i class="bi bi-search"></i>
+                        </span>
+                        <input type="text" id="inputBuscaCliente" class="form-control border-start-0 border-end-0 ps-0" 
+                               placeholder="Buscar por Nome, CPF/CNPJ, Telefone, E-mail, Cidade, Endereço..." autocomplete="off">
+                        <button class="btn btn-white bg-white border border-start-0 text-muted" type="button" id="btnLimparBuscaCliente" title="Limpar busca">
+                            <i class="bi bi-x-circle"></i>
+                        </button>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mt-2 px-1">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="btnConsumidorFinalModal">
+                            <i class="bi bi-person me-1"></i> Consumidor Final (Venda Avulsa)
+                        </button>
+                        <span id="contadorClientesModal" class="badge bg-dark-subtle text-dark fw-semibold">
+                            {{ clientes|length }} cliente(s)
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Lista de Clientes -->
+                <div class="list-group list-group-flush" id="listaClientesModal">
+                    {% for c in clientes %}
+                        <div class="list-group-item list-group-item-action p-3 item-cliente-busca cursor-pointer" 
+                             style="cursor: pointer;"
+                             data-id="{{ c.id }}"
+                             data-search-terms="{{ c.nome }} {{ c.cpf_cnpj|default:'' }} {{ c.telefone|default:'' }} {{ c.email|default:'' }} {{ c.cidade|default:'' }} {{ c.endereco|default:'' }}">
+                            <div class="d-flex justify-content-between align-items-center gap-3">
+                                <div class="flex-grow-1">
+                                    <div class="fw-bold text-dark fs-6 d-flex align-items-center gap-2">
+                                        {{ c.nome }}
+                                    </div>
+                                    <div class="d-flex flex-wrap gap-1 mt-1 small">
+                                        {% if c.cpf_cnpj %}
+                                            <span class="badge bg-secondary-subtle text-secondary border">CPF/CNPJ: {{ c.cpf_cnpj }}</span>
+                                        {% endif %}
+                                        {% if c.telefone %}
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                                <i class="bi bi-whatsapp me-1"></i>{{ c.telefone }}
+                                            </span>
+                                        {% endif %}
+                                        {% if c.cidade %}
+                                            <span class="badge bg-light text-muted border"><i class="bi bi-geo-alt me-1"></i>{{ c.cidade }}</span>
+                                        {% endif %}
+                                        {% if c.endereco %}
+                                            <span class="badge bg-light text-muted border text-truncate" style="max-width: 200px;">{{ c.endereco }}</span>
+                                        {% endif %}
+                                        {% if c.tem_debitos_vencidos %}
+                                            <span class="badge bg-danger text-white">Débitos Vencidos</span>
+                                        {% else %}
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                                Disp: R$ {{ c.limite_disponivel|stringformat:'.2f' }}
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="text-end">
+                                    <button type="button" class="btn btn-sm btn-outline-dark fw-semibold px-3">
+                                        Selecionar <i class="bi bi-check-lg ms-1"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    {% empty %}
+                        <div class="p-4 text-center text-muted">
+                            <i class="bi bi-person-x fs-1 d-block mb-2 text-secondary"></i>
+                            Nenhum cliente cadastrado no sistema.
+                        </div>
+                    {% endfor %}
+
+                    <div id="msgSemClientes" class="p-4 text-center text-muted d-none">
+                        <i class="bi bi-search fs-1 d-block mb-2 text-secondary"></i>
+                        Nenhum cliente encontrado com os termos digitados.
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer bg-light py-2">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

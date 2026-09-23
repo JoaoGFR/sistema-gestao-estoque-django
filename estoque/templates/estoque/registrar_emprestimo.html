@@ -29,13 +29,49 @@
                     </div>
 
                     <div class="row">
-                        <div class="col-md-9">
-                            {{ form.produto|as_crispy_field }}
+                        <div class="col-md-9 mb-3">
+                            <label class="form-label fw-semibold">Produto <span class="text-danger">*</span></label>
+                            <div class="d-none">
+                                {{ form.produto }}
+                            </div>
+
+                            <!-- Botão de abertura quando vazio -->
+                            <div id="btnAbrirModalProdEmp" class="card border border-2 border-dashed p-3 text-center cursor-pointer bg-light hover-bg-white shadow-sm" style="cursor: pointer;" data-bs-toggle="modal" data-bs-target="#modalBuscaProdutoEmprestimo">
+                                <div class="d-flex align-items-center justify-content-center gap-2 fw-semibold">
+                                    <i class="bi bi-search fs-5 text-warning"></i>
+                                    <span class="text-dark">Clique para buscar e selecionar produto...</span>
+                                </div>
+                                <div class="text-muted small mt-1">Pesquise por nome, SKU, código de barras, categoria ou qualquer dado</div>
+                            </div>
+
+                            <!-- Card de exibição do produto selecionado -->
+                            <div id="cardProdSelEmp" class="card border-warning bg-warning-subtle p-3 shadow-sm d-none">
+                                <div class="d-flex justify-content-between align-items-start gap-2">
+                                    <div>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="badge bg-warning text-dark"><i class="bi bi-box-seam"></i></span>
+                                            <strong class="text-dark fs-6" id="cardProdNomeEmp">-</strong>
+                                        </div>
+                                        <div class="d-flex flex-wrap gap-1 mt-2 small" id="cardProdBadgesEmp">
+                                            <!-- Badges dinâmicos inseridos via JS -->
+                                        </div>
+                                    </div>
+                                    <div class="d-flex gap-1">
+                                        <button type="button" class="btn btn-sm btn-outline-dark bg-white" data-bs-toggle="modal" data-bs-target="#modalBuscaProdutoEmprestimo" title="Trocar Produto">
+                                            <i class="bi bi-arrow-repeat"></i> Trocar
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-danger bg-white" id="btnLimparProdEmp" title="Remover Produto">
+                                            <i class="bi bi-x-lg"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div id="msg-estoque" class="form-text text-danger d-none">
                                 Este produto não possui estoque disponível para empréstimo.
                             </div>
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-3 mb-3">
                             {{ form.quantidade|as_crispy_field }}
                         </div>
                     </div>
@@ -57,30 +93,248 @@
 </div>
 
 <script>
-    
-    const todosProdutos = JSON.parse('{{ produtos_json|escapejs }}');
-    
-    const selectCategoria = document.getElementById('id_categoria_filtro');
-    const selectProduto = document.getElementById('id_produto');
+    document.addEventListener('DOMContentLoaded', function() {
+        const selectProduto = document.getElementById('id_produto');
+        const selectCategoria = document.getElementById('id_categoria_filtro');
+        const msgEstoque = document.getElementById('msg-estoque');
 
-   
-    function filtrarProdutos() {
-        const catId = selectCategoria.value;
-        
-       
-        selectProduto.innerHTML = '<option value="">---------</option>';
-        
-        todosProdutos.forEach(prod => {
-           
-            if (!catId || prod.categoria_id == catId) {
-                const option = new Option(prod.nome, prod.id);
-                selectProduto.add(option);
+        function normalizarTextoEmp(txt) {
+            if (!txt) return '';
+            return txt.toString()
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/[^\w\s]/gi, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+
+        const btnAbrirModalProdEmp = document.getElementById('btnAbrirModalProdEmp');
+        const cardProdSelEmp = document.getElementById('cardProdSelEmp');
+        const cardProdNomeEmp = document.getElementById('cardProdNomeEmp');
+        const cardProdBadgesEmp = document.getElementById('cardProdBadgesEmp');
+        const btnLimparProdEmp = document.getElementById('btnLimparProdEmp');
+        const modalProdEmpEl = document.getElementById('modalBuscaProdutoEmprestimo');
+        const inputBuscaProdEmp = document.getElementById('inputBuscaProdEmp');
+        const btnLimparBuscaProdEmp = document.getElementById('btnLimparBuscaProdEmp');
+        const listaProdutosEmpEl = document.getElementById('listaProdutosModalEmp');
+        const contadorProdEmpModal = document.getElementById('contadorProdutosModalEmp');
+        const msgSemProdutosEmp = document.getElementById('msgSemProdutosEmp');
+
+        function atualizarCardProdutoEmp() {
+            const opt = selectProduto.options[selectProduto.selectedIndex];
+            if (!selectProduto.value || !opt) {
+                btnAbrirModalProdEmp.classList.remove('d-none');
+                cardProdSelEmp.classList.add('d-none');
+                msgEstoque.classList.add('d-none');
+                return;
+            }
+
+            btnAbrirModalProdEmp.classList.add('d-none');
+            cardProdSelEmp.classList.remove('d-none');
+
+            const itemModal = listaProdutosEmpEl.querySelector(`[data-id="${selectProduto.value}"]`);
+            const nome = itemModal ? itemModal.dataset.nome : opt.textContent;
+            const sku = itemModal ? itemModal.dataset.sku : '';
+            const ean = itemModal ? itemModal.dataset.ean : '';
+            const cat = itemModal ? itemModal.dataset.categoria : '';
+            const saldo = itemModal ? parseFloat(itemModal.dataset.saldo || 0) : 0;
+            const unidade = itemModal ? itemModal.dataset.unidade : 'un';
+
+            cardProdNomeEmp.textContent = nome;
+
+            let badges = '';
+            if (sku) badges += `<span class="badge bg-secondary-subtle text-secondary border">SKU: ${sku}</span>`;
+            if (ean) badges += `<span class="badge bg-secondary-subtle text-secondary border"><i class="bi bi-upc-scan me-1"></i>${ean}</span>`;
+            if (cat) badges += `<span class="badge bg-warning-subtle text-dark border border-warning-subtle">${cat}</span>`;
+
+            if (saldo > 0) {
+                badges += `<span class="badge bg-success text-white">Saldo: ${saldo} ${unidade}</span>`;
+                msgEstoque.classList.add('d-none');
+            } else {
+                badges += `<span class="badge bg-danger text-white">Sem Estoque</span>`;
+                msgEstoque.classList.remove('d-none');
+            }
+
+            cardProdBadgesEmp.innerHTML = badges;
+        }
+
+        btnLimparProdEmp.addEventListener('click', function() {
+            selectProduto.value = '';
+            selectProduto.dispatchEvent(new Event('change'));
+            atualizarCardProdutoEmp();
+        });
+
+        // Filtragem instantânea
+        function filtrarProdutosEmpModal() {
+            const query = normalizarTextoEmp(inputBuscaProdEmp.value);
+            const termos = query.split(' ').filter(t => t.length > 0);
+            const catId = selectCategoria ? selectCategoria.value : '';
+            const itens = listaProdutosEmpEl.querySelectorAll('.item-produto-emp');
+            let visiveis = 0;
+
+            itens.forEach(item => {
+                const searchData = item.dataset.searchNormalized || '';
+                const itemCatId = item.dataset.categoriaId || '';
+                const bateCat = !catId || itemCatId === catId;
+                const bateTermos = termos.every(termo => searchData.includes(termo));
+
+                if (bateCat && bateTermos) {
+                    item.classList.remove('d-none');
+                    visiveis++;
+                } else {
+                    item.classList.add('d-none');
+                }
+            });
+
+            contadorProdEmpModal.textContent = `${visiveis} produto(s)`;
+            if (visiveis === 0) {
+                msgSemProdutosEmp.classList.remove('d-none');
+            } else {
+                msgSemProdutosEmp.classList.add('d-none');
+            }
+        }
+
+        if (selectCategoria) {
+            selectCategoria.addEventListener('change', filtrarProdutosEmpModal);
+        }
+
+        listaProdutosEmpEl.querySelectorAll('.item-produto-emp').forEach(item => {
+            item.dataset.searchNormalized = normalizarTextoEmp(item.dataset.searchTerms);
+            item.addEventListener('click', function() {
+                const prodId = this.dataset.id;
+                selectProduto.value = prodId;
+                selectProduto.dispatchEvent(new Event('change'));
+                atualizarCardProdutoEmp();
+                bootstrap.Modal.getInstance(modalProdEmpEl).hide();
+            });
+        });
+
+        inputBuscaProdEmp.addEventListener('input', filtrarProdutosEmpModal);
+        btnLimparBuscaProdEmp.addEventListener('click', function() {
+            inputBuscaProdEmp.value = '';
+            filtrarProdutosEmpModal();
+            inputBuscaProdEmp.focus();
+        });
+
+        inputBuscaProdEmp.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const primeiro = listaProdutosEmpEl.querySelector('.item-produto-emp:not(.d-none)');
+                if (primeiro) {
+                    primeiro.click();
+                }
             }
         });
-    }
 
-    if (selectCategoria) {
-        selectCategoria.addEventListener('change', filtrarProdutos);
-    }
+        modalProdEmpEl.addEventListener('shown.bs.modal', function() {
+            inputBuscaProdEmp.focus();
+            inputBuscaProdEmp.select();
+        });
+
+        atualizarCardProdutoEmp();
+    });
 </script>
+
+<!-- ========================================================================= -->
+<!-- MODAL DE BUSCA INTELIGENTE DE PRODUTO (EMPRÉSTIMO) -->
+<!-- ========================================================================= -->
+<div class="modal fade" id="modalBuscaProdutoEmprestimo" tabindex="-1" aria-labelledby="modalBuscaProdutoEmprestimoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content shadow-lg border-0">
+            <div class="modal-header bg-warning text-dark py-3">
+                <h5 class="modal-title fw-bold d-flex align-items-center gap-2" id="modalBuscaProdutoEmprestimoLabel">
+                    <i class="bi bi-box-seam"></i> Selecionar Produto para Empréstimo
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body p-0">
+                <!-- Barra de Pesquisa Fixa com Foco Automático -->
+                <div class="p-3 bg-light border-bottom sticky-top shadow-sm">
+                    <div class="input-group input-group-lg">
+                        <span class="input-group-text bg-white border-end-0 text-warning">
+                            <i class="bi bi-search text-dark"></i>
+                        </span>
+                        <input type="text" id="inputBuscaProdEmp" class="form-control border-start-0 border-end-0 ps-0" 
+                               placeholder="Buscar por Nome, SKU, Código de Barras, Categoria, Localização..." autocomplete="off">
+                        <button class="btn btn-white bg-white border border-start-0 text-muted" type="button" id="btnLimparBuscaProdEmp" title="Limpar busca">
+                            <i class="bi bi-x-circle"></i>
+                        </button>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mt-2 px-1">
+                        <small class="text-muted">
+                            <i class="bi bi-keyboard me-1"></i> Pressione <strong>Enter</strong> para selecionar o primeiro item filtrado.
+                        </small>
+                        <span id="contadorProdutosModalEmp" class="badge bg-warning-subtle text-dark fw-semibold">
+                            {{ produtos|length }} produto(s)
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Lista de Produtos -->
+                <div class="list-group list-group-flush" id="listaProdutosModalEmp">
+                    {% for p in produtos %}
+                        <div class="list-group-item list-group-item-action p-3 item-produto-emp cursor-pointer" 
+                             style="cursor: pointer;"
+                             data-id="{{ p.id }}"
+                             data-nome="{{ p.nome }}"
+                             data-sku="{{ p.sku|default:'' }}"
+                             data-ean="{{ p.ean|default:'' }}"
+                             data-categoria-id="{{ p.categoria_id|default:'' }}"
+                             data-categoria="{{ p.categoria.nome|default:'' }}"
+                             data-saldo="{{ p.saldo_ativo|default:0 }}"
+                             data-unidade="{{ p.get_unidade_display }}"
+                             data-search-terms="{{ p.nome }} {{ p.sku|default:'' }} {{ p.ean|default:'' }} {{ p.categoria.nome|default:'' }} {{ p.localizacao.nome|default:'' }} {{ p.get_unidade_display }}">
+                            <div class="d-flex justify-content-between align-items-center gap-3">
+                                <div class="flex-grow-1">
+                                    <div class="fw-bold text-dark fs-6 d-flex align-items-center gap-2">
+                                        {{ p.nome }}
+                                    </div>
+                                    <div class="d-flex flex-wrap gap-1 mt-1 small">
+                                        {% if p.sku %}
+                                            <span class="badge bg-secondary-subtle text-secondary border">SKU: {{ p.sku }}</span>
+                                        {% endif %}
+                                        {% if p.ean %}
+                                            <span class="badge bg-secondary-subtle text-secondary border"><i class="bi bi-upc-scan me-1"></i>{{ p.ean }}</span>
+                                        {% endif %}
+                                        {% if p.categoria %}
+                                            <span class="badge bg-warning-subtle text-dark border border-warning-subtle">{{ p.categoria.nome }}</span>
+                                        {% endif %}
+                                        {% if p.saldo_ativo > 0 %}
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                                <i class="bi bi-box me-1"></i>Saldo: {{ p.saldo_ativo }} {{ p.get_unidade_display }}
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
+                                                Sem estoque
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="text-end">
+                                    <button type="button" class="btn btn-sm btn-outline-dark fw-semibold px-3">
+                                        Selecionar <i class="bi bi-check-lg ms-1"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    {% empty %}
+                        <div class="p-4 text-center text-muted">
+                            <i class="bi bi-box fs-1 d-block mb-2 text-secondary"></i>
+                            Nenhum produto cadastrado no sistema.
+                        </div>
+                    {% endfor %}
+
+                    <div id="msgSemProdutosEmp" class="p-4 text-center text-muted d-none">
+                        <i class="bi bi-search fs-1 d-block mb-2 text-secondary"></i>
+                        Nenhum produto encontrado com os termos digitados.
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer bg-light py-2">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

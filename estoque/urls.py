@@ -14,6 +14,7 @@ urlpatterns = [
     path('novo/', views.criar_produto, name='criar_produto'),
     path('editar/<int:pk>/', views.editar_produto, name='editar_produto'),
     path('excluir/<int:pk>/', views.excluir_produto, name='excluir_produto'),
+    path('produto/<int:pk>/status/', views.alternar_status_produto, name='alternar_status_produto'),
     
     # Histórico de Preços (Novo)
     path('produtos/historico/<int:pk>/', views.historico_produto, name='historico_produto'),
@@ -34,6 +35,7 @@ urlpatterns = [
     # --- EQUIPE ---
     path('equipe/', views.lista_funcionarios, name='lista_funcionarios'),
     path('equipe/novo/', views.criar_funcionario, name='criar_funcionario'),
+    path('equipe/editar/<int:pk>/', views.editar_funcionario, name='editar_funcionario'),
     path('api/criar_localizacao/', views.criar_localizacao_api, name='criar_localizacao_api'),
  
     path('api/produto/<int:pk>/', views.api_detalhes_produto, name='api_detalhes_produto'),
@@ -54,6 +56,12 @@ urlpatterns = [
     path('backups/baixar/<str:filename>/', views.baixar_backup, name='baixar_backup'),
     path('backups/excluir/<str:filename>/', views.excluir_backup, name='excluir_backup'),
     path('backups/restaurar/<str:filename>/', views.restaurar_backup, name='restaurar_backup'),
+    path('backups/restaurar-upload/', views.restaurar_backup_upload, name='restaurar_backup_upload'),
+
+    # --- TABELA DE PREÇOS DE VENDA ---
+    path('tabela-precos/', views.tabela_precos, name='tabela_precos'),
+    path('api/produto/<int:pk>/atualizar-preco/', views.atualizar_preco_produto_api, name='atualizar_preco_produto_api'),
+    path('api/produto/<int:pk>/historico-precos/', views.api_historico_precos, name='api_historico_precos'),
 
     # --- SIMULADOR DE PREÇOS ---
     path('simulador/', views.simulador_preco, name='simulador_preco'),
@@ -69,4 +77,35 @@ urlpatterns = [
 
     # --- EXCLUIR ALÍQUOTA ---
     path('api/aliquotas/excluir/<int:pk>/', views.excluir_aliquota_api, name='excluir_aliquota_api'),
+
+    # --- CLIENTES ---
+    path('clientes/', views.lista_clientes, name='lista_clientes'),
+    path('clientes/novo/', views.criar_cliente, name='criar_cliente'),
+    path('clientes/editar/<int:pk>/', views.editar_cliente, name='editar_cliente'),
+    path('clientes/ficha/<int:pk>/', views.detalhe_cliente, name='detalhe_cliente'),
+    path('api/clientes/', views.api_buscar_clientes, name='api_buscar_clientes'),
+    path('api/produtos/', views.api_buscar_produtos, name='api_buscar_produtos'),
+
+    # --- VENDAS ---
+    path('vendas/', views.lista_vendas, name='lista_vendas'),
+    path('vendas/nova/', views.registrar_venda, name='registrar_venda'),
+    path('vendas/<int:pk>/', views.detalhe_venda, name='detalhe_venda'),
+    path('vendas/<int:pk>/cupom/', views.imprimir_cupom_venda, name='imprimir_cupom_venda'),
+    path('vendas/<int:pk>/cancelar/', views.cancelar_venda, name='cancelar_venda'),
+
+    # --- CREDIÁRIO / CONTAS A RECEBER ---
+    path('crediario/', views.painel_crediario, name='painel_crediario'),
+    path('crediario/baixar/<int:pk>/', views.baixar_parcela, name='baixar_parcela'),
+
+    # --- GESTÃO DE ASSINATURAS SAAS & MERCADO PAGO ---
+    path('minha-assinatura/', views.minha_assinatura, name='minha_assinatura'),
+    path('assinatura/pagar/', views.iniciar_checkout_mercadopago, name='iniciar_checkout_mercadopago'),
+    path('assinatura/simular-pagamento/', views.simular_pagamento_mp, name='simular_pagamento_mp'),
+    path('api/mercadopago/webhook/', views.webhook_mercadopago, name='webhook_mercadopago'),
+
+    # --- PAINEL SUPERADMIN ---
+    path('superadmin/assinaturas/', views.painel_superadmin_assinaturas, name='painel_superadmin_assinaturas'),
+    path('superadmin/empresa/<int:pk>/prorrogar/', views.prorrogar_trial_superadmin, name='prorrogar_trial_superadmin'),
+    path('superadmin/empresa/<int:pk>/ativar/', views.ativar_assinatura_superadmin, name='ativar_assinatura_superadmin'),
+    path('superadmin/empresa/<int:pk>/bloquear/', views.toggle_bloqueio_empresa_superadmin, name='toggle_bloqueio_empresa_superadmin'),
 ]

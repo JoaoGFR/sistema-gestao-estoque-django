@@ -20,7 +20,7 @@ if env_file.exists():
                     k, v = line.split('=', 1)
                     k = k.strip()
                     v = v.strip().strip("'\"")
-                    if k and k not in os.environ:
+                    if k and (k not in os.environ or not os.environ[k]):
                         os.environ[k] = v
     except Exception:
         pass
@@ -89,6 +89,8 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     # [SEGURANÇA M1] axes — deve ficar após AuthenticationMiddleware
     'axes.middleware.AxesMiddleware',
+    # Gestão de Assinaturas SaaS & 3 Dias de Degustação Grátis
+    'estoque.middleware.AssinaturaMiddleware',
 ]
 
 ROOT_URLCONF = 'setup.urls'
@@ -164,16 +166,32 @@ elif database_url:
         'default': dj_database_url.parse(database_url, conn_max_age=0)
     }
 elif db_host:
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': db_name,
-            'USER': db_user,
-            'PASSWORD': db_password,
-            'HOST': db_host,
-            'PORT': db_port,
+    import socket
+    usar_postgres = True
+    if db_host == 'db':
+        try:
+            socket.gethostbyname('db')
+        except (socket.gaierror, OSError):
+            usar_postgres = False
+
+    if usar_postgres:
+        DATABASES = {
+            'default': {
+                'ENGINE': 'django.db.backends.postgresql',
+                'NAME': db_name,
+                'USER': db_user,
+                'PASSWORD': db_password,
+                'HOST': db_host,
+                'PORT': db_port,
+            }
         }
-    }
+    else:
+        DATABASES = {
+            'default': {
+                'ENGINE': 'django.db.backends.sqlite3',
+                'NAME': BASE_DIR / 'db.sqlite3',
+            }
+        }
 else:
 
     DATABASES = {
@@ -226,7 +244,7 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 LOGIN_REDIRECT_URL = 'dashboard'
-LOGOUT_REDIRECT_URL = 'login'
+LOGOUT_REDIRECT_URL = 'landing_page'
 
 
 # ---------------------------------------------------------------------------
@@ -241,12 +259,19 @@ if not DEBUG:
     # Impede que o browser "adivinhe" o tipo MIME (MIME sniffing attack)
     SECURE_CONTENT_TYPE_NOSNIFF = True
 
+    # Proteção contra Clickjacking
+    X_FRAME_OPTIONS = 'DENY'
+
     # Controla quais informações vão no header Referer entre páginas
     SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
 
     # Torna os cookies inacessíveis via JavaScript (mitigação de XSS)
     SESSION_COOKIE_HTTPONLY = True
     CSRF_COOKIE_HTTPONLY = True
+
+# Limites defensivos de upload para mitigar exaustão de memória (5MB max)
+DATA_UPLOAD_MAX_MEMORY_SIZE = 5242880
+FILE_UPLOAD_MAX_MEMORY_SIZE = 5242880
 
 # --- GRUPO 2: Quando HTTPS estiver ativo no servidor ---
 IS_VERCEL = os.getenv('VERCEL') == '1' or 'VERCEL' in os.environ
@@ -260,4 +285,11 @@ if not DEBUG and HTTPS_ENABLED:
 
     # Cookies só trafegam via HTTPS
     SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+
+# ---------------------------------------------------------------------------
+# MERCADO PAGO - INTEGRAÇÃO DE PAGAMENTOS SAAS
+# ---------------------------------------------------------------------------
+MERCADO_PAGO_ACCESS_TOKEN = os.getenv('MERCADO_PAGO_ACCESS_TOKEN', '')
+MERCADO_PAGO_PUBLIC_KEY = os.getenv('MERCADO_PAGO_PUBLIC_KEY', '')
+MERCADO_PAGO_WEBHOOK_SECRET = os.getenv('MERCADO_PAGO_WEBHOOK_SECRET', '')
