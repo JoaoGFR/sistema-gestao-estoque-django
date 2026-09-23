@@ -85,6 +85,7 @@
                     <div>
                         <span class="text-muted small fw-semibold text-uppercase d-block">Faturamento Acumulado</span>
                         <h4 class="fw-bold mb-0 text-primary">R$ {{ receita_total|floatformat:2 }}</h4>
+                        <span class="text-muted" style="font-size: 0.72rem;">(Apenas assinaturas pagas)</span>
                     </div>
                 </div>
             </div>
@@ -252,9 +253,12 @@
                                                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                                             </div>
                                             <div class="modal-body p-4 text-start">
-                                                <p class="text-secondary small mb-3">
+                                                <p class="text-secondary small mb-2">
                                                     Conceda vigência oficial da assinatura para esta empresa (por exemplo, após pagamento via Pix direto, depósito ou cortesia comercial).
                                                 </p>
+                                                <div class="alert alert-info py-2 px-3 small rounded-3 mb-3">
+                                                    <i class="bi bi-info-circle me-1"></i> <strong>Aviso:</strong> Por ser uma ativação manual feita por você, o valor não será contabilizado no faturamento (R$ 0,00).
+                                                </div>
                                                 <label class="form-label fw-bold small text-muted">Quantidade de Dias a Conceder:</label>
                                                 <select name="dias" class="form-select mb-3">
                                                     <option value="30" selected>+30 Dias (1 Mensalidade Padrão)</option>
@@ -366,7 +370,13 @@
                     <tr>
                         <td class="ps-4 small text-muted">{{ p.data_criacao|date:"d/m/Y H:i" }}</td>
                         <td><strong class="text-dark">{{ p.empresa.nome }}</strong></td>
-                        <td class="fw-bold text-primary">R$ {{ p.valor|floatformat:2 }}</td>
+                        <td class="fw-bold text-primary">
+                            {% if p.metodo == 'MANUAL_ADMIN' or p.metodo == 'SIMULACAO' or p.valor == 0 %}
+                                <span class="badge bg-secondary-subtle text-secondary border">Manual / R$ 0,00</span>
+                            {% else %}
+                                R$ {{ p.valor|floatformat:2 }}
+                            {% endif %}
+                        </td>
                         <td><span class="badge bg-light text-dark border">{{ p.get_metodo_display }}</span></td>
                         <td>
                             {% if p.status == 'APROVADO' %}

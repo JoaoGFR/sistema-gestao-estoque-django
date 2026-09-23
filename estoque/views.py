@@ -3069,6 +3069,7 @@ def simular_pagamento_mp(request):
     processar_aprovacao_assinatura(
         empresa=empresa,
         metodo='SIMULACAO',
+        valor=Decimal('0.00'),
         dias=30,
         observacoes='Pagamento de demonstração / simulação aprovado'
     )
@@ -3191,7 +3192,11 @@ def painel_superadmin_assinaturas(request):
     total_ativas = Empresa.objects.filter(status_assinatura='ATIVA').count()
     total_trial = Empresa.objects.filter(status_assinatura='TRIAL').count()
     total_vencidas = Empresa.objects.filter(status_assinatura__in=['VENCIDA', 'CANCELADA']).count()
-    receita_total = PagamentoAssinatura.objects.filter(status='APROVADO').aggregate(total=Sum('valor'))['total'] or Decimal('0.00')
+    receita_total = PagamentoAssinatura.objects.filter(
+        status='APROVADO'
+    ).exclude(
+        metodo__in=['MANUAL_ADMIN', 'SIMULACAO', 'CORTESIA']
+    ).aggregate(total=Sum('valor'))['total'] or Decimal('0.00')
 
     # Filtros
     if query:
@@ -3272,6 +3277,7 @@ def ativar_assinatura_superadmin(request, pk):
         processar_aprovacao_assinatura(
             empresa=empresa,
             metodo='MANUAL_ADMIN',
+            valor=Decimal('0.00'),
             dias=dias,
             observacoes=f"Ativação manual concedida pelo Superadmin {request.user.username}"
         )

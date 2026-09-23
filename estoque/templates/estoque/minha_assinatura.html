@@ -232,7 +232,13 @@
                         <td class="ps-4">
                             <strong class="text-dark">{{ p.data_criacao|date:"d/m/Y H:i" }}</strong>
                         </td>
-                        <td class="fw-bold text-primary">R$ {{ p.valor|floatformat:2 }}</td>
+                        <td class="fw-bold text-primary">
+                            {% if p.metodo == 'MANUAL_ADMIN' or p.metodo == 'SIMULACAO' or p.valor == 0 %}
+                                <span class="badge bg-secondary-subtle text-secondary border">Cortesia / R$ 0,00</span>
+                            {% else %}
+                                R$ {{ p.valor|floatformat:2 }}
+                            {% endif %}
+                        </td>
                         <td>
                             <span class="badge bg-light text-dark border">{{ p.get_metodo_display }}</span>
                         </td>

@@ -1227,6 +1227,14 @@ class AssinaturasSaaSTestCase(TestCase):
         self.empresa.refresh_from_db()
         self.assertEqual(self.empresa.status_assinatura, 'ATIVA')
 
+        # Verifica se a ativação manual NÃO contabilizou faturamento (R$ 0,00)
+        pag_manual = PagamentoAssinatura.objects.filter(empresa=self.empresa, metodo='MANUAL_ADMIN').first()
+        self.assertIsNotNone(pag_manual)
+        self.assertEqual(pag_manual.valor, Decimal('0.00'))
+
+        resp_painel = self.client.get('/superadmin/assinaturas/', HTTP_HOST='localhost')
+        self.assertEqual(resp_painel.context['receita_total'], Decimal('0.00'))
+
         # Bloqueia empresa
         resp_bloqueio = self.client.post(
             f'/superadmin/empresa/{self.empresa.id}/bloquear/',

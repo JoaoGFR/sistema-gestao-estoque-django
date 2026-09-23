@@ -293,10 +293,15 @@ def processar_aprovacao_assinatura(empresa, payment_id=None, preference_id=None,
     Garante idempotência estrita com trava transacional no banco de dados (select_for_update):
     se uma transação com payment_id ou preference_id já foi aprovada anteriormente,
     não duplica a concessão de dias nem o registro.
+    Ativações manuais pelo Superadmin ou simulações/cortesias nunca geram faturamento (valor = R$ 0,00).
     """
     from django.db.models import Q
-    if valor is None:
+    if metodo in ('MANUAL_ADMIN', 'SIMULACAO', 'CORTESIA'):
+        valor = Decimal('0.00')
+    elif valor is None:
         valor = VALOR_ASSINATURA_PADRAO
+    else:
+        valor = Decimal(str(valor))
 
     # Trava no banco de dados para eliminar race conditions de Webhooks concorrentes
     empresa = Empresa.objects.select_for_update().get(id=empresa.id)
