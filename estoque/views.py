@@ -3022,6 +3022,12 @@ def iniciar_checkout_mercadopago(request):
     if not empresa:
         return redirect('cadastro_saas')
 
+    if not is_mercadopago_configured():
+        if request.user.is_superuser:
+            return redirect('simular_pagamento_mp')
+        messages.warning(request, "O pagamento online via Mercado Pago está em processo de configuração pela administração. Entre em contato com o suporte para ativar sua assinatura.")
+        return redirect('minha_assinatura')
+
     resultado = criar_preferencia_assinatura(empresa, request)
     
     # Registra a intenção de pagamento pendente
@@ -3044,12 +3050,10 @@ def simular_pagamento_mp(request):
     """
     Simulação rápida para ambiente de desenvolvimento/testes
     sem necessidade de credenciais de produção do Mercado Pago.
-    [SEGURANÇA] Bloqueado estritamente em produção ou quando o Mercado Pago real estiver ativo.
+    [SEGURANÇA] Bloqueado estritamente para usuários comuns.
     """
-    # Apenas permitido se DEBUG=True e Mercado Pago não configurado, ou se for Superusuário
-    if not settings.DEBUG or is_mercadopago_configured():
-        if not request.user.is_superuser:
-            raise Http404("Modo de simulação indisponível.")
+    if not request.user.is_superuser:
+        raise Http404("Modo de simulação indisponível.")
 
     empresa_id = request.GET.get('empresa_id')
     if empresa_id:

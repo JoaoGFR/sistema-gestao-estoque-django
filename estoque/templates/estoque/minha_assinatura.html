@@ -131,15 +131,15 @@
                         </a>
                     </div>
 
-                    <!-- Aviso de Simulação quando MP não configurado no .env -->
-                    {% if not mp_configurado %}
+                    <!-- Aviso de Simulação quando MP não configurado no .env (Apenas para Administrador Geral) -->
+                    {% if not mp_configurado and user.is_superuser %}
                     <div class="alert alert-info border-0 rounded-3 mt-4 p-3 bg-info bg-opacity-10">
                         <div class="d-flex align-items-start gap-2">
                             <i class="bi bi-info-circle-fill text-info mt-1"></i>
                             <div class="small">
-                                <strong>Modo Demonstração / Sandbox do Mercado Pago Ativo:</strong>
+                                <strong>Modo Demonstração / Sandbox do Mercado Pago (Apenas Administrador):</strong>
                                 <p class="mb-2 text-muted">
-                                    As credenciais de produção do Mercado Pago ainda não foram adicionadas no arquivo <code>.env</code>. Para testar e validar o fluxo de ativação imediatamente, utilize o atalho de simulação abaixo:
+                                    As credenciais de produção do Mercado Pago ainda não foram adicionadas no ambiente. Para testar e validar o fluxo de ativação imediatamente, utilize o atalho de simulação abaixo:
                                 </p>
                                 <a href="{% url 'simular_pagamento_mp' %}" class="btn btn-sm btn-info text-white fw-semibold">
                                     <i class="bi bi-play-circle-fill me-1"></i> Simular Aprovação de Pagamento (+30 dias)
@@ -195,7 +195,7 @@
                         </li>
                         <li class="d-flex justify-content-between py-2 border-bottom">
                             <span class="text-muted">Responsável:</span>
-                            <strong class="text-dark">{{ empresa.dono.get_full_name|default:empresa.dono.username }}</strong>
+                            <strong class="text-dark">{% if empresa.dono %}{{ empresa.dono.get_full_name|default:empresa.dono.username }}{% else %}Administrador{% endif %}</strong>
                         </li>
                         <li class="d-flex justify-content-between py-2">
                             <span class="text-muted">Cadastro:</span>

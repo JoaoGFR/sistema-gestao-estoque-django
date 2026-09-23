@@ -1136,16 +1136,52 @@ class AssinaturasSaaSTestCase(TestCase):
         self.empresa.refresh_from_db()
         self.assertEqual(self.empresa.status_assinatura, 'VENCIDA')
 
-    def test_superadmin_nunca_e_bloqueado(self):
-        # Vincula superadmin à empresa vencida
+    def test_superadmin_acessa_painel_superadmin_mesmo_com_empresa_vencida(self):
+        # Superadministrador sempre pode acessar o painel de gestão do SaaS (/superadmin/)
         UserProfile.objects.create(user=self.superadmin, empresa=self.empresa, e_dono=True)
         self.empresa.trial_fim = timezone.now() - timedelta(days=1)
         self.empresa.status_assinatura = 'VENCIDA'
         self.empresa.save()
 
         self.client.force_login(self.superadmin)
-        resp = self.client.get('/dashboard/', HTTP_HOST='localhost')
+        resp = self.client.get('/superadmin/assinaturas/', HTTP_HOST='localhost')
         self.assertEqual(resp.status_code, 200)
+
+    def test_bloqueio_empresa_com_trial_fim_nulo(self):
+        # Empresas legadas ou com trial_fim nulo devem ser bloqueadas
+        self.empresa.trial_fim = None
+        self.empresa.status_assinatura = 'TRIAL'
+        self.empresa.save()
+
+        self.client.force_login(self.user_dono)
+        resp = self.client.get('/dashboard/', HTTP_HOST='localhost')
+        self.assertRedirects(resp, '/minha-assinatura/')
+        self.empresa.refresh_from_db()
+        self.assertEqual(self.empresa.status_assinatura, 'VENCIDA')
+
+    def test_modo_demonstracao_oculto_para_usuario_comum(self):
+        from unittest.mock import patch
+        with patch('estoque.mercadopago_service.settings.MERCADO_PAGO_ACCESS_TOKEN', ''):
+            # Usuário comum não deve ver o card de modo demonstração
+            self.client.force_login(self.user_dono)
+            resp = self.client.get('/minha-assinatura/', HTTP_HOST='localhost')
+            self.assertEqual(resp.status_code, 200)
+            self.assertNotContains(resp, 'Modo Demonstração')
+            self.assertNotContains(resp, 'Simular Aprovação de Pagamento')
+
+            # Superadministrador deve ver o card para fins de teste
+            UserProfile.objects.get_or_create(user=self.superadmin, defaults={'empresa': self.empresa, 'e_dono': False})
+            self.client.force_login(self.superadmin)
+            resp_admin = self.client.get('/minha-assinatura/', HTTP_HOST='localhost')
+            self.assertEqual(resp_admin.status_code, 200)
+            self.assertContains(resp_admin, 'Modo Demonstração')
+            self.assertContains(resp_admin, 'Simular Aprovação de Pagamento')
+
+    def test_usuario_comum_nao_pode_acessar_simular_pagamento(self):
+        # Acesso direto à URL de simulação por usuário comum retorna 404
+        self.client.force_login(self.user_dono)
+        resp = self.client.get('/assinatura/simular-pagamento/', HTTP_HOST='localhost')
+        self.assertEqual(resp.status_code, 404)
 
     def test_processar_aprovacao_assinatura_ativa_30_dias(self):
         from .mercadopago_service import processar_aprovacao_assinatura
@@ -1851,7 +1887,8 @@ class BackupSystemTests(TestCase):
         )
         self.empresa = Empresa.objects.create(
             nome='Empresa Backup Teste',
-            status_assinatura='ATIVA'
+            status_assinatura='ATIVA',
+            assinatura_fim=timezone.now() + timedelta(days=30)
         )
         self.user_comum = User.objects.create_user(
             username='usuario_comum',

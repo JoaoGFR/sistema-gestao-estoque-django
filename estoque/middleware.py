@@ -58,43 +58,46 @@ class AssinaturaMiddleware:
         if not request.user.is_authenticated:
             return self.get_response(request)
 
-        # 4. Superadministradores NUNCA são bloqueados
-        if request.user.is_superuser:
-            return self.get_response(request)
-
-        # 5. Obtém a empresa vinculada ao perfil
+        # 4. Obtém a empresa vinculada ao perfil
         perfil = getattr(request.user, 'userprofile', None)
         if not perfil or not perfil.empresa:
             return self.get_response(request)
 
         empresa = perfil.empresa
 
-        # 6. Se a empresa foi desativada manualmente pelo superadmin
+        # 5. Se a empresa foi desativada manualmente pelo superadmin
         if not empresa.ativo:
             messages.error(request, "Sua empresa foi temporariamente desativada pelo administrador do sistema. Entre em contato com o suporte.")
             return redirect('minha_assinatura')
 
-        # 7. Validação do Período de Testes (3 Dias) e Assinatura Ativa
+        # 6. Validação do Período de Testes (3 Dias) e Assinatura Ativa
         agora = timezone.now()
         
-        # Caso o trial tenha expirado
+        # Caso o trial tenha expirado (ou nunca teve data de fim configurada)
         if empresa.status_assinatura == 'TRIAL':
-            if empresa.trial_fim and agora > empresa.trial_fim:
-                empresa.status_assinatura = 'VENCIDA'
-                empresa.save(update_fields=['status_assinatura'])
+            if not empresa.trial_fim or agora > empresa.trial_fim:
+                if empresa.status_assinatura != 'VENCIDA':
+                    empresa.status_assinatura = 'VENCIDA'
+                    empresa.save(update_fields=['status_assinatura'])
                 messages.warning(request, "Seu período de teste grátis de 3 dias expirou! Para continuar utilizando o sistema, ative sua assinatura de R$ 50,00/mês.")
                 return redirect('minha_assinatura')
 
         # Caso a assinatura paga tenha vencido
         elif empresa.status_assinatura == 'ATIVA':
-            if empresa.assinatura_fim and agora > empresa.assinatura_fim:
-                empresa.status_assinatura = 'VENCIDA'
-                empresa.save(update_fields=['status_assinatura'])
+            if not empresa.assinatura_fim or agora > empresa.assinatura_fim:
+                if empresa.status_assinatura != 'VENCIDA':
+                    empresa.status_assinatura = 'VENCIDA'
+                    empresa.save(update_fields=['status_assinatura'])
                 messages.warning(request, "Sua assinatura mensal expirou. Renove sua assinatura para continuar acessando todos os recursos.")
                 return redirect('minha_assinatura')
 
         elif empresa.status_assinatura in ('VENCIDA', 'CANCELADA'):
             messages.warning(request, "Sua assinatura está inativa. Regularize sua mensalidade para continuar utilizando o sistema.")
+            return redirect('minha_assinatura')
+
+        # 7. Verificação definitiva de garantia
+        if not empresa.assinatura_valida:
+            messages.warning(request, "Seu período de testes ou assinatura expirou. Regularize sua mensalidade para continuar utilizando o sistema.")
             return redirect('minha_assinatura')
 
         # Se estiver tudo certo, anexa as informações no request para consumo em templates

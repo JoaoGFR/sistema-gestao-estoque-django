@@ -4,6 +4,7 @@ from django.db.models import Sum, F
 from django.utils import timezone
 
 from decimal import Decimal
+from datetime import timedelta
 
 # 1. EMPRESA 
 class Empresa(models.Model):
@@ -23,6 +24,12 @@ class Empresa(models.Model):
     status_assinatura = models.CharField(max_length=20, choices=STATUS_ASSINATURA, default='TRIAL', verbose_name="Status da Assinatura")
     trial_fim = models.DateTimeField(null=True, blank=True, verbose_name="Fim do Período de Testes")
     assinatura_fim = models.DateTimeField(null=True, blank=True, verbose_name="Fim da Vigência da Assinatura")
+
+    def save(self, *args, **kwargs):
+        if self.pk is None and not self.trial_fim and self.status_assinatura == 'TRIAL':
+            base_time = self.data_criacao or timezone.now()
+            self.trial_fim = base_time + timedelta(days=3)
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.nome
