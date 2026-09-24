@@ -305,9 +305,20 @@ def gerar_order_homologacao_mp(empresa, request=None):
         status_code = sdk_resp.get('status')
         dados = sdk_resp.get('response', {})
         if status_code in (200, 201) and dados.get('id'):
-            logger.info(f"[MercadoPago SDK Order] Sucesso ao criar order ID {dados.get('id')} para empresa {empresa.id}.")
+            order_id = dados.get('id')
+            PagamentoAssinatura.objects.create(
+                empresa=empresa,
+                valor=VALOR_ASSINATURA_PADRAO,
+                metodo='MERCADO_PAGO',
+                status='PENDENTE',
+                mp_order_id=order_id,
+                mp_preference_id=order_id,
+                mp_init_point=dados.get('checkout_url'),
+                observacoes="Order de homologação gerada no Mercado Pago"
+            )
+            logger.info(f"[MercadoPago SDK Order] Sucesso ao criar order ID {order_id} para empresa {empresa.id}.")
             return {
-                'id': dados.get('id'),
+                'id': order_id,
                 'checkout_url': dados.get('checkout_url')
             }
         else:
@@ -322,8 +333,19 @@ def gerar_order_homologacao_mp(empresa, request=None):
         resp = requests.post(f"{MERCADO_PAGO_API_URL}/v1/orders", json=order_payload, headers=order_headers, timeout=15)
         if resp.status_code in (200, 201):
             dados = resp.json()
+            order_id = dados.get('id')
+            PagamentoAssinatura.objects.create(
+                empresa=empresa,
+                valor=VALOR_ASSINATURA_PADRAO,
+                metodo='MERCADO_PAGO',
+                status='PENDENTE',
+                mp_order_id=order_id,
+                mp_preference_id=order_id,
+                mp_init_point=dados.get('checkout_url'),
+                observacoes="Order de homologação gerada no Mercado Pago"
+            )
             return {
-                'id': dados.get('id'),
+                'id': order_id,
                 'checkout_url': dados.get('checkout_url')
             }
         else:
@@ -438,13 +460,14 @@ def verificar_assinatura_webhook(request, secret):
 
 
 @transaction.atomic
-def processar_aprovacao_assinatura(empresa, payment_id=None, preference_id=None, metodo='MERCADO_PAGO', valor=None, dias=30, observacoes=''):
+def processar_aprovacao_assinatura(empresa, payment_id=None, preference_id=None, metodo='MERCADO_PAGO', valor=None, dias=30, observacoes='', order_id=None):
     """
     Aprova ou renova a assinatura da empresa por 'dias' dias (padrão 30 dias).
     Garante idempotência estrita com trava transacional no banco de dados (select_for_update):
-    se uma transação com payment_id ou preference_id já foi aprovada anteriormente,
+    se uma transação com payment_id, preference_id ou order_id já foi aprovada anteriormente,
     não duplica a concessão de dias nem o registro.
     Ativações manuais pelo Superadmin ou simulações/cortesias nunca geram faturamento (valor = R$ 0,00).
+    Salva o Order ID completo no modelo PagamentoAssinatura.
     """
     from django.db.models import Q
     if metodo in ('MANUAL_ADMIN', 'SIMULACAO', 'CORTESIA'):
@@ -460,6 +483,14 @@ def processar_aprovacao_assinatura(empresa, payment_id=None, preference_id=None,
     agora = timezone.now()
     payment_id_str = str(payment_id).strip() if payment_id else ''
     preference_id_str = str(preference_id).strip() if preference_id else ''
+    order_id_str = str(order_id).strip() if order_id else ''
+
+    # Auto-detecta Order ID se fornecido no payment_id ou preference_id
+    if not order_id_str:
+        if payment_id_str.startswith('ORD'):
+            order_id_str = payment_id_str
+        elif preference_id_str.startswith('ORD'):
+            order_id_str = preference_id_str
 
     # 1. Verifica se já existe um pagamento APROVADO com qualquer um dos IDs desta transação
     filtro_duplicado = Q()
@@ -467,11 +498,13 @@ def processar_aprovacao_assinatura(empresa, payment_id=None, preference_id=None,
         filtro_duplicado |= Q(mp_payment_id=payment_id_str) | Q(mp_preference_id=payment_id_str)
     if preference_id_str:
         filtro_duplicado |= Q(mp_preference_id=preference_id_str) | Q(mp_payment_id=preference_id_str)
+    if order_id_str:
+        filtro_duplicado |= Q(mp_order_id=order_id_str) | Q(mp_preference_id=order_id_str) | Q(mp_payment_id=order_id_str)
 
     if filtro_duplicado:
         ja_aprovado = PagamentoAssinatura.objects.filter(filtro_duplicado, status='APROVADO').first()
         if ja_aprovado:
-            # Vincula ambos os IDs para garantir rastreabilidade completa
+            # Vincula todos os IDs para garantir rastreabilidade completa
             campos_atualizar = []
             if payment_id_str and ja_aprovado.mp_payment_id != payment_id_str:
                 ja_aprovado.mp_payment_id = payment_id_str
@@ -479,10 +512,13 @@ def processar_aprovacao_assinatura(empresa, payment_id=None, preference_id=None,
             if preference_id_str and ja_aprovado.mp_preference_id != preference_id_str:
                 ja_aprovado.mp_preference_id = preference_id_str
                 campos_atualizar.append('mp_preference_id')
+            if order_id_str and ja_aprovado.mp_order_id != order_id_str:
+                ja_aprovado.mp_order_id = order_id_str
+                campos_atualizar.append('mp_order_id')
             if campos_atualizar:
                 ja_aprovado.save(update_fields=campos_atualizar)
 
-            logger.info(f"[Assinatura] Pagamento já aprovado previamente ({payment_id_str} / {preference_id_str}). Ignorando duplicação.")
+            logger.info(f"[Assinatura] Pagamento já aprovado previamente ({payment_id_str} / {preference_id_str} / {order_id_str}). Ignorando duplicação.")
             return ja_aprovado
 
     # 2. Se a empresa já tiver assinatura válida no futuro, soma os 30 dias a partir da data futura
@@ -507,6 +543,8 @@ def processar_aprovacao_assinatura(empresa, payment_id=None, preference_id=None,
             pag_pendente.mp_payment_id = payment_id_str
         if preference_id_str:
             pag_pendente.mp_preference_id = preference_id_str
+        if order_id_str:
+            pag_pendente.mp_order_id = order_id_str
         pag_pendente.data_confirmacao = agora
         pag_pendente.dias_concedidos = dias
         pag_pendente.valor = valor
@@ -519,6 +557,7 @@ def processar_aprovacao_assinatura(empresa, payment_id=None, preference_id=None,
             valor=valor,
             metodo=metodo,
             status='APROVADO',
+            mp_order_id=order_id_str or None,
             mp_payment_id=payment_id_str or f"MANUAL-{int(agora.timestamp())}-{empresa.id}",
             mp_preference_id=preference_id_str or '',
             dias_concedidos=dias,
@@ -526,7 +565,7 @@ def processar_aprovacao_assinatura(empresa, payment_id=None, preference_id=None,
             observacoes=observacoes or f"Assinatura aprovada. Vigência prorrogada até {nova_data_fim.strftime('%d/%m/%Y')}."
         )
 
-    logger.info(f"[Assinatura] Empresa {empresa.nome} (ID: {empresa.id}) ativada até {nova_data_fim}.")
+    logger.info(f"[Assinatura] Empresa {empresa.nome} (ID: {empresa.id}) ativada até {nova_data_fim} (Order ID: {order_id_str}).")
     return pagamento
 
 
@@ -546,7 +585,7 @@ def sincronizar_pagamentos_pendentes(empresa=None):
 
     atualizados = 0
     for pag in qs.order_by('-data_criacao')[:30]:
-        identificador = pag.mp_preference_id or pag.mp_payment_id
+        identificador = pag.mp_order_id or pag.mp_preference_id or pag.mp_payment_id
         if not identificador:
             continue
 
@@ -566,6 +605,7 @@ def sincronizar_pagamentos_pendentes(empresa=None):
                         empresa=pag.empresa,
                         payment_id=real_payment_id,
                         preference_id=identificador,
+                        order_id=identificador,
                         metodo='MERCADO_PAGO',
                         valor=pag.valor,
                         dias=pag.dias_concedidos,

@@ -108,4 +108,5 @@ urlpatterns = [
     path('superadmin/empresa/<int:pk>/prorrogar/', views.prorrogar_trial_superadmin, name='prorrogar_trial_superadmin'),
     path('superadmin/empresa/<int:pk>/ativar/', views.ativar_assinatura_superadmin, name='ativar_assinatura_superadmin'),
     path('superadmin/empresa/<int:pk>/bloquear/', views.toggle_bloqueio_empresa_superadmin, name='toggle_bloqueio_empresa_superadmin'),
+    path('superadmin/pagamento/<int:pk>/salvar-order-id/', views.salvar_order_id_pagamento_superadmin, name='salvar_order_id_pagamento_superadmin'),
 ]

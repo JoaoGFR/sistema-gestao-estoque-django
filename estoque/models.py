@@ -545,6 +545,7 @@ class PagamentoAssinatura(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_PAGAMENTO, default='PENDENTE', verbose_name="Status")
     
     # Identificadores do Mercado Pago
+    mp_order_id = models.CharField(max_length=150, blank=True, null=True, db_index=True, verbose_name="Order ID MP (ORDTST...)")
     mp_preference_id = models.CharField(max_length=150, blank=True, null=True, verbose_name="ID da Preferência MP")
     mp_payment_id = models.CharField(max_length=150, blank=True, null=True, unique=True, verbose_name="ID do Pagamento MP")
     mp_init_point = models.URLField(max_length=500, blank=True, null=True, verbose_name="URL de Checkout MP")
@@ -558,6 +559,17 @@ class PagamentoAssinatura(models.Model):
         ordering = ['-data_criacao']
         verbose_name = "Pagamento de Assinatura"
         verbose_name_plural = "Pagamentos de Assinatura"
+
+    @property
+    def order_id_exibicao(self):
+        """Retorna o Order ID no formato completo (ex: ORDTST01M3A2C8WFYB52ARVXW4G3Y6D5)"""
+        if self.mp_order_id and self.mp_order_id.strip():
+            return self.mp_order_id.strip()
+        if self.mp_preference_id and str(self.mp_preference_id).startswith('ORD'):
+            return str(self.mp_preference_id).strip()
+        if self.mp_payment_id and str(self.mp_payment_id).startswith('ORD'):
+            return str(self.mp_payment_id).strip()
+        return None
 
     def __str__(self):
         return f"Assinatura R$ {self.valor} - {self.empresa.nome} ({self.status})"

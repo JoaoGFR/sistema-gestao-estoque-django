@@ -347,10 +347,11 @@
 
     <!-- Registro de Transações Recentes (Mercado Pago / Manual) -->
     <div class="card border-0 shadow-sm rounded-4">
-        <div class="card-header bg-white py-3 px-4 border-bottom">
+        <div class="card-header bg-white py-3 px-4 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
             <h5 class="fw-bold text-dark mb-0">
                 <i class="bi bi-credit-card-2-front-fill text-primary me-2"></i>Últimas Transações de Assinatura
             </h5>
+            <span class="text-muted small">Exibindo as 20 transações mais recentes</span>
         </div>
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
@@ -362,7 +363,9 @@
                         <th>Método</th>
                         <th>Status</th>
                         <th>Dias Liberados</th>
-                        <th>Identificador Transação</th>
+                        <th>Order ID (Mercado Pago)</th>
+                        <th>ID Pagamento / Ref</th>
+                        <th class="text-end pe-4">Ação</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -388,11 +391,84 @@
                             {% endif %}
                         </td>
                         <td>+{{ p.dias_concedidos }} dias</td>
-                        <td class="font-monospace small text-muted">{{ p.mp_payment_id|default:p.mp_preference_id|default:"-" }}</td>
+
+                        <!-- Coluna ORDER ID DO MERCADO PAGO COMPLETO -->
+                        <td>
+                            {% if p.order_id_exibicao %}
+                                <div class="d-flex align-items-center gap-1">
+                                    <span class="badge bg-dark text-warning border border-secondary font-monospace px-2 py-1 user-select-all" style="font-size: 0.78rem; letter-spacing: 0.5px;" title="{{ p.order_id_exibicao }}">
+                                        {{ p.order_id_exibicao }}
+                                    </span>
+                                    <button type="button" class="btn btn-sm btn-link text-secondary p-0 ms-1" onclick="copiarOrderId('{{ p.order_id_exibicao }}', this)" title="Copiar Order ID Completo">
+                                        <i class="bi bi-clipboard"></i>
+                                    </button>
+                                </div>
+                            {% else %}
+                                <span class="badge bg-light text-muted border font-monospace small">Não informado</span>
+                            {% endif %}
+                        </td>
+
+                        <!-- Identificador Pagamento / Ref -->
+                        <td class="font-monospace small text-muted">
+                            {{ p.mp_payment_id|default:p.mp_preference_id|default:"-" }}
+                        </td>
+
+                        <!-- Ações Rápidas (Salvar / Editar Order ID) -->
+                        <td class="text-end pe-4">
+                            <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalOrderId{{ p.id }}" title="Salvar ou Editar Order ID completo do Mercado Pago">
+                                <i class="bi bi-pencil-square me-1"></i>Salvar Order ID
+                            </button>
+
+                            <!-- Modal Salvar Order ID -->
+                            <div class="modal fade" id="modalOrderId{{ p.id }}" tabindex="-1" aria-hidden="true">
+                                <div class="modal-dialog modal-dialog-centered">
+                                    <div class="modal-content rounded-4 border-0 shadow">
+                                        <form method="POST" action="{% url 'salvar_order_id_pagamento_superadmin' p.id %}">
+                                            {% csrf_token %}
+                                            <div class="modal-header bg-dark text-white py-3">
+                                                <h5 class="modal-title fw-bold">
+                                                    <i class="bi bi-upc-scan me-2 text-warning"></i>Salvar Order ID Mercado Pago
+                                                </h5>
+                                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <div class="modal-body p-4 text-start">
+                                                <div class="mb-3 p-3 bg-light rounded-3 border">
+                                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                                        <strong class="text-dark">{{ p.empresa.nome }}</strong>
+                                                        <span class="badge bg-secondary">Transação #{{ p.id }}</span>
+                                                    </div>
+                                                    <div class="text-muted small">
+                                                        Valor: <strong>R$ {{ p.valor|floatformat:2 }}</strong> | Método: {{ p.get_metodo_display }} | Status: {{ p.get_status_display }}
+                                                    </div>
+                                                    <div class="text-muted small">
+                                                        Data: {{ p.data_criacao|date:"d/m/Y H:i" }}
+                                                    </div>
+                                                </div>
+
+                                                <div class="mb-3">
+                                                    <label class="form-label fw-bold text-dark small">Order ID Completo (Mercado Pago):</label>
+                                                    <input type="text" name="order_id" class="form-control font-monospace" placeholder="Ex: ORDTST01M3A2C8WFYB52ARVXW4G3Y6D5" value="{{ p.order_id_exibicao|default:'' }}" required>
+                                                    <div class="form-text small mt-2">
+                                                        <i class="bi bi-info-circle me-1 text-primary"></i>
+                                                        Insira o identificador de ordem completo gerado no Mercado Pago (exemplo: <code>ORDTST01M3A2C8WFYB52ARVXW4G3Y6D5</code>). O formato completo será salvo no banco para conciliação e rastreamento.
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer bg-light p-3">
+                                                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                                                <button type="submit" class="btn btn-primary fw-semibold">
+                                                    <i class="bi bi-check-lg me-1"></i> Salvar Order ID
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="7" class="text-center py-4 text-muted">
+                        <td colspan="9" class="text-center py-4 text-muted">
                             Nenhum pagamento registrado até o momento.
                         </td>
                     </tr>
@@ -402,4 +478,21 @@
         </div>
     </div>
 </div>
+
+<script>
+function copiarOrderId(texto, btn) {
+    if (!texto) return;
+    navigator.clipboard.writeText(texto).then(() => {
+        const icon = btn.querySelector('i');
+        if (icon) {
+            icon.className = 'bi bi-check2 text-success fw-bold';
+            setTimeout(() => {
+                icon.className = 'bi bi-clipboard';
+            }, 2000);
+        }
+    }).catch(err => {
+        prompt("Copie o Order ID abaixo:", texto);
+    });
+}
+</script>
 {% endblock %}

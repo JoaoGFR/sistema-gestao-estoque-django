@@ -2984,10 +2984,12 @@ def minha_assinatura(request):
                     valor_aprovado = pag_pend.valor
 
         if pagamento_confirmado:
+            order_param = order_id if (order_id and str(order_id).startswith('ORD')) else (payment_id if (payment_id and str(payment_id).startswith('ORD')) else None)
             processar_aprovacao_assinatura(
                 empresa=empresa,
                 payment_id=id_operacao_real,
                 preference_id=order_id,
+                order_id=order_param,
                 metodo='MERCADO_PAGO',
                 valor=valor_aprovado,
                 dias=30,
@@ -3031,12 +3033,14 @@ def iniciar_checkout_mercadopago(request):
     resultado = criar_preferencia_assinatura(empresa, request)
     
     # Registra a intenção de pagamento pendente
+    pref_id = resultado.get('id')
     PagamentoAssinatura.objects.create(
         empresa=empresa,
         valor=VALOR_ASSINATURA_PADRAO,
         metodo='MERCADO_PAGO' if not resultado.get('simulacao') else 'SIMULACAO',
         status='PENDENTE',
-        mp_preference_id=resultado.get('id'),
+        mp_order_id=pref_id if (pref_id and str(pref_id).startswith('ORD')) else None,
+        mp_preference_id=pref_id,
         mp_init_point=resultado.get('init_point'),
         observacoes="Iniciou checkout no Mercado Pago"
     )
@@ -3134,10 +3138,16 @@ def webhook_mercadopago(request):
                 if order_status in ('closed', 'processed', 'paid', 'approved') and ref_externa:
                     try:
                         empresa = Empresa.objects.get(id=int(ref_externa))
+                        real_pay_id = resource_id_str
+                        if dados_order.get('transactions', {}).get('payments'):
+                            first_p = dados_order['transactions']['payments'][0]
+                            real_pay_id = str(first_p.get('reference_id') or first_p.get('id') or resource_id_str)
+
                         processar_aprovacao_assinatura(
                             empresa=empresa,
-                            payment_id=resource_id_str,
+                            payment_id=real_pay_id,
                             preference_id=resource_id_str,
+                            order_id=resource_id_str,
                             metodo='MERCADO_PAGO',
                             valor=Decimal(str(total)),
                             dias=30,
@@ -3156,9 +3166,11 @@ def webhook_mercadopago(request):
                 if status == 'approved' and ref_externa:
                     try:
                         empresa = Empresa.objects.get(id=int(ref_externa))
+                        order_id_found = dados_pagamento.get('order', {}).get('id')
                         processar_aprovacao_assinatura(
                             empresa=empresa,
                             payment_id=resource_id_str,
+                            order_id=str(order_id_found) if order_id_found else None,
                             metodo='MERCADO_PAGO',
                             valor=Decimal(str(valor)),
                             dias=30,
@@ -3220,8 +3232,8 @@ def painel_superadmin_assinaturas(request):
     paginator = Paginator(empresas, 15)
     page_obj = paginator.get_page(request.GET.get('page'))
 
-    # Últimos pagamentos aprovados do sistema
-    ultimos_pagamentos = PagamentoAssinatura.objects.select_related('empresa').order_by('-data_criacao')[:10]
+    # Últimos pagamentos aprovados do sistema (exibe até 20 transações mais recentes)
+    ultimos_pagamentos = PagamentoAssinatura.objects.select_related('empresa').order_by('-data_criacao')[:20]
 
     contexto = {
         'page_obj': page_obj,
@@ -3296,6 +3308,52 @@ def toggle_bloqueio_empresa_superadmin(request, pk):
         empresa.save(update_fields=['ativo'])
         status_txt = "desbloqueada e liberada" if empresa.ativo else "bloqueada com sucesso"
         messages.success(request, f"Empresa '{empresa.nome}' {status_txt}.")
+
+    return redirect('painel_superadmin_assinaturas')
+
+
+@login_required
+def salvar_order_id_pagamento_superadmin(request, pk):
+    """
+    Permite ao Superadmin salvar ou atualizar manualmente o Order ID completo do Mercado Pago
+    (ex: ORDTST01M3A2C8WFYB52ARVXW4G3Y6D5) diretamente na tabela de transações de assinatura.
+    """
+    if not request.user.is_superuser:
+        raise Http404("Acesso restrito.")
+    if request.method == 'POST':
+        pagamento = get_object_or_404(PagamentoAssinatura, pk=pk)
+        order_id = request.POST.get('order_id', '').strip()
+        if order_id:
+            pagamento.mp_order_id = order_id
+            pagamento.save(update_fields=['mp_order_id'])
+
+            # Se a transação estiver pendente e o Mercado Pago estiver configurado,
+            # verifica se já foi aprovada/paga na API de Orders do Mercado Pago
+            if pagamento.status == 'PENDENTE' and is_mercadopago_configured():
+                dados = consultar_order_mp(order_id)
+                if dados and dados.get('status') in ('closed', 'processed', 'paid', 'approved'):
+                    real_pay_id = order_id
+                    if dados.get('transactions', {}).get('payments'):
+                        first_pay = dados['transactions']['payments'][0]
+                        real_pay_id = str(first_pay.get('reference_id') or first_pay.get('id') or order_id)
+                    processar_aprovacao_assinatura(
+                        empresa=pagamento.empresa,
+                        payment_id=real_pay_id,
+                        preference_id=order_id,
+                        order_id=order_id,
+                        metodo='MERCADO_PAGO',
+                        valor=pagamento.valor,
+                        dias=pagamento.dias_concedidos,
+                        observacoes=f"Aprovado após vínculo manual do Order ID {order_id}"
+                    )
+                    messages.success(request, f"Order ID '{order_id}' salvo e pagamento APROVADO com sucesso via Mercado Pago!")
+                    return redirect('painel_superadmin_assinaturas')
+
+            messages.success(request, f"Order ID '{order_id}' salvo com sucesso para a transação #{pagamento.id} ({pagamento.empresa.nome})!")
+        else:
+            pagamento.mp_order_id = None
+            pagamento.save(update_fields=['mp_order_id'])
+            messages.info(request, f"Order ID removido da transação #{pagamento.id}.")
 
     return redirect('painel_superadmin_assinaturas')
 

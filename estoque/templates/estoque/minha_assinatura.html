@@ -252,7 +252,16 @@
                             {% endif %}
                         </td>
                         <td>+{{ p.dias_concedidos }} dias</td>
-                        <td class="font-monospace small text-muted">{{ p.mp_payment_id|default:p.mp_preference_id|default:"-" }}</td>
+                        <td class="font-monospace small">
+                            {% if p.order_id_exibicao %}
+                                <span class="badge bg-dark-subtle text-dark border">{{ p.order_id_exibicao }}</span>
+                                {% if p.mp_payment_id and p.mp_payment_id != p.order_id_exibicao %}
+                                    <div class="text-muted" style="font-size: 0.72rem;">Ref: {{ p.mp_payment_id }}</div>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">{{ p.mp_payment_id|default:p.mp_preference_id|default:"-" }}</span>
+                            {% endif %}
+                        </td>
                     </tr>
                     {% empty %}
                     <tr>

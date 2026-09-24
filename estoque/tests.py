@@ -1110,13 +1110,11 @@ class AssinaturasSaaSTestCase(TestCase):
             # Verifica se o payload enviado à API do Mercado Pago excluiu ticket (boleto)
             args, kwargs = mock_post.call_args
             payload_enviado = kwargs.get('json', {})
-            if 'config' in payload_enviado:
-                not_allowed = payload_enviado.get('config', {}).get('payment_method', {}).get('not_allowed_types', [])
-                self.assertIn('ticket', not_allowed)
-            else:
-                payment_methods = payload_enviado.get('payment_methods', {})
-                excluded_types = [item['id'] for item in payment_methods.get('excluded_payment_types', [])]
-                self.assertIn('ticket', excluded_types)
+            payment_methods = payload_enviado.get('payment_methods', {})
+            excluded_types = [item['id'] for item in payment_methods.get('excluded_payment_types', [])]
+            if not excluded_types and 'config' in payload_enviado:
+                excluded_types = payload_enviado.get('config', {}).get('payment_method', {}).get('not_allowed_types', [])
+            self.assertIn('ticket', excluded_types)
 
     def test_acesso_liberado_durante_trial(self):
         self.client.force_login(self.user_dono)
@@ -2083,3 +2081,50 @@ class MercadoPagoRequisitosHomologacaoTestCase(TestCase):
         payload = mock_order.create.call_args[0][0]
         self.assertEqual(payload['config']['statement_descriptor'], 'JGTECH')
         self.assertEqual(payload['items'][0]['category_id'], 'services')
+
+    def test_salvar_order_id_pagamento_superadmin(self):
+        """Garante que o superadmin consegue salvar o Order ID completo no pagamento"""
+        superuser = User.objects.create_superuser('admin_saas', 'admin@teste.com', 'pass1234')
+        pag = PagamentoAssinatura.objects.create(
+            empresa=self.empresa,
+            valor=Decimal('50.00'),
+            metodo='MERCADO_PAGO',
+            status='PENDENTE',
+            mp_preference_id='PREF-TEMP-123'
+        )
+        self.assertIsNone(pag.mp_order_id)
+        self.assertIsNone(pag.order_id_exibicao)
+
+        url = f"/superadmin/pagamento/{pag.id}/salvar-order-id/"
+        full_order_id = "ORDTST01M3A2C8WFYB52ARVXW4G3Y6D5"
+
+        # Usuário comum não pode salvar (404)
+        self.client.force_login(self.user)
+        resp_comum = self.client.post(url, {'order_id': full_order_id})
+        self.assertEqual(resp_comum.status_code, 404)
+
+        # Superuser salva o Order ID no formato completo
+        self.client.force_login(superuser)
+        resp = self.client.post(url, {'order_id': full_order_id})
+        self.assertEqual(resp.status_code, 302)
+        self.assertRedirects(resp, '/superadmin/assinaturas/')
+
+        pag.refresh_from_db()
+        self.assertEqual(pag.mp_order_id, full_order_id)
+        self.assertEqual(pag.order_id_exibicao, full_order_id)
+
+    def test_processar_aprovacao_persiste_mp_order_id(self):
+        """Garante que processar_aprovacao_assinatura salva o Order ID informado"""
+        from estoque.mercadopago_service import processar_aprovacao_assinatura
+        order_id_teste = "ORDTST01M3A2C8WFYB52ARVXW4G3Y6D5"
+        pag = processar_aprovacao_assinatura(
+            empresa=self.empresa,
+            payment_id="179671490547",
+            preference_id=order_id_teste,
+            order_id=order_id_teste,
+            metodo='MERCADO_PAGO',
+            valor=Decimal('50.00')
+        )
+        self.assertEqual(pag.mp_order_id, order_id_teste)
+        self.assertEqual(pag.order_id_exibicao, order_id_teste)
+        self.assertEqual(pag.mp_payment_id, "179671490547")
