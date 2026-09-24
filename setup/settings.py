@@ -56,6 +56,9 @@ CSRF_TRUSTED_ORIGINS = [
     'http://192.168.0.7:8000', 
     'https://*.vercel.app',    
 ]
+csrf_origins_env = os.getenv('CSRF_TRUSTED_ORIGINS', '')
+if csrf_origins_env:
+    CSRF_TRUSTED_ORIGINS.extend([o.strip() for o in csrf_origins_env.split(',') if o.strip()])
 
 # Informa ao Django que está atrás do proxy reverso HTTPS da Vercel
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
