@@ -290,6 +290,13 @@ if not DEBUG and HTTPS_ENABLED:
 # ---------------------------------------------------------------------------
 # MERCADO PAGO - INTEGRAÇÃO DE PAGAMENTOS SAAS
 # ---------------------------------------------------------------------------
-MERCADO_PAGO_ACCESS_TOKEN = os.getenv('MERCADO_PAGO_ACCESS_TOKEN', '')
-MERCADO_PAGO_PUBLIC_KEY = os.getenv('MERCADO_PAGO_PUBLIC_KEY', '')
-MERCADO_PAGO_WEBHOOK_SECRET = os.getenv('MERCADO_PAGO_WEBHOOK_SECRET', '')
+MERCADO_PAGO_ACCESS_TOKEN = os.getenv(
+    'MERCADO_PAGO_ACCESS_TOKEN',
+    'APP_USR-1181472380041251-092117-d89a877c9e7cde360f555f368e137296-3707862372'
+)
+MERCADO_PAGO_PUBLIC_KEY = os.getenv(
+    'MERCADO_PAGO_PUBLIC_KEY',
+    'APP_USR-6a16a4ff-9f74-48dc-a348-e4ac09ed1be7'
+)
+MERCADO_PAGO_WEBHOOK_SECRET = os.getenv('MERCADO_PAGO_WEBHOOK_SECRET', '')
+

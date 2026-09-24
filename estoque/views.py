@@ -3054,16 +3054,23 @@ def iniciar_checkout_mercadopago(request):
     if not empresa:
         return redirect('cadastro_saas')
 
-    if not is_mercadopago_configured():
-        if request.user.is_superuser:
-            return redirect('simular_pagamento_mp')
-        messages.warning(request, "O pagamento online via Mercado Pago está em processo de configuração pela administração. Entre em contato com o suporte para ativar sua assinatura.")
+    usar_sandbox = request.GET.get('sandbox') == '1' or getattr(settings, 'MERCADO_PAGO_SANDBOX', False)
+
+    # Cria preferência oficial no Mercado Pago (Checkout Pro)
+    resultado = criar_preferencia_assinatura(empresa, request)
+    pref_id = resultado.get('id')
+
+    # Seleciona URL de destino: Sandbox (para cartões de teste) ou Produção oficial
+    if usar_sandbox:
+        url_destino = resultado.get('sandbox_init_point') or resultado.get('init_point')
+    else:
+        url_destino = resultado.get('init_point') or resultado.get('sandbox_init_point')
+
+    if not url_destino:
+        messages.error(request, "Não foi possível carregar a página de pagamento do Mercado Pago no momento. Tente novamente em instantes.")
         return redirect('minha_assinatura')
 
-    resultado = criar_preferencia_assinatura(empresa, request)
-    
     # Registra a intenção de pagamento pendente
-    pref_id = resultado.get('id')
     PagamentoAssinatura.objects.create(
         empresa=empresa,
         valor=VALOR_ASSINATURA_PADRAO,
@@ -3071,11 +3078,10 @@ def iniciar_checkout_mercadopago(request):
         status='PENDENTE',
         mp_order_id=pref_id if (pref_id and str(pref_id).startswith('ORD')) else None,
         mp_preference_id=pref_id,
-        mp_init_point=resultado.get('init_point'),
-        observacoes="Iniciou checkout no Mercado Pago"
+        mp_init_point=url_destino,
+        observacoes=f"Iniciou checkout no Mercado Pago ({'Sandbox / Teste' if usar_sandbox else 'Produção'})"
     )
 
-    url_destino = resultado.get('init_point')
     return redirect(url_destino)
 
 

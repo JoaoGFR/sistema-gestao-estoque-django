@@ -123,12 +123,42 @@
                         </div>
                     </div>
 
-                    <!-- Botão de Ação Mercado Pago -->
+                    <!-- Botões de Ação Mercado Pago -->
                     <div class="d-grid gap-2">
-                        <a href="{% url 'iniciar_checkout_mercadopago' %}" class="btn btn-primary btn-lg py-3 fw-bold shadow-sm d-flex align-items-center justify-content-center gap-2">
+                        <a href="{% url 'iniciar_checkout_mercadopago' %}" class="btn btn-primary btn-lg py-3 fw-bold shadow-sm d-flex align-items-center justify-content-center gap-2" id="btnPagarMercadoPago">
                             <i class="bi bi-credit-card-2-front-fill fs-5"></i>
                             Pagar R$ 50,00 no Mercado Pago (Pix ou Cartão)
                         </a>
+                        <a href="{% url 'iniciar_checkout_mercadopago' %}?sandbox=1" class="btn btn-warning btn-md py-2 fw-bold text-dark shadow-sm d-flex align-items-center justify-content-center gap-2" id="btnPagarSandbox">
+                            <i class="bi bi-shield-shaded fs-5"></i>
+                            Pagar com Cartão de Teste (Ambiente Sandbox)
+                        </a>
+                    </div>
+
+                    <!-- Dica com Dados de Cartão de Teste Oficial do Mercado Pago -->
+                    <div class="alert alert-light border rounded-3 mt-3 p-3 small text-muted">
+                        <div class="d-flex align-items-center justify-content-between mb-1">
+                            <strong class="text-dark"><i class="bi bi-credit-card me-1 text-primary"></i> Dados para Testar com Cartão:</strong>
+                            <span class="badge bg-warning text-dark">Ambiente Sandbox</span>
+                        </div>
+                        <div class="row g-2 mt-1 font-monospace" style="font-size: 0.82rem;">
+                            <div class="col-12 col-sm-6">
+                                <span class="text-secondary d-block">Número do Cartão:</span>
+                                <strong class="text-dark user-select-all">4242 4242 4242 4242</strong>
+                            </div>
+                            <div class="col-6 col-sm-3">
+                                <span class="text-secondary d-block">Validade:</span>
+                                <strong class="text-dark user-select-all">12/28</strong>
+                            </div>
+                            <div class="col-6 col-sm-3">
+                                <span class="text-secondary d-block">CVV:</span>
+                                <strong class="text-dark user-select-all">123</strong>
+                            </div>
+                            <div class="col-12">
+                                <span class="text-secondary d-block">Nome do Titular:</span>
+                                <strong class="text-dark user-select-all">APRO</strong>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Aviso de Simulação quando MP não configurado no .env (Apenas para Administrador Geral) -->
