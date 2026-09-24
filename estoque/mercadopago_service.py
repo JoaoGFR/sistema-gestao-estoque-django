@@ -160,6 +160,80 @@ def criar_preferencia_assinatura(empresa, request):
     try:
         import mercadopago
         sdk = mercadopago.SDK(access_token)
+        req_opt = mercadopago.config.RequestOptions()
+        req_opt.custom_headers = {'x-idempotency-key': str(uuid.uuid4())}
+
+        # 4.1 Tenta criar via Orders API (/v1/orders) para gerar Order ID oficial (ORDTST... / ORD...)
+        # Esse formato é o exigido pelo painel de "Qualidade da Integração" do Mercado Pago
+        try:
+            order_payload = {
+                "type": "online",
+                "processing_mode": "manual",
+                "external_reference": str(empresa.id),
+                "total_amount": f"{VALOR_ASSINATURA_PADRAO:.2f}",
+                "payer": {
+                    "first_name": primeiro_nome,
+                    "last_name": sobrenome,
+                    "email": email_comprador,
+                    "phone": {
+                        "area_code": area_code,
+                        "number": tel_num
+                    }
+                },
+                "items": [
+                    {
+                        "external_code": f"ASSINATURA-JGTECH-{empresa.id}",
+                        "title": f"Assinatura JGTECH Estoque - {empresa.nome}",
+                        "description": "Mensalidade do sistema de gestao de estoque JGTECH (30 dias)",
+                        "category_id": "services",
+                        "unit_price": f"{VALOR_ASSINATURA_PADRAO:.2f}",
+                        "quantity": 1
+                    }
+                ],
+                "additional_info": {
+                    "payer.registration_date": (empresa.data_criacao or agora).strftime('%Y-%m-%dT%H:%M:%S.000-03:00'),
+                    "payer.is_first_purchase_online": not PagamentoAssinatura.objects.filter(empresa=empresa, status='APROVADO').exists(),
+                    "payer.authentication_type": "WEB"
+                },
+                "config": {
+                    "statement_descriptor": "JGTECH",
+                    "online": {
+                        "success_url": back_url_sucesso,
+                        "failure_url": back_url_falha,
+                        "pending_url": back_url_pendente
+                    },
+                    "payment_method": {
+                        "not_allowed_types": ["ticket"],
+                        "max_installments": 12
+                    }
+                }
+            }
+            if doc_limpo and len(doc_limpo) in (11, 14):
+                order_payload["payer"]["identification"] = {
+                    "type": 'CNPJ' if len(doc_limpo) == 14 else 'CPF',
+                    "number": doc_limpo
+                }
+
+            order_resp = sdk.order().create(order_payload, request_options=req_opt)
+            st_order = order_resp.get('status')
+            dados_order = order_resp.get('response', {})
+            if st_order in (200, 201) and dados_order.get('id') and dados_order.get('checkout_url'):
+                order_id = dados_order.get('id')
+                checkout_url = dados_order.get('checkout_url')
+                logger.info(f"[MercadoPago Orders API] Order criada com sucesso ID {order_id} para empresa {empresa.id}.")
+                return {
+                    'simulacao': False,
+                    'id': order_id,
+                    'order_id': order_id,
+                    'init_point': checkout_url,
+                    'sandbox_init_point': checkout_url
+                }
+            else:
+                logger.info(f"[MercadoPago Orders API] Status {st_order}. Recorrendo a Preferences API...")
+        except Exception as e_ord:
+            logger.info(f"[MercadoPago Orders API Exception] {str(e_ord)}. Recorrendo a Preferences API...")
+
+        # 4.2 Fallback para Preferences API clássica (/checkout/preferences)
         pref_response = sdk.preference().create(payload)
         status_code = pref_response.get('status')
         dados = pref_response.get('response', {})
