@@ -21,6 +21,8 @@ class AssinaturaMiddleware:
         'prorrogar_trial_superadmin',
         'ativar_assinatura_superadmin',
         'toggle_bloqueio_empresa_superadmin',
+        'salvar_order_id_pagamento_superadmin',
+        'executar_migracoes_superadmin',
         'landing_page',
         'cadastro_saas',
         'login',

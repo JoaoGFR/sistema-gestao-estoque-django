@@ -11,7 +11,10 @@
             </div>
             <p class="text-muted small mb-0 mt-1">Visão executiva de empresas clientes, períodos de teste grátis (3 dias), renovações e pagamentos do Mercado Pago.</p>
         </div>
-        <div class="d-flex gap-2">
+        <div class="d-flex gap-2 flex-wrap">
+            <a href="{% url 'executar_migracoes_superadmin' %}" class="btn btn-outline-warning" title="Executar migrações do banco de dados (manage.py migrate)">
+                <i class="bi bi-database-gear me-1"></i> Executar Migrações
+            </a>
             <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">
                 <i class="bi bi-speedometer2 me-1"></i> Ir para Meu Painel
             </a>

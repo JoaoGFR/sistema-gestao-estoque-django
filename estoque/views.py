@@ -2922,17 +2922,47 @@ def baixar_parcela(request, pk):
 # 15. GESTÃO DE ASSINATURAS SAAS & MERCADO PAGO
 # =============================================================================
 
+def _garantir_coluna_order_id():
+    """
+    Garante que a coluna mp_order_id exista no banco de dados (ex: PostgreSQL na Vercel).
+    Executa DDL idempotente 'ADD COLUMN IF NOT EXISTS' para prevenir Server Error 500
+    caso o comando 'python manage.py migrate' ainda não tenha sido rodado no banco remoto.
+    """
+    try:
+        from django.db import connection
+        with connection.cursor() as cursor:
+            if connection.vendor == 'postgresql':
+                cursor.execute("ALTER TABLE estoque_pagamentoassinatura ADD COLUMN IF NOT EXISTS mp_order_id varchar(150);")
+                cursor.execute("CREATE INDEX IF NOT EXISTS estoque_pagamentoassinatura_mp_order_id_idx ON estoque_pagamentoassinatura(mp_order_id);")
+            elif connection.vendor == 'sqlite':
+                cursor.execute("PRAGMA table_info(estoque_pagamentoassinatura);")
+                cols = [row[1] for row in cursor.fetchall()]
+                if 'mp_order_id' not in cols:
+                    cursor.execute("ALTER TABLE estoque_pagamentoassinatura ADD COLUMN mp_order_id varchar(150);")
+    except Exception as e:
+        logger.warning(f"[Garantia Coluna] Aviso ao verificar/criar coluna mp_order_id: {e}")
+
+
 @login_required
 def minha_assinatura(request):
     empresa = get_empresa_usuario(request.user)
     if not empresa:
         return redirect('cadastro_saas')
 
+    _garantir_coluna_order_id()
+
     # Sincroniza pagamentos pendentes recentes desta empresa com a API do Mercado Pago
-    sincronizar_pagamentos_pendentes(empresa=empresa)
+    try:
+        sincronizar_pagamentos_pendentes(empresa=empresa)
+    except Exception as e:
+        logger.warning(f"[Minha Assinatura] Erro ao sincronizar pagamentos: {e}")
 
     # Status e histórico de pagamentos
-    pagamentos = empresa.pagamentos_assinatura.all().order_by('-data_criacao')[:10]
+    try:
+        pagamentos = empresa.pagamentos_assinatura.all().order_by('-data_criacao')[:10]
+    except Exception:
+        _garantir_coluna_order_id()
+        pagamentos = empresa.pagamentos_assinatura.all().order_by('-data_criacao')[:10]
     
     # Feedback e ativação de retorno oficial do Mercado Pago (Back URLs)
     status_mp = (request.GET.get('status_mp') or request.GET.get('status') or request.GET.get('collection_status') or '').lower()
@@ -3191,8 +3221,13 @@ def painel_superadmin_assinaturas(request):
     if not request.user.is_superuser:
         raise Http404("Acesso restrito ao Superadministrador.")
 
+    _garantir_coluna_order_id()
+
     # Sincroniza pagamentos pendentes recentes de todas as empresas com o Mercado Pago
-    sincronizar_pagamentos_pendentes()
+    try:
+        sincronizar_pagamentos_pendentes()
+    except Exception as e:
+        logger.warning(f"[Superadmin Assinaturas] Erro ao sincronizar pagamentos pendentes: {e}")
 
     query = request.GET.get('q', '').strip()
     filtro_status = request.GET.get('status', 'todos')
@@ -3204,11 +3239,16 @@ def painel_superadmin_assinaturas(request):
     total_ativas = Empresa.objects.filter(status_assinatura='ATIVA').count()
     total_trial = Empresa.objects.filter(status_assinatura='TRIAL').count()
     total_vencidas = Empresa.objects.filter(status_assinatura__in=['VENCIDA', 'CANCELADA']).count()
-    receita_total = PagamentoAssinatura.objects.filter(
-        status='APROVADO'
-    ).exclude(
-        metodo__in=['MANUAL_ADMIN', 'SIMULACAO', 'CORTESIA']
-    ).aggregate(total=Sum('valor'))['total'] or Decimal('0.00')
+    
+    try:
+        receita_total = PagamentoAssinatura.objects.filter(
+            status='APROVADO'
+        ).exclude(
+            metodo__in=['MANUAL_ADMIN', 'SIMULACAO', 'CORTESIA']
+        ).aggregate(total=Sum('valor'))['total'] or Decimal('0.00')
+    except Exception:
+        _garantir_coluna_order_id()
+        receita_total = Decimal('0.00')
 
     # Filtros
     if query:
@@ -3233,7 +3273,11 @@ def painel_superadmin_assinaturas(request):
     page_obj = paginator.get_page(request.GET.get('page'))
 
     # Últimos pagamentos aprovados do sistema (exibe até 20 transações mais recentes)
-    ultimos_pagamentos = PagamentoAssinatura.objects.select_related('empresa').order_by('-data_criacao')[:20]
+    try:
+        ultimos_pagamentos = PagamentoAssinatura.objects.select_related('empresa').order_by('-data_criacao')[:20]
+    except Exception:
+        _garantir_coluna_order_id()
+        ultimos_pagamentos = []
 
     contexto = {
         'page_obj': page_obj,
@@ -3356,4 +3400,40 @@ def salvar_order_id_pagamento_superadmin(request, pk):
             messages.info(request, f"Order ID removido da transação #{pagamento.id}.")
 
     return redirect('painel_superadmin_assinaturas')
+
+
+@login_required
+def executar_migracoes_superadmin(request):
+    """
+    Permite ao Superadministrador disparar o comando 'python manage.py migrate'
+    diretamente pelo painel web com relatório visual detalhado em formato de console/terminal.
+    Crucial em plataformas serverless (como Vercel) onde não existe terminal SSH
+    e migrações de banco não são executadas automaticamente no deploy.
+    """
+    if not request.user.is_superuser:
+        raise Http404("Acesso restrito ao Superadministrador.")
+
+    import io
+    from django.core.management import call_command
+
+    out = io.StringIO()
+    err = io.StringIO()
+    sucesso = True
+
+    try:
+        call_command('migrate', interactive=False, stdout=out, stderr=err)
+        output_texto = out.getvalue()
+        if not output_texto.strip():
+            output_texto = "Nenhuma migração pendente. O banco de dados já está 100% atualizado."
+        messages.success(request, "Migrações do banco de dados verificadas e aplicadas com sucesso!")
+    except Exception as e:
+        sucesso = False
+        output_texto = f"Erro durante a execução de 'manage.py migrate':\n{e}\n{err.getvalue()}"
+        messages.error(request, f"Falha ao aplicar migrações: {e}")
+
+    contexto = {
+        'sucesso': sucesso,
+        'output': output_texto,
+    }
+    return render(request, 'estoque/superadmin_migracoes.html', contexto)
 

@@ -20,6 +20,7 @@
    - [2.9 Módulo de Backups (Local & Serverless/Vercel)](#29-módulo-de-backups)
    - [2.10 Simulador de Preços (Pricing & PDF)](#210-simulador-de-preços-pricing--pdf)
    - [2.11 Endpoints de API Assíncrona (JSON)](#211-endpoints-de-api-assíncrona-json)
+   - [2.12 Gestão de Assinaturas SaaS, Mercado Pago & Migrações em Nuvem](#212-gestão-de-assinaturas-saas-mercado-pago--migrações-em-nuvem)
 3. [Mapa de Modelos de Dados (`estoque/models.py`)](#-mapa-de-modelos-de-dados-estoquemodelspy)
 4. [Mapa de Formulários & Validações (`estoque/forms.py`)](#-mapa-de-formulários-estoqueformspy)
 5. [Mapa de Rotas e URLs (`urls.py`)](#-mapa-de-rotas-e-urls)
@@ -94,14 +95,17 @@ Arquivo: [`estoque/views.py`](file:///c:/sistemaestoque/estoque/views.py)
 | [`cancelar_venda`](file:///c:/sistemaestoque/estoque/views.py#L1978-L2027) | L1978-2027 | `/vendas/<int:pk>/cancelar/` | POST | `@login_required`, `@transaction.atomic`, dono/super | Cancelamento de venda com estorno ao estoque e anulação de contas |
 | [`painel_crediario`](file:///c:/sistemaestoque/estoque/views.py#L2034-L2114) | L2034-2114 | `/crediario/` | GET | `@login_required` | Painel financeiro de contas a receber, atrasos e recebimentos |
 | [`baixar_parcela`](file:///c:/sistemaestoque/estoque/views.py#L2117-L2183) | L2117-2183 | `/crediario/baixar/<int:pk>/` | POST | `@login_required`, `@transaction.atomic` | Registro de quitação/amortização de parcelas no crediário |
-| [`minha_assinatura`](file:///c:/sistemaestoque/estoque/views.py) | L2450+ | `/minha-assinatura/` | GET | `@login_required` | Painel do lojista: status da assinatura, dias restantes de trial/vigência e checkout |
-| [`iniciar_checkout_mercadopago`](file:///c:/sistemaestoque/estoque/views.py) | L2480+ | `/assinatura/pagar/` | GET | `@login_required` | Gera preferência no Mercado Pago e redireciona para Pix/Cartão |
-| [`simular_pagamento_mp`](file:///c:/sistemaestoque/estoque/views.py) | L2500+ | `/assinatura/simular-pagamento/` | GET | `@login_required` | Simulação rápida em ambiente de testes para validação sem cartão real |
-| [`webhook_mercadopago`](file:///c:/sistemaestoque/estoque/views.py) | L2520+ | `/api/mercadopago/webhook/` | POST | `@csrf_exempt` | Notificação IPN do Mercado Pago que ativa +30 dias de assinatura automaticamente |
-| [`painel_superadmin_assinaturas`](file:///c:/sistemaestoque/estoque/views.py) | L2560+ | `/superadmin/assinaturas/` | GET | `@login_required`, superuser | Painel Superadmin para gerenciar todas as empresas, vigências e pagamentos |
-| [`prorrogar_trial_superadmin`](file:///c:/sistemaestoque/estoque/views.py) | L2610+ | `/superadmin/empresa/<pk>/prorrogar/` | POST | `@login_required`, superuser | Concede dias adicionais de degustação grátis (+3, +7, +15, +30 dias) |
-| [`ativar_assinatura_superadmin`](file:///c:/sistemaestoque/estoque/views.py) | L2630+ | `/superadmin/empresa/<pk>/ativar/` | POST | `@login_required`, superuser | Ativação manual de vigência de assinatura (+30 dias) |
-| [`toggle_bloqueio_empresa_superadmin`](file:///c:/sistemaestoque/estoque/views.py) | L2650+ | `/superadmin/empresa/<pk>/bloquear/` | POST | `@login_required`, superuser | Bloqueia ou desbloqueia o acesso de uma empresa ao sistema |
+| [`_garantir_coluna_order_id`](file:///c:/sistemaestoque/estoque/views.py#L2925-L2944) | L2925-2944 | *Interna (Helper)* | Python | - | DDL idempotente 'ADD COLUMN IF NOT EXISTS' para prevenir Server Error 500 na Vercel/Postgres |
+| [`minha_assinatura`](file:///c:/sistemaestoque/estoque/views.py#L2946-L3028) | L2946-3028 | `/minha-assinatura/` | GET | `@login_required` | Painel do lojista: status da assinatura, dias restantes de trial/vigência e checkout |
+| [`iniciar_checkout_mercadopago`](file:///c:/sistemaestoque/estoque/views.py#L3030-L3079) | L3030-3079 | `/assinatura/pagar/` | GET | `@login_required` | Gera preferência no Mercado Pago (Checkout Pro) com `statement_descriptor` e Pix/Cartão |
+| [`simular_pagamento_mp`](file:///c:/sistemaestoque/estoque/views.py#L3082-L3112) | L3082-3112 | `/assinatura/simular-pagamento/` | GET | `@login_required` | Simulação rápida em ambiente de testes para validação sem cartão real |
+| [`webhook_mercadopago`](file:///c:/sistemaestoque/estoque/views.py#L3115-L3212) | L3115-3212 | `/api/mercadopago/webhook/` | POST | `@csrf_exempt` | Notificação IPN do Mercado Pago que ativa +30 dias de assinatura automaticamente |
+| [`painel_superadmin_assinaturas`](file:///c:/sistemaestoque/estoque/views.py#L3219-L3294) | L3219-3294 | `/superadmin/assinaturas/` | GET | `@login_required`, superuser | Painel Superadmin para gerenciar todas as empresas, vigências e pagamentos |
+| [`prorrogar_trial_superadmin`](file:///c:/sistemaestoque/estoque/views.py#L3297-L3323) | L3297-3323 | `/superadmin/empresa/<pk>/prorrogar/` | POST | `@login_required`, superuser | Concede dias adicionais de degustação grátis (+3, +7, +15, +30 dias) |
+| [`ativar_assinatura_superadmin`](file:///c:/sistemaestoque/estoque/views.py#L3326-L3343) | L3326-3343 | `/superadmin/empresa/<pk>/ativar/` | POST | `@login_required`, superuser | Ativação manual de vigência de assinatura (+30 dias) |
+| [`toggle_bloqueio_empresa_superadmin`](file:///c:/sistemaestoque/estoque/views.py#L3346-L3356) | L3346-3356 | `/superadmin/empresa/<pk>/bloquear/` | POST | `@login_required`, superuser | Bloqueia ou desbloqueia o acesso de uma empresa ao sistema |
+| [`salvar_order_id_pagamento_superadmin`](file:///c:/sistemaestoque/estoque/views.py#L3359-L3402) | L3359-3402 | `/superadmin/pagamento/<pk>/salvar-order-id/` | POST | `@login_required`, superuser | Salva ORDER ID completo do Mercado Pago e valida aprovação |
+| [`executar_migracoes_superadmin`](file:///c:/sistemaestoque/estoque/views.py#L3405-L3438) | L3405-3438 | `/superadmin/executar-migracoes/` | GET, POST | `@login_required`, superuser | Dispara `manage.py migrate` via web para plataformas serverless (Vercel) com console |
 
 
 
@@ -264,6 +268,34 @@ Arquivo: [`estoque/views.py`](file:///c:/sistemaestoque/estoque/views.py)
 - **`salvar_simulacao_api(request)`** [`L1093-1151`](file:///c:/sistemaestoque/estoque/views.py#L1093-L1151):
   - Recebe JSON via `request.body`, faz conversão e sanitização de tipos e salva instância de `SimulacaoPreco`.
 
+### 2.12 Gestão de Assinaturas SaaS, Mercado Pago & Migrações em Nuvem
+- **`_garantir_coluna_order_id()`** [`L2925-2944`](file:///c:/sistemaestoque/estoque/views.py#L2925-L2944):
+  - *Zero-Downtime DDL:* Executa DDL atômico e idempotente (`ALTER TABLE ... ADD COLUMN IF NOT EXISTS mp_order_id varchar(150);`) prevenindo Server Error 500 em plataformas serverless (Vercel) e bancos em nuvem (PostgreSQL) caso migrações ainda não tenham sido aplicadas.
+- **`minha_assinatura(request)`** [`L2946-3028`](file:///c:/sistemaestoque/estoque/views.py#L2946-L3028):
+  - Painel do assinante/lojista: Exibe status da assinatura (`TRIAL`, `ATIVA`, `VENCIDA`), dias restantes de vigência, histórico de pagamentos e botão para checkout ou simulação.
+  - Sincronização automática em background com a API do Mercado Pago.
+  - *Template:* [`estoque/minha_assinatura.html`](file:///c:/sistemaestoque/estoque/templates/estoque/minha_assinatura.html).
+- **`iniciar_checkout_mercadopago(request)`** [`L3030-3079`](file:///c:/sistemaestoque/estoque/views.py#L3030-L3079):
+  - Integração oficial Checkout Pro: Cria preferência no Mercado Pago com `statement_descriptor="SISTEMAESTOQ"` (máximo 13 caracteres), `payment_methods` excluindo boletos (`ticket`) para focar em Pix e Cartões, e redireciona para `init_point` (ou `sandbox_init_point` se em testes).
+- **`simular_pagamento_mp(request)`** [`L3082-3112`](file:///c:/sistemaestoque/estoque/views.py#L3082-L3112):
+  - Endpoint de teste seguro para desenvolvedores e demonstração local: aprova imediatamente 30 dias de assinatura.
+- **`webhook_mercadopago(request)`** [`L3115-3212`](file:///c:/sistemaestoque/estoque/views.py#L3115-L3212):
+  - Endpoint `@csrf_exempt` para recebimento de notificações IPN/Webhook do Mercado Pago (tópicos `payment` e `merchant_order` / `orders`). Consulta status via API REST e credita +30 dias de assinatura idempotentemente.
+- **`painel_superadmin_assinaturas(request)`** [`L3219-3294`](file:///c:/sistemaestoque/estoque/views.py#L3219-L3294):
+  - Painel executivo exclusivo de Superusuários: Exibe 5 KPIs de faturamento e vigência, tabela de empresas com status e busca, prorrogação de degustação e tabela de últimas transações de pagamento.
+  - *Template:* [`estoque/superadmin_assinaturas.html`](file:///c:/sistemaestoque/estoque/templates/estoque/superadmin_assinaturas.html).
+- **`prorrogar_trial_superadmin(request, pk)`** [`L3297-3323`](file:///c:/sistemaestoque/estoque/views.py#L3297-L3323):
+  - Concede dias adicionais de trial (+3, +7, +15, +30 dias) para a empresa selecionada.
+- **`ativar_assinatura_superadmin(request, pk)`** [`L3326-3343`](file:///c:/sistemaestoque/estoque/views.py#L3326-L3343):
+  - Ativação manual de vigência de 30 dias para a empresa com registro de auditoria.
+- **`toggle_bloqueio_empresa_superadmin(request, pk)`** [`L3346-3356`](file:///c:/sistemaestoque/estoque/views.py#L3346-L3356):
+  - Bloqueia (`ativo=False`) ou desbloqueia (`ativo=True`) a empresa e seu acesso geral ao SaaS.
+- **`salvar_order_id_pagamento_superadmin(request, pk)`** [`L3359-3402`](file:///c:/sistemaestoque/estoque/views.py#L3359-L3402):
+  - Vincula o ORDER ID completo do Mercado Pago (ex: `ORDTST01M3A2C8WFYB52ARVXW4G3Y6D5`) à transação de assinatura. Se o pagamento estiver pendente, consulta a API do Mercado Pago e aprova a assinatura imediatamente se já tiver sido paga.
+- **`executar_migracoes_superadmin(request)`** [`L3405-3438`](file:///c:/sistemaestoque/estoque/views.py#L3405-L3438):
+  - Executa `call_command('migrate', interactive=False)` diretamente via web para Superusuários com tela de console estilo terminal. Essencial para plataformas serverless como a Vercel.
+  - *Template:* [`estoque/superadmin_migracoes.html`](file:///c:/sistemaestoque/estoque/templates/estoque/superadmin_migracoes.html).
+
 ---
 
 ## 🗄️ Mapa de Modelos de Dados (`estoque/models.py`)
@@ -289,6 +321,8 @@ Arquivo: [`estoque/models.py`](file:///c:/sistemaestoque/estoque/models.py)
 | **`ItemVenda`** | L343-356 | `quantidade`, `preco_unitario`, `subtotal` | `venda` (FK `Venda`), `produto` (FK), `lote` (FK Null), `saida_estoque` (FK Null) | `__str__` |
 | **`ContaReceber`** | L359-402 | `numero_parcela`, `total_parcelas`, `valor_parcela`, `valor_pago`, `data_vencimento`, `data_pagamento`, `status` | `empresa` (FK), `cliente` (FK), `venda` (FK) | `@property saldo_restante`<br>`@property esta_vencida`<br>`@property dias_atraso` |
 | **`PagamentoCrediario`**| L405-430 | `valor_recebido`, `forma_pagamento`, `data_recebimento`, `observacoes` | `empresa` (FK), `conta` (FK `ContaReceber`), `usuario` (FK Null) | `__str__` |
+| **`PagamentoAssinatura`**| L529-575 | `empresa`, `valor`, `metodo`, `status`, `mp_order_id`, `mp_preference_id`, `mp_payment_id`, `mp_init_point`, `dias_concedidos`, `data_criacao`, `data_confirmacao`, `observacoes` | `empresa` (FK `Empresa`) | `@property order_id_exibicao`<br>`__str__` |
+| **`HistoricoPreco`**| L579-605 | `empresa`, `produto`, `preco_anterior`, `preco_novo`, `usuario`, `data_alteracao`, `motivo` | `empresa` (FK), `produto` (FK), `usuario` (FK Null `User`) | `@property variacao_valor`<br>`@property variacao_percentual`<br>`__str__` |
 
 ---
 
@@ -365,6 +399,9 @@ Diretório: [`estoque/templates/estoque/`](file:///c:/sistemaestoque/estoque/tem
 | [`lista_vendas.html`](file:///c:/sistemaestoque/estoque/templates/estoque/lista_vendas.html) | Histórico geral de vendas faturadas | Filtros por forma de pagamento, status, faturamento total |
 | [`detalhe_venda.html`](file:///c:/sistemaestoque/estoque/templates/estoque/detalhe_venda.html) | Comprovante/recibo formal da venda | Impressão térmica/A4 (`window.print`), cancelamento de venda |
 | [`painel_crediario.html`](file:///c:/sistemaestoque/estoque/templates/estoque/painel_crediario.html) | Gestão financeira de contas a receber | KPIs de atraso/recebimento, modal de quitação de parcela |
+| [`minha_assinatura.html`](file:///c:/sistemaestoque/estoque/templates/estoque/minha_assinatura.html) | Painel do assinante / lojista | Status da assinatura, dias restantes, histórico de pagamentos e checkout |
+| [`superadmin_assinaturas.html`](file:///c:/sistemaestoque/estoque/templates/estoque/superadmin_assinaturas.html) | Painel executivo do Superadmin para gestão SaaS | 5 KPIs de faturamento, prorrogação de trial, bloqueio de empresas e Order ID MP |
+| [`superadmin_migracoes.html`](file:///c:/sistemaestoque/estoque/templates/estoque/superadmin_migracoes.html) | Console web de execução de migrações (`manage.py migrate`) | Terminal dark mode com output em tempo real, botão de cópia de log e reexecução |
 
 
 ---

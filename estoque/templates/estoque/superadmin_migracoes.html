@@ -1,0 +1,86 @@
+{% extends 'estoque/base.html' %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Breadcrumb e Topo -->
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 pb-3 mb-4 border-bottom">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="{% url 'painel_superadmin_assinaturas' %}" class="text-decoration-none">Gestão de Assinaturas</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Migrações do Banco</li>
+                </ol>
+            </nav>
+            <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-danger text-white px-2 py-1 small">Superadmin</span>
+                <h1 class="h3 fw-bold text-dark mb-0">Execução de Migrações (Database Migrate)</h1>
+            </div>
+            <p class="text-muted small mb-0 mt-1">Sincronização sob demanda do esquema do banco de dados (equivalente a <code>python manage.py migrate</code>).</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'executar_migracoes_superadmin' %}" class="btn btn-outline-warning">
+                <i class="bi bi-arrow-clockwise me-1"></i> Executar Novamente
+            </a>
+            <a href="{% url 'painel_superadmin_assinaturas' %}" class="btn btn-primary">
+                <i class="bi bi-arrow-left me-1"></i> Voltar para Assinaturas
+            </a>
+        </div>
+    </div>
+
+    <!-- Status da Execução -->
+    <div class="row g-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+                <div class="card-header bg-white py-3 px-4 d-flex justify-content-between align-items-center border-bottom">
+                    <div class="d-flex align-items-center gap-2">
+                        {% if sucesso %}
+                            <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 rounded-pill fw-semibold">
+                                <i class="bi bi-check-circle-fill me-1"></i> Sucesso / Sem Erros
+                            </span>
+                        {% else %}
+                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-3 py-2 rounded-pill fw-semibold">
+                                <i class="bi bi-exclamation-triangle-fill me-1"></i> Falha Detectada
+                            </span>
+                        {% endif %}
+                        <span class="text-muted small">Saída do Console Django</span>
+                    </div>
+                    <button class="btn btn-sm btn-outline-secondary rounded-pill px-3" onclick="copiarLog()">
+                        <i class="bi bi-clipboard me-1"></i> Copiar Log
+                    </button>
+                </div>
+
+                <!-- Terminal Console Body -->
+                <div class="card-body p-0">
+                    <div class="bg-dark text-light p-4 font-monospace" style="font-size: 0.88rem; min-height: 260px; max-height: 500px; overflow-y: auto;" id="terminalLog">
+                        <div class="text-secondary pb-2 mb-3 border-bottom border-secondary small">
+                            <span class="text-success">$</span> python manage.py migrate --noinput
+                        </div>
+                        <pre class="mb-0 text-light" style="white-space: pre-wrap; font-family: 'Consolas', 'Courier New', monospace;">{{ output }}</pre>
+                    </div>
+                </div>
+
+                <div class="card-footer bg-light py-3 px-4 d-flex justify-content-between align-items-center flex-wrap gap-2 text-muted small">
+                    <div>
+                        <i class="bi bi-shield-check text-success me-1"></i>
+                        Esta ferramenta é segura e idempotente. Pode ser executada a qualquer momento sem risco de perda de dados.
+                    </div>
+                    <div class="fw-semibold">
+                        JG TECH Cloud Infrastructure
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function copiarLog() {
+    const texto = document.getElementById('terminalLog').innerText;
+    navigator.clipboard.writeText(texto).then(() => {
+        alert('Log de migração copiado para a área de transferência!');
+    }).catch(err => {
+        console.error('Falha ao copiar:', err);
+    });
+}
+</script>
+{% endblock %}
