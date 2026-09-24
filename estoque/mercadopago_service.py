@@ -542,12 +542,12 @@ def sincronizar_pagamentos_pendentes(empresa=None):
                         observacoes=f"Aprovado via reconciliação automática Mercado Pago (Status: {status})"
                     )
                     atualizados += 1
-        else:
-            dados = consultar_pagamento_mp(identificador)
+        elif pag.mp_payment_id:
+            dados = consultar_pagamento_mp(pag.mp_payment_id)
             if dados:
                 status = dados.get('status')
                 if status == 'approved':
-                    real_id = str(dados.get('id', identificador))
+                    real_id = str(dados.get('id', pag.mp_payment_id))
                     processar_aprovacao_assinatura(
                         empresa=pag.empresa,
                         payment_id=real_id,
@@ -558,5 +558,39 @@ def sincronizar_pagamentos_pendentes(empresa=None):
                         observacoes=f"Aprovado via reconciliação automática Mercado Pago (Status: {status})"
                     )
                     atualizados += 1
+        elif pag.mp_preference_id:
+            # Reconciliação para Checkout Pro: busca a Merchant Order pela Preference ID
+            access_token = getattr(settings, 'MERCADO_PAGO_ACCESS_TOKEN', '').strip()
+            headers = {'Authorization': f'Bearer {access_token}'}
+            try:
+                r_mo = requests.get(
+                    f"{MERCADO_PAGO_API_URL}/merchant_orders?preference_id={pag.mp_preference_id}",
+                    headers=headers,
+                    timeout=10
+                )
+                if r_mo.status_code == 200:
+                    elements = r_mo.json().get('elements', [])
+                    aprovado_encontrado = False
+                    for mo in elements:
+                        for p in mo.get('payments', []):
+                            if p.get('status') == 'approved':
+                                real_id = str(p.get('id'))
+                                valor_pago = Decimal(str(p.get('transaction_amount', pag.valor)))
+                                processar_aprovacao_assinatura(
+                                    empresa=pag.empresa,
+                                    payment_id=real_id,
+                                    preference_id=pag.mp_preference_id,
+                                    metodo='MERCADO_PAGO',
+                                    valor=valor_pago,
+                                    dias=pag.dias_concedidos,
+                                    observacoes=f"Aprovado via reconciliação automática Checkout Pro (Order {mo.get('id')})"
+                                )
+                                atualizados += 1
+                                aprovado_encontrado = True
+                                break
+                        if aprovado_encontrado:
+                            break
+            except Exception as e:
+                logger.warning(f"[MercadoPago Reconciliação Preference] {str(e)}")
 
     return atualizados
