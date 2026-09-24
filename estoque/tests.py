@@ -1989,23 +1989,18 @@ class MercadoPagoRequisitosHomologacaoTestCase(TestCase):
             e_dono=True
         )
 
-    @patch('mercadopago.SDK')
-    def test_payload_completo_requisitos_mercado_pago(self, mock_sdk_class):
+    @patch('requests.post')
+    def test_orders_api_payload_completo_requisitos(self, mock_post):
         from django.test import RequestFactory
         from estoque.mercadopago_service import criar_preferencia_assinatura
 
-        mock_sdk_instance = MagicMock()
-        mock_sdk_class.return_value = mock_sdk_instance
-        mock_pref = MagicMock()
-        mock_sdk_instance.preference.return_value = mock_pref
-        mock_pref.create.return_value = {
-            'status': 201,
-            'response': {
-                'id': 'PREF-TEST-123',
-                'init_point': 'https://mercadopago.com/checkout/test',
-                'sandbox_init_point': 'https://mercadopago.com/sandbox/test'
-            }
+        mock_resp = MagicMock()
+        mock_resp.status_code = 201
+        mock_resp.json.return_value = {
+            'id': 'ORDTST01MTESTE1234567890ABCDE',
+            'checkout_url': 'https://www.mercadopago.com.br/checkout/v1/redirect?order_id=ORDTST01MTESTE1234567890ABCDE'
         }
+        mock_post.return_value = mock_resp
 
         rf = RequestFactory()
         request = rf.get('/minha-assinatura/', SERVER_NAME='localhost')
@@ -2014,14 +2009,17 @@ class MercadoPagoRequisitosHomologacaoTestCase(TestCase):
         resultado = criar_preferencia_assinatura(self.empresa, request)
 
         self.assertFalse(resultado['simulacao'])
-        self.assertEqual(resultado['id'], 'PREF-TEST-123')
+        self.assertEqual(resultado['id'], 'ORDTST01MTESTE1234567890ABCDE')
+        self.assertEqual(resultado['init_point'], 'https://www.mercadopago.com.br/checkout/v1/redirect?order_id=ORDTST01MTESTE1234567890ABCDE')
 
-        # Verifica chamada ao SDK
-        mock_pref.create.assert_called_once()
-        payload_enviado = mock_pref.create.call_args[0][0]
+        # Verifica chamada ao Orders API
+        mock_post.assert_called_once()
+        url_chamada = mock_post.call_args[0][0]
+        payload_enviado = mock_post.call_args[1]['json']
 
-        # 1. Descrição - Fatura do Cartão (+12 pontos)
-        self.assertEqual(payload_enviado['statement_descriptor'], 'JGTECH SISTEMA')
+        self.assertIn('/v1/orders', url_chamada)
+
+        # 1. Config / Statement Descriptor (+12 pontos)
         self.assertEqual(payload_enviado['config']['statement_descriptor'], 'JGTECH SISTEMA')
 
         # 2. Payer: Nome (+5 pts) e Sobrenome (+5 pts)
@@ -2041,11 +2039,10 @@ class MercadoPagoRequisitosHomologacaoTestCase(TestCase):
 
         # 5. Additional Info Antifraude: data_reg (+1 pt), primeira_compra, auth_type
         self.assertIn('additional_info', payload_enviado)
-        self.assertIn('payer', payload_enviado['additional_info'])
-        add_payer = payload_enviado['additional_info']['payer']
-        self.assertIn('registration_date', add_payer)
-        self.assertTrue(add_payer['is_first_purchase_online'])
-        self.assertEqual(add_payer['authentication_type'], 'native')
+        add_info = payload_enviado['additional_info']
+        self.assertIn('payer.registration_date', add_info)
+        self.assertTrue(add_info['payer.is_first_purchase_online'])
+        self.assertEqual(add_info['payer.authentication_type'], 'WEB')
 
         # 6. Items: category_id (+2 pts), description (+5 pts), external_code
         item = payload_enviado['items'][0]
@@ -2053,12 +2050,9 @@ class MercadoPagoRequisitosHomologacaoTestCase(TestCase):
         self.assertEqual(item['external_code'], f'ASSINATURA-JGTECH-{self.empresa.id}')
         self.assertIn('JGTECH', item['description'])
 
-        # 7. Webhook notification_url (+10 pts)
-        self.assertTrue(payload_enviado['notification_url'].startswith('https://'))
-
-        # 8. Exclusão de boleto (apenas Pix e Cartões)
-        excluidos = [x['id'] for x in payload_enviado['payment_methods']['excluded_payment_types']]
-        self.assertIn('ticket', excluidos)
+        # 7. Exclusão de boleto (apenas Pix e Cartões)
+        not_allowed = payload_enviado['config']['payment_method']['not_allowed_types']
+        self.assertIn('ticket', not_allowed)
 
 
 
