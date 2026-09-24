@@ -1362,6 +1362,63 @@ class SegurancaAssinaturasETenantTests(TestCase):
         self.assertEqual(self.empresa1.assinatura_fim, fim_inicial)
         self.assertEqual(PagamentoAssinatura.objects.filter(empresa=self.empresa1, status='APROVADO').count(), 1)
 
+    def test_idempotencia_cruzada_webhook_e_retorno_mp(self):
+        """
+        Garante que notificações concorrentes com IDs correlacionados (Merchant Order,
+        Payment e Preference ID) unificam o registro e NUNCA duplicam a vigência de dias.
+        """
+        from .mercadopago_service import processar_aprovacao_assinatura
+        # 1. Cria pendência como no início do checkout
+        PagamentoAssinatura.objects.create(
+            empresa=self.empresa1,
+            valor=Decimal('50.00'),
+            metodo='MERCADO_PAGO',
+            status='PENDENTE',
+            mp_preference_id='PREF-TEST-XYZ-123'
+        )
+
+        # 2. Primeira notificação (Webhook de Merchant Order)
+        p1 = processar_aprovacao_assinatura(
+            empresa=self.empresa1,
+            payment_id='180707030360',
+            preference_id='PREF-TEST-XYZ-123',
+            order_id='180707030360',
+            dias=30
+        )
+        self.empresa1.refresh_from_db()
+        fim_esperado = self.empresa1.assinatura_fim
+
+        # 3. Segunda notificação (Webhook de Payment com payment_id real e order_id)
+        p2 = processar_aprovacao_assinatura(
+            empresa=self.empresa1,
+            payment_id='44709047309',
+            preference_id=None,
+            order_id='180707030360',
+            dias=30
+        )
+
+        # 4. Terceira chamada (Redirecionamento do comprador com payment_id e preference_id)
+        p3 = processar_aprovacao_assinatura(
+            empresa=self.empresa1,
+            payment_id='44709047309',
+            preference_id='PREF-TEST-XYZ-123',
+            order_id=None,
+            dias=30
+        )
+
+        self.empresa1.refresh_from_db()
+        # Não pode ter concedido 60 ou 90 dias, exatamente 30 dias
+        self.assertEqual(self.empresa1.assinatura_fim, fim_esperado)
+
+        # Apenas 1 registro aprovado existente
+        aprovados = PagamentoAssinatura.objects.filter(empresa=self.empresa1, status='APROVADO')
+        self.assertEqual(aprovados.count(), 1)
+
+        registro = aprovados.first()
+        self.assertEqual(registro.mp_payment_id, '44709047309')
+        self.assertEqual(registro.mp_order_id, '180707030360')
+        self.assertEqual(registro.mp_preference_id, 'PREF-TEST-XYZ-123')
+
     def test_get_empresa_usuario_com_anonymous_user(self):
         """Garante que AnonymousUser não gera exceção nem vaza contexto"""
         from django.contrib.auth.models import AnonymousUser

@@ -27,7 +27,7 @@ from .mercadopago_service import (
     criar_preferencia_assinatura, consultar_pagamento_mp,
     consultar_order_mp, verificar_assinatura_webhook,
     processar_aprovacao_assinatura, is_mercadopago_configured,
-    sincronizar_pagamentos_pendentes,
+    sincronizar_pagamentos_pendentes, extrair_detalhes_transacao_mp,
     VALOR_ASSINATURA_PADRAO
 )
 from django.core.paginator import Paginator
@@ -2967,59 +2967,69 @@ def minha_assinatura(request):
     # Feedback e ativação de retorno oficial do Mercado Pago (Back URLs)
     status_mp = (request.GET.get('status_mp') or request.GET.get('status') or request.GET.get('collection_status') or '').lower()
     payment_id = request.GET.get('payment_id') or request.GET.get('collection_id')
-    order_id = request.GET.get('order_id') or request.GET.get('preference_id')
+    merchant_order_id = request.GET.get('merchant_order_id')
+    order_id = merchant_order_id or request.GET.get('order_id')
+    preference_id = request.GET.get('preference_id')
 
     if status_mp in ('aprovado', 'approved'):
         pagamento_confirmado = False
         valor_aprovado = VALOR_ASSINATURA_PADRAO
-        id_operacao_real = payment_id or order_id
+        id_operacao_real = payment_id
+        pref_id_real = preference_id
+        order_id_real = order_id
 
         # [SEGURANÇA] Validação estrita: Nunca aprovar apenas por parâmetros GET na URL.
         # Devemos checar na API do Mercado Pago se a transação realmente existe,
         # se está com status 'approved'/'paid' e se pertence a esta empresa.
         if is_mercadopago_configured():
-            identificador_order = order_id or payment_id
-            if identificador_order and str(identificador_order).startswith('ORD'):
-                dados_ord = consultar_order_mp(identificador_order)
-                if dados_ord:
-                    st = dados_ord.get('status')
-                    ref = dados_ord.get('external_reference')
-                    if st in ('closed', 'processed', 'paid', 'approved') and str(ref) == str(empresa.id):
-                        pagamento_confirmado = True
-                        if dados_ord.get('transactions', {}).get('payments'):
-                            first_p = dados_ord['transactions']['payments'][0]
-                            id_operacao_real = str(first_p.get('reference_id') or first_p.get('id') or identificador_order)
-
-            if not pagamento_confirmado and payment_id:
+            if payment_id:
                 dados_pay = consultar_pagamento_mp(payment_id)
                 if dados_pay:
-                    st = dados_pay.get('status')
-                    ref = dados_pay.get('external_reference')
-                    if st == 'approved' and str(ref) == str(empresa.id):
+                    detalhes = extrair_detalhes_transacao_mp(dados_payment=dados_pay)
+                    ref = detalhes['external_reference']
+                    if detalhes['status'] in ('approved', 'accredited') and str(ref) == str(empresa.id):
                         pagamento_confirmado = True
-                        id_operacao_real = str(dados_pay.get('id', payment_id))
-                        valor_aprovado = Decimal(str(dados_pay.get('transaction_amount', VALOR_ASSINATURA_PADRAO)))
+                        id_operacao_real = detalhes['payment_id'] or payment_id
+                        order_id_real = detalhes['order_id'] or order_id_real
+                        valor_aprovado = Decimal(str(detalhes['valor'] or VALOR_ASSINATURA_PADRAO))
+
+                        if order_id_real and not pref_id_real:
+                            dados_ord = consultar_order_mp(order_id_real)
+                            if dados_ord:
+                                ord_det = extrair_detalhes_transacao_mp(dados_order=dados_ord)
+                                pref_id_real = ord_det['preference_id'] or pref_id_real
+
+            if not pagamento_confirmado and order_id_real:
+                dados_ord = consultar_order_mp(order_id_real)
+                if dados_ord:
+                    detalhes_ord = extrair_detalhes_transacao_mp(dados_order=dados_ord)
+                    ref = detalhes_ord['external_reference']
+                    if detalhes_ord['status'] in ('closed', 'processed', 'paid', 'approved', 'accredited') and str(ref) == str(empresa.id):
+                        pagamento_confirmado = True
+                        id_operacao_real = detalhes_ord['payment_id'] or id_operacao_real or order_id_real
+                        pref_id_real = detalhes_ord['preference_id'] or pref_id_real
+                        valor_aprovado = Decimal(str(detalhes_ord['valor'] or VALOR_ASSINATURA_PADRAO))
         elif settings.DEBUG:
-            # Em modo puramente de desenvolvimento (sem chaves configuradas), só aprova se houver
-            # registro PENDENTE legítimo já cadastrado no banco para esta empresa
-            if order_id or payment_id:
+            ids_busca = [i for i in [order_id, preference_id, payment_id] if i]
+            if ids_busca:
                 pag_pend = PagamentoAssinatura.objects.filter(
                     empresa=empresa,
                     status='PENDENTE'
                 ).filter(
-                    Q(mp_preference_id=order_id) | Q(mp_payment_id=payment_id)
+                    Q(mp_preference_id__in=ids_busca) |
+                    Q(mp_payment_id__in=ids_busca) |
+                    Q(mp_order_id__in=ids_busca)
                 ).first()
                 if pag_pend:
                     pagamento_confirmado = True
                     valor_aprovado = pag_pend.valor
 
         if pagamento_confirmado:
-            order_param = order_id if (order_id and str(order_id).startswith('ORD')) else (payment_id if (payment_id and str(payment_id).startswith('ORD')) else None)
             processar_aprovacao_assinatura(
                 empresa=empresa,
                 payment_id=id_operacao_real,
-                preference_id=order_id,
-                order_id=order_param,
+                preference_id=pref_id_real,
+                order_id=order_id_real,
                 metodo='MERCADO_PAGO',
                 valor=valor_aprovado,
                 dias=30,
@@ -3160,30 +3170,26 @@ def webhook_mercadopago(request):
         if not re.match(r'^[a-zA-Z0-9_\-\.]{1,80}$', resource_id_str):
             return HttpResponse("ID inválido", status=400)
 
-        # 1. Notificação de Order (Orders API v1/orders)
+        # 1. Notificação de Order / Merchant Order
         if (topic and 'order' in str(topic).lower()) or resource_id_str.startswith('ORD'):
             dados_order = consultar_order_mp(resource_id_str)
             if dados_order:
-                order_status = dados_order.get('status')
-                ref_externa = dados_order.get('external_reference')
-                total = dados_order.get('total_amount', float(VALOR_ASSINATURA_PADRAO))
-                if order_status in ('closed', 'processed', 'paid', 'approved') and ref_externa:
+                detalhes = extrair_detalhes_transacao_mp(dados_order=dados_order)
+                order_status = detalhes['status']
+                ref_externa = detalhes['external_reference']
+                valor_final = Decimal(str(detalhes['valor'] or VALOR_ASSINATURA_PADRAO))
+                if order_status in ('closed', 'processed', 'paid', 'approved', 'accredited') and ref_externa:
                     try:
                         empresa = Empresa.objects.get(id=int(ref_externa))
-                        real_pay_id = resource_id_str
-                        if dados_order.get('transactions', {}).get('payments'):
-                            first_p = dados_order['transactions']['payments'][0]
-                            real_pay_id = str(first_p.get('reference_id') or first_p.get('id') or resource_id_str)
-
                         processar_aprovacao_assinatura(
                             empresa=empresa,
-                            payment_id=real_pay_id,
-                            preference_id=resource_id_str,
-                            order_id=resource_id_str,
+                            payment_id=detalhes['payment_id'],
+                            preference_id=detalhes['preference_id'],
+                            order_id=detalhes['order_id'] or resource_id_str,
                             metodo='MERCADO_PAGO',
-                            valor=Decimal(str(total)),
+                            valor=valor_final,
                             dias=30,
-                            observacoes=f"Aprovado via Webhook Orders MP (Status: {order_status})"
+                            observacoes=f"Aprovado via Webhook Mercado Pago (Status: {order_status})"
                         )
                     except (Empresa.DoesNotExist, ValueError, TypeError):
                         pass
@@ -3191,22 +3197,31 @@ def webhook_mercadopago(request):
             # 2. Notificação de Payment (v1/payments)
             dados_pagamento = consultar_pagamento_mp(resource_id_str)
             if dados_pagamento:
-                status = dados_pagamento.get('status')
-                ref_externa = dados_pagamento.get('external_reference')
-                valor = dados_pagamento.get('transaction_amount', float(VALOR_ASSINATURA_PADRAO))
+                detalhes = extrair_detalhes_transacao_mp(dados_payment=dados_pagamento)
 
-                if status == 'approved' and ref_externa:
+                # Se temos order_id e não temos preference_id, consulta a order para vincular a preference
+                if detalhes['order_id'] and not detalhes['preference_id']:
+                    dados_order = consultar_order_mp(detalhes['order_id'])
+                    if dados_order:
+                        ord_det = extrair_detalhes_transacao_mp(dados_order=dados_order)
+                        detalhes['preference_id'] = ord_det['preference_id']
+
+                status_pay = detalhes['status']
+                ref_externa = detalhes['external_reference']
+                valor_final = Decimal(str(detalhes['valor'] or VALOR_ASSINATURA_PADRAO))
+
+                if status_pay in ('approved', 'accredited') and ref_externa:
                     try:
                         empresa = Empresa.objects.get(id=int(ref_externa))
-                        order_id_found = dados_pagamento.get('order', {}).get('id')
                         processar_aprovacao_assinatura(
                             empresa=empresa,
-                            payment_id=resource_id_str,
-                            order_id=str(order_id_found) if order_id_found else None,
+                            payment_id=detalhes['payment_id'] or resource_id_str,
+                            preference_id=detalhes['preference_id'],
+                            order_id=detalhes['order_id'],
                             metodo='MERCADO_PAGO',
-                            valor=Decimal(str(valor)),
+                            valor=valor_final,
                             dias=30,
-                            observacoes=f"Aprovado via Webhook Mercado Pago (Status: {status})"
+                            observacoes=f"Aprovado via Webhook Mercado Pago (Status: {status_pay})"
                         )
                     except (Empresa.DoesNotExist, ValueError, TypeError):
                         pass
