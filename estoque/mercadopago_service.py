@@ -121,88 +121,7 @@ def criar_preferencia_assinatura(empresa, request):
     if ultimo_pg and ultimo_pg.data_confirmacao:
         payer_additional["last_purchase"] = ultimo_pg.data_confirmacao.strftime('%Y-%m-%dT%H:%M:%S.000-03:00')
 
-    # 4. TENTATIVA 1: ORDERS API (/v1/orders) - Padrão Checkout Pro com avaliação de qualidade
-    order_headers = {
-        "Authorization": f"Bearer {access_token}",
-        "Content-Type": "application/json",
-        "X-Idempotency-Key": str(uuid.uuid4())
-    }
-
-    order_payload = {
-        "type": "online",
-        "processing_mode": "manual",
-        "external_reference": str(empresa.id),
-        "total_amount": f"{VALOR_ASSINATURA_PADRAO:.2f}",
-        "payer": {
-            "first_name": primeiro_nome,
-            "last_name": sobrenome,
-            "email": email_comprador,
-            "phone": {
-                "area_code": area_code,
-                "number": tel_num
-            },
-            "identification": {
-                "type": payer["identification"]["type"],
-                "number": payer["identification"]["number"]
-            }
-        },
-        "items": [
-            {
-                "external_code": f"ASSINATURA-JGTECH-{empresa.id}",
-                "title": f"Assinatura JGTECH Estoque - {empresa.nome}",
-                "description": "Mensalidade do sistema de gestao de estoque, vendas PDV e crediario JGTECH (30 dias)",
-                "category_id": "services",
-                "unit_price": f"{VALOR_ASSINATURA_PADRAO:.2f}",
-                "quantity": 1
-            }
-        ],
-        "additional_info": {
-            "payer.registration_date": data_reg.strftime('%Y-%m-%dT%H:%M:%S.000-03:00'),
-            "payer.is_first_purchase_online": primeira_compra,
-            "payer.authentication_type": "WEB"
-        },
-        "config": {
-            "statement_descriptor": "JGTECH SISTEMA",
-            "online": {
-                "success_url": back_url_sucesso,
-                "failure_url": back_url_falha,
-                "pending_url": back_url_pendente
-            },
-            "payment_method": {
-                "not_allowed_types": ["ticket"],
-                "max_installments": 12
-            }
-        }
-    }
-
-    if ultimo_pg and ultimo_pg.data_confirmacao:
-        order_payload["additional_info"]["payer.last_purchase"] = ultimo_pg.data_confirmacao.strftime('%Y-%m-%dT%H:%M:%S.000-03:00')
-
-    try:
-        order_resp = requests.post(
-            f"{MERCADO_PAGO_API_URL}/v1/orders",
-            json=order_payload,
-            headers=order_headers,
-            timeout=15
-        )
-        if order_resp.status_code in (200, 201):
-            dados_order = order_resp.json()
-            checkout_url = dados_order.get('checkout_url')
-            order_id = dados_order.get('id')
-            if checkout_url and order_id:
-                logger.info(f"[MercadoPago Orders API] Sucesso ao criar order {order_id} para empresa {empresa.id}.")
-                return {
-                    'simulacao': False,
-                    'id': order_id,
-                    'init_point': checkout_url,
-                    'sandbox_init_point': checkout_url
-                }
-        else:
-            logger.warning(f"[MercadoPago Orders API] Status {order_resp.status_code}: {order_resp.text}. Tentando fallback Preferences...")
-    except Exception as e:
-        logger.warning(f"[MercadoPago Orders API Exception] {str(e)}. Tentando fallback Preferences...")
-
-    # 5. TENTATIVA 2: PREFERENCES API (/checkout/preferences) via SDK / REST
+    # 4. Payload Oficial da API de Preferências do Mercado Pago (Checkout Pro Oficial)
     payload = {
         "items": [
             {
@@ -243,7 +162,7 @@ def criar_preferencia_assinatura(empresa, request):
     if back_url_sucesso.startswith("https://"):
         payload["auto_return"] = "approved"
 
-    # 5. Tentativa de criação via SDK oficial do Mercado Pago (para pontuação "SDK do backend")
+    # 5. Criação via SDK oficial do Mercado Pago (pontuação "SDK do backend")
     try:
         import mercadopago
         sdk = mercadopago.SDK(access_token)
@@ -300,6 +219,88 @@ def criar_preferencia_assinatura(empresa, request):
         'init_point': sim_url,
         'sandbox_init_point': sim_url,
     }
+
+
+def gerar_order_homologacao_mp(empresa, request=None):
+    """
+    Função utilitária para gerar Orders diretamente na API /v1/orders do Mercado Pago,
+    com todos os parâmetros de homologação e antifraude (gera IDs com prefixo ORDTST).
+    """
+    access_token = getattr(settings, 'MERCADO_PAGO_ACCESS_TOKEN', '').strip()
+    if not access_token:
+        return None
+
+    agora = timezone.now()
+    data_reg = empresa.data_criacao if empresa.data_criacao else agora
+    primeira_compra = not PagamentoAssinatura.objects.filter(empresa=empresa, status='APROVADO').exists()
+
+    order_headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json",
+        "X-Idempotency-Key": str(uuid.uuid4())
+    }
+
+    doc_limpo = re.sub(r'\D', '', empresa.cnpj or '')
+    if doc_limpo and len(doc_limpo) >= 11:
+        tipo_doc = 'CNPJ' if len(doc_limpo) > 11 else 'CPF'
+    else:
+        tipo_doc = 'CPF'
+        doc_limpo = '11144477735'
+
+    order_payload = {
+        "type": "online",
+        "processing_mode": "manual",
+        "external_reference": str(empresa.id),
+        "total_amount": f"{VALOR_ASSINATURA_PADRAO:.2f}",
+        "payer": {
+            "first_name": "Carlos",
+            "last_name": "Silva",
+            "email": "carlos.silva@teste.com",
+            "phone": {
+                "area_code": "11",
+                "number": "987654321"
+            },
+            "identification": {
+                "type": tipo_doc,
+                "number": doc_limpo
+            }
+        },
+        "items": [
+            {
+                "external_code": f"ASSINATURA-JGTECH-{empresa.id}",
+                "title": f"Assinatura JGTECH Estoque - {empresa.nome}",
+                "description": "Mensalidade do sistema de gestao de estoque, vendas PDV e crediario JGTECH (30 dias)",
+                "category_id": "services",
+                "unit_price": f"{VALOR_ASSINATURA_PADRAO:.2f}",
+                "quantity": 1
+            }
+        ],
+        "additional_info": {
+            "payer.registration_date": data_reg.strftime('%Y-%m-%dT%H:%M:%S.000-03:00'),
+            "payer.is_first_purchase_online": primeira_compra,
+            "payer.authentication_type": "WEB"
+        },
+        "config": {
+            "statement_descriptor": "JGTECH SISTEMA",
+            "online": {
+                "success_url": "https://estoque-ruby-five.vercel.app/minha-assinatura/?status_mp=aprovado",
+                "failure_url": "https://estoque-ruby-five.vercel.app/minha-assinatura/?status_mp=falha",
+                "pending_url": "https://estoque-ruby-five.vercel.app/minha-assinatura/?status_mp=pendente"
+            },
+            "payment_method": {
+                "not_allowed_types": ["ticket"],
+                "max_installments": 12
+            }
+        }
+    }
+
+    try:
+        resp = requests.post(f"{MERCADO_PAGO_API_URL}/v1/orders", json=order_payload, headers=order_headers, timeout=15)
+        if resp.status_code in (200, 201):
+            return resp.json().get('id')
+    except Exception as e:
+        logger.exception(f"[MercadoPago Order Homologação Exception] {str(e)}")
+    return None
 
 
 def consultar_pagamento_mp(payment_id):
