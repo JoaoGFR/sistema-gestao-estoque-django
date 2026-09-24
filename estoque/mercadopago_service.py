@@ -294,6 +294,30 @@ def gerar_order_homologacao_mp(empresa, request=None):
         }
     }
 
+    # Criação via SDK oficial do Mercado Pago (pontuação "SDK do backend")
+    try:
+        import mercadopago
+        sdk = mercadopago.SDK(access_token)
+        req_opt = mercadopago.config.RequestOptions()
+        req_opt.custom_headers = {'x-idempotency-key': str(uuid.uuid4())}
+
+        sdk_resp = sdk.order().create(order_payload, request_options=req_opt)
+        status_code = sdk_resp.get('status')
+        dados = sdk_resp.get('response', {})
+        if status_code in (200, 201) and dados.get('id'):
+            logger.info(f"[MercadoPago SDK Order] Sucesso ao criar order ID {dados.get('id')} para empresa {empresa.id}.")
+            return {
+                'id': dados.get('id'),
+                'checkout_url': dados.get('checkout_url')
+            }
+        else:
+            logger.warning(f"[MercadoPago SDK Order Warning] Status {status_code}: {dados}. Tentando fallback HTTP...")
+    except ImportError:
+        logger.info("[MercadoPago Service] SDK mercadopago não disponível no ambiente para Order, usando fallback HTTP direto.")
+    except Exception as e:
+        logger.warning(f"[MercadoPago SDK Order Exception] {str(e)}. Tentando fallback HTTP...")
+
+    # Fallback direto via HTTP REST caso o SDK falhe
     try:
         resp = requests.post(f"{MERCADO_PAGO_API_URL}/v1/orders", json=order_payload, headers=order_headers, timeout=15)
         if resp.status_code in (200, 201):

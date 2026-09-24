@@ -2058,16 +2058,28 @@ class MercadoPagoRequisitosHomologacaoTestCase(TestCase):
         excluidos = [x['id'] for x in payload_enviado['payment_methods']['excluded_payment_types']]
         self.assertIn('ticket', excluidos)
 
+    @patch('mercadopago.SDK')
+    def test_gerar_order_homologacao_mp_via_sdk(self, mock_sdk_class):
+        mock_sdk_instance = MagicMock()
+        mock_sdk_class.return_value = mock_sdk_instance
+        mock_order = MagicMock()
+        mock_sdk_instance.order.return_value = mock_order
 
+        mock_order.create.return_value = {
+            'status': 201,
+            'response': {
+                'id': 'ORDTST01MTESTE123',
+                'checkout_url': 'https://www.mercadopago.com.br/checkout/v1/redirect?order_id=ORDTST01MTESTE123'
+            }
+        }
 
+        from estoque.mercadopago_service import gerar_order_homologacao_mp
+        res = gerar_order_homologacao_mp(self.empresa)
+        self.assertIsNotNone(res)
+        self.assertEqual(res['id'], 'ORDTST01MTESTE123')
+        self.assertIn('ORDTST01MTESTE123', res['checkout_url'])
 
-
-
-
-
-
-
-
-
-
-
+        mock_order.create.assert_called_once()
+        payload = mock_order.create.call_args[0][0]
+        self.assertEqual(payload['config']['statement_descriptor'], 'JGTECH')
+        self.assertEqual(payload['items'][0]['category_id'], 'services')
