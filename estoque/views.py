@@ -3054,32 +3054,28 @@ def iniciar_checkout_mercadopago(request):
     if not empresa:
         return redirect('cadastro_saas')
 
-    usar_sandbox = request.GET.get('sandbox') == '1' or getattr(settings, 'MERCADO_PAGO_SANDBOX', False)
-
     # Cria preferência oficial no Mercado Pago (Checkout Pro)
     resultado = criar_preferencia_assinatura(empresa, request)
-    pref_id = resultado.get('id')
-
-    # Seleciona URL de destino: Sandbox (para cartões de teste) ou Produção oficial
-    if usar_sandbox:
-        url_destino = resultado.get('sandbox_init_point') or resultado.get('init_point')
-    else:
-        url_destino = resultado.get('init_point') or resultado.get('sandbox_init_point')
-
-    if not url_destino:
-        messages.error(request, "Não foi possível carregar a página de pagamento do Mercado Pago no momento. Tente novamente em instantes.")
+    if not resultado or not resultado.get('init_point'):
+        messages.error(
+            request,
+            "Não foi possível iniciar o checkout do Mercado Pago no momento. Verifique suas credenciais ou tente novamente em instantes."
+        )
         return redirect('minha_assinatura')
+
+    pref_id = resultado.get('id')
+    url_destino = resultado.get('init_point')
 
     # Registra a intenção de pagamento pendente
     PagamentoAssinatura.objects.create(
         empresa=empresa,
         valor=VALOR_ASSINATURA_PADRAO,
-        metodo='MERCADO_PAGO' if not resultado.get('simulacao') else 'SIMULACAO',
+        metodo='MERCADO_PAGO',
         status='PENDENTE',
         mp_order_id=pref_id if (pref_id and str(pref_id).startswith('ORD')) else None,
         mp_preference_id=pref_id,
         mp_init_point=url_destino,
-        observacoes=f"Iniciou checkout no Mercado Pago ({'Sandbox / Teste' if usar_sandbox else 'Produção'})"
+        observacoes="Iniciou checkout no Mercado Pago"
     )
 
     return redirect(url_destino)

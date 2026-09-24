@@ -25,16 +25,15 @@ def is_mercadopago_configured():
 
 def criar_preferencia_assinatura(empresa, request):
     """
-    Cria uma preferência de pagamento no Mercado Pago para assinatura mensal de R$ 50,00.
-    Retorna um dicionário com preference_id, init_point e sandbox.
-    Se não houver token configurado, retorna modo de simulação local.
+    Cria uma preferência de pagamento oficial no Mercado Pago Checkout Pro
+    para a assinatura mensal de R$ 50,00, estritamente conforme a documentação oficial:
+    https://www.mercadopago.com.br/developers/pt/reference/preferences/_checkout_preferences/post
+    Retorna um dicionário com {'id': preference_id, 'init_point': url_de_pagamento, 'simulacao': False}.
     """
     access_token = getattr(settings, 'MERCADO_PAGO_ACCESS_TOKEN', '').strip()
-    
-    # Se não houver credencial configurada no .env, ativa o modo de demonstração / simulação
     if not access_token:
-        logger.info(f"[MercadoPago Service] Token não configurado. Modo de simulação para empresa {empresa.id}.")
-        sim_url = request.build_absolute_uri(f"/assinatura/simular-pagamento/?empresa_id={empresa.id}")
+        logger.info(f"[MercadoPago Service] Token de acesso não configurado para empresa {empresa.id}.")
+        sim_url = request.build_absolute_uri(f"/assinatura/simular-pagamento/?empresa_id={empresa.id}") if request else ""
         return {
             'simulacao': True,
             'id': f"SIM-PREF-{empresa.id}-{int(timezone.now().timestamp())}",
@@ -56,11 +55,18 @@ def criar_preferencia_assinatura(empresa, request):
     primeiro_nome = partes_nome[0] if partes_nome else "Cliente"
     sobrenome = partes_nome[1] if len(partes_nome) > 1 else (empresa.nome if empresa.nome != primeiro_nome else "JGTECH")
 
+    payer = {
+        "name": primeiro_nome,
+        "surname": sobrenome,
+        "first_name": primeiro_nome,
+        "last_name": sobrenome,
+        "email": email_comprador,
+    }
+
     # Telefone do comprador (DDD + número)
     tel_raw = re.sub(r'\D', '', getattr(empresa, 'telefone', '') or '')
     if not tel_raw and dono:
         tel_raw = re.sub(r'\D', '', getattr(dono, 'telefone', '') or '')
-    
     if len(tel_raw) >= 10:
         area_code = tel_raw[:2]
         tel_num = tel_raw[2:]
@@ -68,42 +74,31 @@ def criar_preferencia_assinatura(empresa, request):
         area_code = "11"
         tel_num = "987654321"
 
-    payer = {
-        "name": primeiro_nome,
-        "surname": sobrenome,
-        "first_name": primeiro_nome,
-        "last_name": sobrenome,
-        "email": email_comprador,
-        "phone": {
-            "area_code": area_code,
-            "number": tel_num
-        }
+    payer["phone"] = {
+        "area_code": area_code,
+        "number": tel_num
     }
 
-    # Documento de identificação (CNPJ ou CPF)
+    # Documento de identificação (apenas se CPF ou CNPJ válido fornecido)
     doc_limpo = re.sub(r'\D', '', empresa.cnpj or '')
-    if doc_limpo and len(doc_limpo) >= 11:
-        tipo_doc = 'CNPJ' if len(doc_limpo) > 11 else 'CPF'
+    if doc_limpo and len(doc_limpo) in (11, 14):
+        tipo_doc = 'CNPJ' if len(doc_limpo) == 14 else 'CPF'
         payer["identification"] = {
             "type": tipo_doc,
             "number": doc_limpo
         }
-    else:
-        # Fallback de identificação para conformidade e antifraude do Mercado Pago
-        payer["identification"] = {
-            "type": "CPF",
-            "number": "11144477735"
-        }
 
-    # 2. URLs de Retorno e Webhook
-    back_url_sucesso = request.build_absolute_uri('/minha-assinatura/?status_mp=aprovado')
-    back_url_falha = request.build_absolute_uri('/minha-assinatura/?status_mp=falha')
-    back_url_pendente = request.build_absolute_uri('/minha-assinatura/?status_mp=pendente')
-    webhook_url = request.build_absolute_uri('/api/mercadopago/webhook/')
-
-    if webhook_url.startswith("https://"):
-        notification_url = webhook_url
+    # 2. URLs de Retorno (Back URLs) e Webhook
+    if request:
+        back_url_sucesso = request.build_absolute_uri('/minha-assinatura/?status_mp=aprovado')
+        back_url_falha = request.build_absolute_uri('/minha-assinatura/?status_mp=falha')
+        back_url_pendente = request.build_absolute_uri('/minha-assinatura/?status_mp=pendente')
+        webhook_local = request.build_absolute_uri('/api/mercadopago/webhook/')
+        notification_url = webhook_local if webhook_local.startswith("https://") else "https://estoque-ruby-five.vercel.app/api/mercadopago/webhook/"
     else:
+        back_url_sucesso = "https://estoque-ruby-five.vercel.app/minha-assinatura/?status_mp=aprovado"
+        back_url_falha = "https://estoque-ruby-five.vercel.app/minha-assinatura/?status_mp=falha"
+        back_url_pendente = "https://estoque-ruby-five.vercel.app/minha-assinatura/?status_mp=pendente"
         notification_url = "https://estoque-ruby-five.vercel.app/api/mercadopago/webhook/"
 
     # 3. Informações adicionais para antifraude (Antifraud & Scoring)
@@ -117,18 +112,14 @@ def criar_preferencia_assinatura(empresa, request):
         "authentication_type": "native"
     }
 
-    ultimo_pg = PagamentoAssinatura.objects.filter(empresa=empresa, status='APROVADO').order_by('-data_confirmacao').first()
-    if ultimo_pg and ultimo_pg.data_confirmacao:
-        payer_additional["last_purchase"] = ultimo_pg.data_confirmacao.strftime('%Y-%m-%dT%H:%M:%S.000-03:00')
-
-    # 4. Payload Oficial da API de Preferências do Mercado Pago (Checkout Pro Oficial)
+    # 4. Payload Oficial da API de Preferências do Mercado Pago (Checkout Pro)
     payload = {
         "items": [
             {
                 "id": f"assinatura-{empresa.id}",
                 "external_code": f"ASSINATURA-JGTECH-{empresa.id}",
                 "title": f"Assinatura JGTECH Estoque - {empresa.nome}",
-                "description": "Mensalidade do sistema de gestão de estoque, vendas PDV e crediário JGTECH (30 dias)",
+                "description": "Mensalidade do sistema de gestão de estoque JGTECH (30 dias)",
                 "category_id": "services",
                 "quantity": 1,
                 "currency_id": "BRL",
@@ -143,26 +134,29 @@ def criar_preferencia_assinatura(empresa, request):
         "config": {
             "statement_descriptor": "JGTECH"
         },
-        "notification_url": notification_url,
+        "external_reference": str(empresa.id),
+        "payment_methods": {
+            "excluded_payment_types": [
+                {"id": "ticket"}  # Exclui Boleto Bancário (apenas Pix e Cartões)
+            ],
+            "installments": 12
+        },
         "back_urls": {
             "success": back_url_sucesso,
             "failure": back_url_falha,
             "pending": back_url_pendente
-        },
-        "external_reference": str(empresa.id),
-        "payment_methods": {
-            "excluded_payment_types": [
-                {"id": "ticket"}  # Exclui Boleto Bancário (apenas Pix, Cartão de Crédito e Débito)
-            ],
-            "installments": 12
         }
     }
 
-    # auto_return só é aceito pela API se a URL de retorno for HTTPS pública
+    # Redirecionamento automático após aprovação (requer HTTPS)
     if back_url_sucesso.startswith("https://"):
         payload["auto_return"] = "approved"
 
-    # 5. Criação via SDK oficial do Mercado Pago (pontuação "SDK do backend")
+    # Notificação via Webhook IPN (requer HTTPS)
+    if notification_url and notification_url.startswith("https://"):
+        payload["notification_url"] = notification_url
+
+    # 4. Criação via SDK oficial do Mercado Pago
     try:
         import mercadopago
         sdk = mercadopago.SDK(access_token)
@@ -184,7 +178,7 @@ def criar_preferencia_assinatura(empresa, request):
     except Exception as e:
         logger.warning(f"[MercadoPago SDK Exception] {str(e)}. Tentando fallback HTTP...")
 
-    # 6. Fallback direto via HTTP REST caso o SDK falhe
+    # 5. Fallback direto via HTTP REST oficial
     headers = {
         "Authorization": f"Bearer {access_token}",
         "Content-Type": "application/json"
@@ -211,14 +205,9 @@ def criar_preferencia_assinatura(empresa, request):
     except Exception as e:
         logger.exception(f"[MercadoPago Preferences Exception] Erro ao criar preferência: {str(e)}")
 
-    # Fallback para simulação caso a chamada da API do MP falhe
-    sim_url = request.build_absolute_uri(f"/minha-assinatura/?status_mp=pendente")
-    return {
-        'simulacao': False,
-        'id': f"PREF-FALLBACK-{empresa.id}",
-        'init_point': sim_url,
-        'sandbox_init_point': sim_url,
-    }
+    return None
+
+
 
 
 def gerar_order_homologacao_mp(empresa, request=None):
