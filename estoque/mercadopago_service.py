@@ -119,7 +119,7 @@ def criar_preferencia_assinatura(empresa, request):
                 "id": f"assinatura-{empresa.id}",
                 "external_code": f"ASSINATURA-JGTECH-{empresa.id}",
                 "title": f"Assinatura JGTECH Estoque - {empresa.nome}",
-                "description": "Mensalidade do sistema de gestão de estoque JGTECH (30 dias)",
+                "description": "Serviço de assinatura JGTECH",
                 "category_id": "services",
                 "quantity": 1,
                 "currency_id": "BRL",
@@ -184,7 +184,7 @@ def criar_preferencia_assinatura(empresa, request):
                     {
                         "external_code": f"ASSINATURA-JGTECH-{empresa.id}",
                         "title": f"Assinatura JGTECH Estoque - {empresa.nome}",
-                        "description": "Mensalidade do sistema de gestao de estoque JGTECH (30 dias)",
+                        "description": "Serviço de assinatura JGTECH",
                         "category_id": "services",
                         "unit_price": f"{VALOR_ASSINATURA_PADRAO:.2f}",
                         "quantity": 1
@@ -208,11 +208,22 @@ def criar_preferencia_assinatura(empresa, request):
                     }
                 }
             }
+
+            # Envia sempre payer.identification ({type, number}) conforme exigido pelo Mercado Pago
+            doc_limpo = re.sub(r'\D', '', empresa.cnpj or '')
+            if not doc_limpo and empresa.dono:
+                doc_limpo = re.sub(r'\D', '', getattr(empresa.dono, 'cpf', '') or '')
             if doc_limpo and len(doc_limpo) in (11, 14):
-                order_payload["payer"]["identification"] = {
-                    "type": 'CNPJ' if len(doc_limpo) == 14 else 'CPF',
-                    "number": doc_limpo
-                }
+                tipo_doc = 'CNPJ' if len(doc_limpo) == 14 else 'CPF'
+                num_doc = doc_limpo
+            else:
+                tipo_doc = 'CPF'
+                num_doc = '11144477735'
+
+            order_payload["payer"]["identification"] = {
+                "type": tipo_doc,
+                "number": num_doc
+            }
 
             order_resp = sdk.order().create(order_payload, request_options=req_opt)
             st_order = order_resp.get('status')
@@ -332,7 +343,7 @@ def gerar_order_homologacao_mp(empresa, request=None):
             {
                 "external_code": f"ASSINATURA-JGTECH-{empresa.id}",
                 "title": f"Assinatura JGTECH Estoque - {empresa.nome}",
-                "description": "Mensalidade do sistema de gestao de estoque, vendas PDV e crediario JGTECH (30 dias)",
+                "description": "Serviço de assinatura JGTECH",
                 "category_id": "services",
                 "unit_price": f"{VALOR_ASSINATURA_PADRAO:.2f}",
                 "quantity": 1
