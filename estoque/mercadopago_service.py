@@ -297,7 +297,13 @@ def gerar_order_homologacao_mp(empresa, request=None):
     try:
         resp = requests.post(f"{MERCADO_PAGO_API_URL}/v1/orders", json=order_payload, headers=order_headers, timeout=15)
         if resp.status_code in (200, 201):
-            return resp.json().get('id')
+            dados = resp.json()
+            return {
+                'id': dados.get('id'),
+                'checkout_url': dados.get('checkout_url')
+            }
+        else:
+            logger.error(f"[MercadoPago Order Homologação Error] Status {resp.status_code}: {resp.text}")
     except Exception as e:
         logger.exception(f"[MercadoPago Order Homologação Exception] {str(e)}")
     return None
