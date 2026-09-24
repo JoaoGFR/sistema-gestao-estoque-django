@@ -1967,6 +1967,101 @@ class BackupSystemTests(TestCase):
         self.assertTrue(Categoria.objects.filter(id=8888, nome="Categoria Restaurada Via Upload").exists())
 
 
+class MercadoPagoRequisitosHomologacaoTestCase(TestCase):
+    """
+    Testes unitários para validar todos os requisitos e recomendações
+    do Checklist de Homologação e Qualidade do Mercado Pago.
+    """
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='comprador_teste',
+            first_name='Carlos',
+            last_name='Silva',
+            email='carlos.silva@teste.com'
+        )
+        self.empresa = Empresa.objects.create(
+            nome='JG Comércio e TI',
+            cnpj='12.345.678/0001-99'
+        )
+        UserProfile.objects.create(
+            user=self.user,
+            empresa=self.empresa,
+            e_dono=True
+        )
+
+    @patch('mercadopago.SDK')
+    def test_payload_completo_requisitos_mercado_pago(self, mock_sdk_class):
+        from django.test import RequestFactory
+        from estoque.mercadopago_service import criar_preferencia_assinatura
+
+        mock_sdk_instance = MagicMock()
+        mock_sdk_class.return_value = mock_sdk_instance
+        mock_pref = MagicMock()
+        mock_sdk_instance.preference.return_value = mock_pref
+        mock_pref.create.return_value = {
+            'status': 201,
+            'response': {
+                'id': 'PREF-TEST-123',
+                'init_point': 'https://mercadopago.com/checkout/test',
+                'sandbox_init_point': 'https://mercadopago.com/sandbox/test'
+            }
+        }
+
+        rf = RequestFactory()
+        request = rf.get('/minha-assinatura/', SERVER_NAME='localhost')
+        request.user = self.user
+
+        resultado = criar_preferencia_assinatura(self.empresa, request)
+
+        self.assertFalse(resultado['simulacao'])
+        self.assertEqual(resultado['id'], 'PREF-TEST-123')
+
+        # Verifica chamada ao SDK
+        mock_pref.create.assert_called_once()
+        payload_enviado = mock_pref.create.call_args[0][0]
+
+        # 1. Descrição - Fatura do Cartão (+12 pontos)
+        self.assertEqual(payload_enviado['statement_descriptor'], 'JGTECH SISTEMA')
+        self.assertEqual(payload_enviado['config']['statement_descriptor'], 'JGTECH SISTEMA')
+
+        # 2. Payer: Nome (+5 pts) e Sobrenome (+5 pts)
+        self.assertEqual(payload_enviado['payer']['first_name'], 'Carlos')
+        self.assertEqual(payload_enviado['payer']['last_name'], 'Silva')
+        self.assertEqual(payload_enviado['payer']['email'], 'carlos.silva@teste.com')
+
+        # 3. Payer: Identificação (+5 pts)
+        self.assertIn('identification', payload_enviado['payer'])
+        self.assertEqual(payload_enviado['payer']['identification']['type'], 'CNPJ')
+        self.assertEqual(payload_enviado['payer']['identification']['number'], '12345678000199')
+
+        # 4. Payer: Telefone (Boa prática)
+        self.assertIn('phone', payload_enviado['payer'])
+        self.assertIn('area_code', payload_enviado['payer']['phone'])
+        self.assertIn('number', payload_enviado['payer']['phone'])
+
+        # 5. Additional Info Antifraude: data_reg (+1 pt), primeira_compra, auth_type
+        self.assertIn('additional_info', payload_enviado)
+        self.assertIn('payer', payload_enviado['additional_info'])
+        add_payer = payload_enviado['additional_info']['payer']
+        self.assertIn('registration_date', add_payer)
+        self.assertTrue(add_payer['is_first_purchase_online'])
+        self.assertEqual(add_payer['authentication_type'], 'native')
+
+        # 6. Items: category_id (+2 pts), description (+5 pts), external_code
+        item = payload_enviado['items'][0]
+        self.assertEqual(item['category_id'], 'services')
+        self.assertEqual(item['external_code'], f'ASSINATURA-JGTECH-{self.empresa.id}')
+        self.assertIn('JGTECH', item['description'])
+
+        # 7. Webhook notification_url (+10 pts)
+        self.assertTrue(payload_enviado['notification_url'].startswith('https://'))
+
+        # 8. Exclusão de boleto (apenas Pix e Cartões)
+        excluidos = [x['id'] for x in payload_enviado['payment_methods']['excluded_payment_types']]
+        self.assertIn('ticket', excluidos)
+
+
+
 
 
 
