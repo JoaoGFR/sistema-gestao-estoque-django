@@ -2022,8 +2022,8 @@ class MercadoPagoRequisitosHomologacaoTestCase(TestCase):
         payload_enviado = mock_pref.create.call_args[0][0]
 
         # 1. Config / Statement Descriptor (+12 pontos)
-        self.assertEqual(payload_enviado['statement_descriptor'], 'JGTECH SISTEMA')
-        self.assertEqual(payload_enviado['config']['statement_descriptor'], 'JGTECH SISTEMA')
+        self.assertEqual(payload_enviado['statement_descriptor'], 'JGTECH')
+        self.assertEqual(payload_enviado['config']['statement_descriptor'], 'JGTECH')
 
         # 2. Payer: Nome (+5 pts) e Sobrenome (+5 pts)
         self.assertEqual(payload_enviado['payer']['first_name'], 'Carlos')

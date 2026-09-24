@@ -139,9 +139,9 @@ def criar_preferencia_assinatura(empresa, request):
         "additional_info": {
             "payer": payer_additional
         },
-        "statement_descriptor": "JGTECH SISTEMA",
+        "statement_descriptor": "JGTECH",
         "config": {
-            "statement_descriptor": "JGTECH SISTEMA"
+            "statement_descriptor": "JGTECH"
         },
         "notification_url": notification_url,
         "back_urls": {
@@ -281,7 +281,7 @@ def gerar_order_homologacao_mp(empresa, request=None):
             "payer.authentication_type": "WEB"
         },
         "config": {
-            "statement_descriptor": "JGTECH SISTEMA",
+            "statement_descriptor": "JGTECH",
             "online": {
                 "success_url": "https://estoque-ruby-five.vercel.app/minha-assinatura/?status_mp=aprovado",
                 "failure_url": "https://estoque-ruby-five.vercel.app/minha-assinatura/?status_mp=falha",
