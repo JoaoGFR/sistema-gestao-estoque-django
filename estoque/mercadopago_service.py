@@ -23,13 +23,17 @@ def is_mercadopago_configured():
     return bool(token and token.strip())
 
 
-def criar_preferencia_assinatura(empresa, request):
+def criar_preferencia_assinatura(empresa, request, valor=None, dias=30, custom_title=None):
     """
     Cria uma preferência de pagamento oficial no Mercado Pago Checkout Pro
-    para a assinatura mensal de R$ 50,00, estritamente conforme a documentação oficial:
+    para a assinatura mensal de R$ 50,00 (ou valor customizado para testes),
+    estritamente conforme a documentação oficial:
     https://www.mercadopago.com.br/developers/pt/reference/preferences/_checkout_preferences/post
     Retorna um dicionário com {'id': preference_id, 'init_point': url_de_pagamento, 'simulacao': False}.
     """
+    valor_cobranca = Decimal(str(valor)) if valor is not None else VALOR_ASSINATURA_PADRAO
+    titulo_cobranca = custom_title or f"Assinatura JGTECH Estoque - {empresa.nome}"
+
     access_token = getattr(settings, 'MERCADO_PAGO_ACCESS_TOKEN', '').strip()
     if not access_token:
         logger.info(f"[MercadoPago Service] Token de acesso não configurado para empresa {empresa.id}.")
@@ -39,6 +43,8 @@ def criar_preferencia_assinatura(empresa, request):
             'id': f"SIM-PREF-{empresa.id}-{int(timezone.now().timestamp())}",
             'init_point': sim_url,
             'sandbox_init_point': sim_url,
+            'valor': valor_cobranca,
+            'dias': dias,
         }
 
     # 1. Dados do comprador e identificação
@@ -118,12 +124,12 @@ def criar_preferencia_assinatura(empresa, request):
             {
                 "id": f"assinatura-{empresa.id}",
                 "external_code": f"ASSINATURA-JGTECH-{empresa.id}",
-                "title": f"Assinatura JGTECH Estoque - {empresa.nome}",
+                "title": titulo_cobranca,
                 "description": "Serviço de assinatura JGTECH",
                 "category_id": "services",
                 "quantity": 1,
                 "currency_id": "BRL",
-                "unit_price": float(VALOR_ASSINATURA_PADRAO)
+                "unit_price": float(valor_cobranca)
             }
         ],
         "payer": payer,
@@ -170,7 +176,7 @@ def criar_preferencia_assinatura(empresa, request):
                 "type": "online",
                 "processing_mode": "manual",
                 "external_reference": str(empresa.id),
-                "total_amount": f"{VALOR_ASSINATURA_PADRAO:.2f}",
+                "total_amount": f"{valor_cobranca:.2f}",
                 "payer": {
                     "first_name": primeiro_nome,
                     "last_name": sobrenome,
@@ -183,10 +189,10 @@ def criar_preferencia_assinatura(empresa, request):
                 "items": [
                     {
                         "external_code": f"ASSINATURA-JGTECH-{empresa.id}",
-                        "title": f"Assinatura JGTECH Estoque - {empresa.nome}",
+                        "title": titulo_cobranca,
                         "description": "Serviço de assinatura JGTECH",
                         "category_id": "services",
-                        "unit_price": f"{VALOR_ASSINATURA_PADRAO:.2f}",
+                        "unit_price": f"{valor_cobranca:.2f}",
                         "quantity": 1
                     }
                 ],
@@ -237,7 +243,9 @@ def criar_preferencia_assinatura(empresa, request):
                     'id': order_id,
                     'order_id': order_id,
                     'init_point': checkout_url,
-                    'sandbox_init_point': checkout_url
+                    'sandbox_init_point': checkout_url,
+                    'valor': valor_cobranca,
+                    'dias': dias
                 }
             else:
                 logger.info(f"[MercadoPago Orders API] Status {st_order}. Recorrendo a Preferences API...")
@@ -254,7 +262,9 @@ def criar_preferencia_assinatura(empresa, request):
                 'simulacao': False,
                 'id': dados.get('id'),
                 'init_point': dados.get('init_point'),
-                'sandbox_init_point': dados.get('sandbox_init_point', dados.get('init_point'))
+                'sandbox_init_point': dados.get('sandbox_init_point', dados.get('init_point')),
+                'valor': valor_cobranca,
+                'dias': dias
             }
         else:
             logger.warning(f"[MercadoPago SDK Warning] Status {status_code}: {dados}. Tentando fallback HTTP...")
@@ -283,7 +293,9 @@ def criar_preferencia_assinatura(empresa, request):
                 'simulacao': False,
                 'id': dados.get('id'),
                 'init_point': dados.get('init_point'),
-                'sandbox_init_point': dados.get('sandbox_init_point', dados.get('init_point'))
+                'sandbox_init_point': dados.get('sandbox_init_point', dados.get('init_point')),
+                'valor': valor_cobranca,
+                'dias': dias
             }
         else:
             logger.error(f"[MercadoPago Preferences Error] Status {response.status_code}: {response.text}")

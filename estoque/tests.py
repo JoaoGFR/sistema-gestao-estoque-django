@@ -2185,3 +2185,35 @@ class MercadoPagoRequisitosHomologacaoTestCase(TestCase):
         self.assertEqual(pag.mp_order_id, order_id_teste)
         self.assertEqual(pag.order_id_exibicao, order_id_teste)
         self.assertEqual(pag.mp_payment_id, "179671490547")
+
+    def test_iniciar_checkout_teste_superadmin_bloqueia_usuario_comum(self):
+        """Garante que usuários comuns não conseguem acessar o endpoint de pagamento de teste de R$ 1,00"""
+        self.client.force_login(self.user)
+        resp = self.client.get('/superadmin/pagamento-teste-1-real/', HTTP_HOST='localhost')
+        self.assertEqual(resp.status_code, 404)
+
+    @patch('estoque.views.criar_preferencia_assinatura')
+    def test_iniciar_checkout_teste_superadmin_sucesso(self, mock_criar_pref):
+        """Garante que o superadmin gera pagamento de R$ 1,00 com pendência e redirecionamento correto"""
+        superuser = User.objects.create_superuser('super_tester', 'tester@saas.com', 'adminPass123!')
+        mock_criar_pref.return_value = {
+            'id': 'PREF-TEST-1REAL',
+            'init_point': 'https://www.mercadopago.com.br/checkout/v1/redirect?pref_id=PREF-TEST-1REAL',
+            'order_id': 'ORD01M3TESTE123',
+            'simulacao': False,
+            'valor': Decimal('1.00'),
+            'dias': 1,
+        }
+
+        self.client.force_login(superuser)
+        resp = self.client.get('/superadmin/pagamento-teste-1-real/', HTTP_HOST='localhost')
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(resp.url, 'https://www.mercadopago.com.br/checkout/v1/redirect?pref_id=PREF-TEST-1REAL')
+
+        # Verifica se o pagamento de R$ 1,00 foi registrado como pendente
+        pag = PagamentoAssinatura.objects.filter(mp_preference_id='PREF-TEST-1REAL').first()
+        self.assertIsNotNone(pag)
+        self.assertEqual(pag.valor, Decimal('1.00'))
+        self.assertEqual(pag.status, 'PENDENTE')
+        self.assertEqual(pag.mp_order_id, 'ORD01M3TESTE123')
+        self.assertEqual(pag.dias_concedidos, 1)

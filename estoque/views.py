@@ -3453,4 +3453,51 @@ def executar_migracoes_superadmin(request):
         'output': output_texto,
     }
     return render(request, 'estoque/superadmin_migracoes.html', contexto)
+
+
+@login_required
+def iniciar_checkout_teste_superadmin(request):
+    """
+    Inicia um checkout oficial do Mercado Pago no valor de R$ 1,00
+    para testes de homologação com cartão real ou Pix em produção.
+    Acesso restrito ao Superadministrador.
+    """
+    if not request.user.is_superuser:
+        raise Http404("Acesso restrito ao Superadministrador.")
+
+    empresa = get_empresa_usuario(request.user)
+    if not empresa:
+        empresa = Empresa.objects.first()
+
+    if not empresa:
+        messages.error(request, "Nenhuma empresa cadastrada no sistema para vincular ao teste.")
+        return redirect('painel_superadmin_assinaturas')
+
+    resultado = criar_preferencia_assinatura(
+        empresa=empresa,
+        request=request,
+        valor=Decimal('1.00'),
+        dias=1,
+        custom_title="Teste Real Produção JGTECH - R$ 1,00"
+    )
+
+    if not resultado or not resultado.get('init_point'):
+        messages.error(request, "Não foi possível gerar a ordem de pagamento de R$ 1,00 no Mercado Pago. Verifique as credenciais.")
+        return redirect('painel_superadmin_assinaturas')
+
+    order_id = resultado.get('order_id') or resultado.get('id')
+    PagamentoAssinatura.objects.create(
+        empresa=empresa,
+        valor=Decimal('1.00'),
+        metodo='MERCADO_PAGO',
+        status='PENDENTE',
+        mp_preference_id=resultado.get('id'),
+        mp_order_id=order_id,
+        mp_init_point=resultado.get('init_point'),
+        dias_concedidos=1,
+        observacoes="Teste de Pagamento Real R$ 1,00 (Superadmin Produção)"
+    )
+
+    return redirect(resultado['init_point'])
+
 
