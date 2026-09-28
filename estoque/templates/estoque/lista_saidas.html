@@ -54,7 +54,7 @@
                     <td>
                         <div class="d-flex align-items-center gap-1 text-secondary">
                             <i class="bi bi-person-circle"></i>
-                            <span>{{ saida.usuario.get_full_name|default:saida.usuario.username|default:"Sistema" }}</span>
+                            <span>{% if saida.usuario %}{{ saida.usuario.get_full_name|default:saida.usuario.username }}{% else %}Sistema{% endif %}</span>
                         </div>
                     </td>
                     

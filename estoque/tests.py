@@ -2501,6 +2501,31 @@ class EmprestimoTestCase(TestCase):
         self.assertContains(resp_fin, 'Bruno Costa')
         self.assertNotContains(resp_fin, 'Ana Silva')
 
+    def test_lista_emprestimos_registros_legados_com_valores_nulos(self):
+        """Verifica se registros legados com responsavel_saida=None, responsavel_devolucao=None
+        e quantidade_devolvida=None abrem a lista sem gerar erro 500"""
+        emp_legado = Emprestimo.objects.create(
+            produto=self.produto,
+            solicitante='Funcionário Legado',
+            quantidade=Decimal('3.00'),
+            quantidade_devolvida=Decimal('0.00'),
+            responsavel_saida=None,
+            responsavel_devolucao=None,
+            devolvido=False
+        )
+        self.client.force_login(self.user)
+        resp = self.client.get(reverse('lista_emprestimos'), HTTP_HOST='localhost')
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'Funcionário Legado')
+        self.assertContains(resp, 'Sistema')
+
+        # Testar também a API de auditoria para o registro legado
+        resp_api = self.client.get(reverse('api_historico_emprestimo', kwargs={'pk': emp_legado.id}), HTTP_HOST='localhost')
+        self.assertEqual(resp_api.status_code, 200)
+        dados = resp_api.json()
+        self.assertTrue(dados['sucesso'])
+        self.assertEqual(dados['responsavel_saida'], 'Sistema')
+
 
 class ModulacaoRecursosTestCase(TestCase):
     def setUp(self):

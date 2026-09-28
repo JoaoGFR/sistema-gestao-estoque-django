@@ -393,7 +393,7 @@
                                         {{ saida.motivo }}
                                     </td>
                                     <td>
-                                        <small class="text-muted">{{ saida.usuario.get_full_name|default:saida.usuario.username|default:"Sistema" }}</small>
+                                        <small class="text-muted">{% if saida.usuario %}{{ saida.usuario.get_full_name|default:saida.usuario.username }}{% else %}Sistema{% endif %}</small>
                                     </td>
                                     <td class="text-center fw-bold text-danger">
                                         -{{ saida.quantidade }} {{ produto.unidade }}
@@ -458,7 +458,7 @@
                                     </td>
                                     <td>
                                         <i class="bi bi-person-circle text-muted me-1"></i>
-                                        {{ hp.usuario.get_full_name|default:hp.usuario.username|default:"Sistema" }}
+                                        {% if hp.usuario %}{{ hp.usuario.get_full_name|default:hp.usuario.username }}{% else %}Sistema{% endif %}
                                     </td>
                                     <td class="text-end text-muted">
                                         R$ {{ hp.preco_anterior|floatformat:2 }}

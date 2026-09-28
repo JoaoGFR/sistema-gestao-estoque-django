@@ -312,26 +312,33 @@ class Emprestimo(models.Model):
 
     @property
     def quantidade_pendente(self):
-        devolvida = self.quantidade_devolvida or Decimal('0.00')
-        return max(Decimal('0.00'), self.quantidade - devolvida)
+        qtd = self.quantidade if self.quantidade is not None else Decimal('1.00')
+        devolvida = self.quantidade_devolvida if self.quantidade_devolvida is not None else Decimal('0.00')
+        return max(Decimal('0.00'), qtd - devolvida)
 
     @property
     def status_emprestimo(self):
         if self.devolvido or self.quantidade_pendente <= Decimal('0.00'):
             return 'FINALIZADO'
-        if (self.quantidade_devolvida or Decimal('0.00')) > Decimal('0.00'):
+        dev = self.quantidade_devolvida if self.quantidade_devolvida is not None else Decimal('0.00')
+        if dev > Decimal('0.00'):
             return 'PARCIAL'
         return 'ABERTO'
 
     @property
     def percentual_devolvido(self):
-        if not self.quantidade or self.quantidade <= Decimal('0.00'):
+        qtd = self.quantidade if self.quantidade is not None else Decimal('0.00')
+        if qtd <= Decimal('0.00'):
             return 100 if self.devolvido else 0
-        perc = (float(self.quantidade_devolvida or 0) / float(self.quantidade)) * 100
+        dev = self.quantidade_devolvida if self.quantidade_devolvida is not None else Decimal('0.00')
+        perc = (float(dev) / float(qtd)) * 100
         return min(100.0, max(0.0, round(perc, 1)))
 
     def __str__(self):
-        return f"{self.produto.nome} - {self.solicitante} ({self.quantidade_devolvida}/{self.quantidade})"
+        qtd = self.quantidade if self.quantidade is not None else 1
+        dev = self.quantidade_devolvida if self.quantidade_devolvida is not None else 0
+        prod_nome = self.produto.nome if self.produto else 'Sem Produto'
+        return f"{prod_nome} - {self.solicitante} ({dev}/{qtd})"
 
 
 # 9.1 HISTÓRICO / AUDITORIA DE AÇÕES DO EMPRÉSTIMO

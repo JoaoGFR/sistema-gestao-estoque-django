@@ -894,7 +894,7 @@ def lista_emprestimos(request):
 
     # Métricas para os Cards de Resumo
     total_registros = qs_base.count()
-    total_abertos = qs_base.filter(devolvido=False, quantidade_devolvida=Decimal('0.00')).count()
+    total_abertos = qs_base.filter(devolvido=False).filter(Q(quantidade_devolvida=Decimal('0.00')) | Q(quantidade_devolvida__isnull=True)).count()
     total_parciais = qs_base.filter(devolvido=False, quantidade_devolvida__gt=Decimal('0.00')).count()
     total_finalizados = qs_base.filter(devolvido=True).count()
 
@@ -909,7 +909,7 @@ def lista_emprestimos(request):
         )
 
     if status_filtro == 'aberto':
-        qs = qs.filter(devolvido=False, quantidade_devolvida=Decimal('0.00'))
+        qs = qs.filter(devolvido=False).filter(Q(quantidade_devolvida=Decimal('0.00')) | Q(quantidade_devolvida__isnull=True))
     elif status_filtro == 'parcial':
         qs = qs.filter(devolvido=False, quantidade_devolvida__gt=Decimal('0.00'))
     elif status_filtro == 'pendentes':
@@ -1087,12 +1087,13 @@ def api_historico_emprestimo(request, pk):
     
     # Retrocompatibilidade com registros legados
     if not historicos.exists():
+        qtd_ini = emprestimo.quantidade if emprestimo.quantidade is not None else Decimal('1.00')
         HistoricoEmprestimo.objects.create(
             emprestimo=emprestimo,
             usuario=emprestimo.responsavel_saida,
             tipo_acao='CRIACAO',
-            quantidade=emprestimo.quantidade,
-            saldo_restante=Decimal('0.00') if emprestimo.devolvido else emprestimo.quantidade,
+            quantidade=qtd_ini,
+            saldo_restante=Decimal('0.00') if emprestimo.devolvido else qtd_ini,
             observacao=f"Empréstimo inicial para {emprestimo.solicitante}.",
             data_registro=emprestimo.data_saida or timezone.now()
         )
@@ -1101,7 +1102,7 @@ def api_historico_emprestimo(request, pk):
                 emprestimo=emprestimo,
                 usuario=emprestimo.responsavel_devolucao or emprestimo.responsavel_saida,
                 tipo_acao='DEVOLUCAO_TOTAL',
-                quantidade=emprestimo.quantidade,
+                quantidade=qtd_ini,
                 saldo_restante=Decimal('0.00'),
                 observacao="Devolução total confirmada.",
                 data_registro=emprestimo.data_devolucao or emprestimo.data_saida or timezone.now()
@@ -1110,32 +1111,38 @@ def api_historico_emprestimo(request, pk):
 
     dados_historico = []
     for h in historicos:
+        h_qtd = h.quantidade if h.quantidade is not None else Decimal('0.00')
+        h_saldo = h.saldo_restante if h.saldo_restante is not None else Decimal('0.00')
         dados_historico.append({
             'id': h.id,
             'tipo_acao': h.tipo_acao,
             'tipo_acao_display': h.get_tipo_acao_display(),
-            'quantidade': f"{h.quantidade:.2f}".rstrip('0').rstrip('.') if h.quantidade % 1 == 0 else f"{h.quantidade:.2f}",
-            'saldo_restante': f"{h.saldo_restante:.2f}".rstrip('0').rstrip('.') if h.saldo_restante % 1 == 0 else f"{h.saldo_restante:.2f}",
-            'usuario': h.usuario.get_full_name() or h.usuario.username if h.usuario else 'Sistema',
-            'data': h.data_registro.strftime('%d/%m/%Y %H:%M'),
+            'quantidade': f"{h_qtd:.2f}".rstrip('0').rstrip('.') if h_qtd % 1 == 0 else f"{h_qtd:.2f}",
+            'saldo_restante': f"{h_saldo:.2f}".rstrip('0').rstrip('.') if h_saldo % 1 == 0 else f"{h_saldo:.2f}",
+            'usuario': (h.usuario.get_full_name() or h.usuario.username) if h.usuario else 'Sistema',
+            'data': h.data_registro.strftime('%d/%m/%Y %H:%M') if h.data_registro else '-',
             'observacao': h.observacao or '',
         })
+
+    qtd_total = emprestimo.quantidade if emprestimo.quantidade is not None else Decimal('0.00')
+    qtd_dev = emprestimo.quantidade_devolvida if emprestimo.quantidade_devolvida is not None else Decimal('0.00')
+    qtd_pend = emprestimo.quantidade_pendente if emprestimo.quantidade_pendente is not None else Decimal('0.00')
 
     return JsonResponse({
         'sucesso': True,
         'emprestimo_id': emprestimo.id,
         'codigo_grupo': emprestimo.codigo_grupo or f"EMP-{emprestimo.id}",
-        'produto': emprestimo.produto.nome,
-        'unidade': emprestimo.produto.get_unidade_display(),
+        'produto': emprestimo.produto.nome if emprestimo.produto else 'Sem Produto',
+        'unidade': emprestimo.produto.get_unidade_display() if emprestimo.produto else 'UN',
         'solicitante': emprestimo.solicitante,
         'lote': emprestimo.lote.numero_lote if emprestimo.lote else 'N/A',
-        'quantidade_total': f"{emprestimo.quantidade:.2f}".rstrip('0').rstrip('.') if emprestimo.quantidade % 1 == 0 else f"{emprestimo.quantidade:.2f}",
-        'quantidade_devolvida': f"{emprestimo.quantidade_devolvida:.2f}".rstrip('0').rstrip('.') if emprestimo.quantidade_devolvida % 1 == 0 else f"{emprestimo.quantidade_devolvida:.2f}",
-        'quantidade_pendente': f"{emprestimo.quantidade_pendente:.2f}".rstrip('0').rstrip('.') if emprestimo.quantidade_pendente % 1 == 0 else f"{emprestimo.quantidade_pendente:.2f}",
+        'quantidade_total': f"{qtd_total:.2f}".rstrip('0').rstrip('.') if qtd_total % 1 == 0 else f"{qtd_total:.2f}",
+        'quantidade_devolvida': f"{qtd_dev:.2f}".rstrip('0').rstrip('.') if qtd_dev % 1 == 0 else f"{qtd_dev:.2f}",
+        'quantidade_pendente': f"{qtd_pend:.2f}".rstrip('0').rstrip('.') if qtd_pend % 1 == 0 else f"{qtd_pend:.2f}",
         'status': emprestimo.status_emprestimo,
         'percentual': emprestimo.percentual_devolvido,
         'data_saida': emprestimo.data_saida.strftime('%d/%m/%Y %H:%M') if emprestimo.data_saida else '-',
-        'responsavel_saida': emprestimo.responsavel_saida.get_full_name() or emprestimo.responsavel_saida.username if emprestimo.responsavel_saida else 'Sistema',
+        'responsavel_saida': (emprestimo.responsavel_saida.get_full_name() or emprestimo.responsavel_saida.username) if emprestimo.responsavel_saida else 'Sistema',
         'historicos': dados_historico,
     })
 

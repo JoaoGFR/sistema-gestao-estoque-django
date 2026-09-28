@@ -229,9 +229,9 @@
 
                     <!-- SAÍDA -->
                     <td>
-                        <div class="text-dark">{{ emp.data_saida|date:"d/m/Y H:i" }}</div>
+                        <div class="text-dark">{{ emp.data_saida|date:"d/m/Y H:i"|default:"-" }}</div>
                         <small class="text-muted d-block">
-                            Por: {{ emp.responsavel_saida.get_full_name|default:emp.responsavel_saida.username|default:"Sistema" }}
+                            Por: {% if emp.responsavel_saida %}{{ emp.responsavel_saida.get_full_name|default:emp.responsavel_saida.username }}{% else %}Sistema{% endif %}
                         </small>
                     </td>
 
@@ -240,7 +240,7 @@
                         {% if emp.data_devolucao %}
                             <div class="text-success fw-semibold">{{ emp.data_devolucao|date:"d/m/Y H:i" }}</div>
                             <small class="text-muted d-block">
-                                Por: {{ emp.responsavel_devolucao.get_full_name|default:emp.responsavel_devolucao.username|default:"-" }}
+                                Por: {% if emp.responsavel_devolucao %}{{ emp.responsavel_devolucao.get_full_name|default:emp.responsavel_devolucao.username }}{% else %}-{% endif %}
                             </small>
                         {% else %}
                             <span class="text-muted small">-</span>
