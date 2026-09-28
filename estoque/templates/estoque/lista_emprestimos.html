@@ -1,112 +1,638 @@
 {% extends 'estoque/base.html' %}
 
 {% block content %}
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-    <h1 class="h2"><i class="bi bi-clock-history"></i> Histórico de Empréstimos</h1>
-    
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-2 pb-2 mb-3 border-bottom">
+    <div>
+        <h2 class="h3 mb-1"><i class="bi bi-arrow-left-right text-warning"></i> Gestão de Empréstimos</h2>
+        <p class="text-muted mb-0">Controle de saídas para funcionários, alocação por lotes, devoluções parciais e trilha de auditoria.</p>
+    </div>
     <div class="btn-toolbar mb-2 mb-md-0">
-        <a href="{% url 'registrar_emprestimo' %}" class="btn btn-primary shadow-sm">
+        <a href="{% url 'registrar_emprestimo' %}" class="btn btn-warning fw-bold shadow-sm">
             <i class="bi bi-plus-lg"></i> Novo Empréstimo
         </a>
     </div>
 </div>
 
-<form method="get" class="mb-4">
-    <div class="input-group">
-        <input type="text" name="busca" class="form-control" placeholder="Buscar por nome do solicitante..." value="{{ request.GET.busca }}">
-        <button class="btn btn-outline-secondary" type="submit">Buscar</button>
+<!-- CARDS DE MÉTRICAS / RESUMO -->
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-lg-3">
+        <a href="{% url 'lista_emprestimos' %}" class="text-decoration-none">
+            <div class="card border-0 shadow-sm rounded-3 h-100 border-start border-4 border-secondary hover-shadow transition">
+                <div class="card-body p-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="text-muted small fw-semibold text-uppercase">Total Registrado</span>
+                            <h3 class="fw-bold mb-0 text-dark">{{ total_registros|default:0 }}</h3>
+                        </div>
+                        <div class="bg-secondary-subtle p-3 rounded-circle text-secondary">
+                            <i class="bi bi-collection fs-4"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </a>
     </div>
-</form>
 
-<div class="card shadow-sm">
-    <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
-    <thead class="table-light">
-        <tr>
-            <th>Status</th>
-            <th>Produto</th>
-            <th>Qtd.</th>
-            <th>Solicitante</th>
-            <th>Data Saída</th>
-            <th>Data Devolução</th>
-            
-            <th>Observação</th>
-            
-            <th class="text-end">Ações</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for emp in emprestimos %}
-        <tr class="{% if emp.devolvido %}table-light text-muted{% endif %}">
-            
-            <td>
-                {% if emp.devolvido %}
-                    <span class="badge bg-success rounded-pill">
-                        <i class="bi bi-check-all"></i> Finalizado
-                    </span>
-                {% else %}
-                    <span class="badge bg-warning text-dark rounded-pill">
-                        <i class="bi bi-hourglass-split"></i> Em Aberto
-                    </span>
-                {% endif %}
-            </td>
+    <div class="col-sm-6 col-lg-3">
+        <a href="{% url 'lista_emprestimos' %}?status=aberto{% if busca %}&busca={{ busca }}{% endif %}" class="text-decoration-none">
+            <div class="card border-0 shadow-sm rounded-3 h-100 border-start border-4 border-warning hover-shadow transition {% if status_filtro == 'aberto' %}ring-2 ring-warning{% endif %}">
+                <div class="card-body p-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="text-muted small fw-semibold text-uppercase">Em Aberto</span>
+                            <h3 class="fw-bold mb-0 text-warning">{{ total_abertos|default:0 }}</h3>
+                        </div>
+                        <div class="bg-warning-subtle p-3 rounded-circle text-warning">
+                            <i class="bi bi-hourglass-split fs-4"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
 
-            <td>
-                <strong class="text-dark">{{ emp.produto.nome }}</strong>
-                {% if emp.lote %}
-                    <br><small style="font-size: 0.75rem;">Lote: {{ emp.lote.numero_lote }}</small>
-                {% endif %}
-            </td>
+    <div class="col-sm-6 col-lg-3">
+        <a href="{% url 'lista_emprestimos' %}?status=parcial{% if busca %}&busca={{ busca }}{% endif %}" class="text-decoration-none">
+            <div class="card border-0 shadow-sm rounded-3 h-100 border-start border-4 border-primary hover-shadow transition {% if status_filtro == 'parcial' %}ring-2 ring-primary{% endif %}">
+                <div class="card-body p-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="text-muted small fw-semibold text-uppercase">Devolução Parcial</span>
+                            <h3 class="fw-bold mb-0 text-primary">{{ total_parciais|default:0 }}</h3>
+                        </div>
+                        <div class="bg-primary-subtle p-3 rounded-circle text-primary">
+                            <i class="bi bi-pie-chart fs-4"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
 
-            <td class="fw-bold">{{ emp.quantidade|floatformat:0 }}</td>
-
-            <td>{{ emp.solicitante }}</td>
-
-            <td>{{ emp.data_saida|date:"d/m/Y H:i" }}</td>
-
-            <td>
-                {% if emp.devolvido %}
-                    <span class="text-success fw-bold">{{ emp.data_devolucao|date:"d/m/Y H:i" }}</span>
-                {% else %}
-                    -
-                {% endif %}
-            </td>
-
-            <td>
-                {% if emp.observacao %}
-                    <span title="{{ emp.observacao }}" data-bs-toggle="tooltip">
-                        {{ emp.observacao|truncatechars:20 }}
-                    </span>
-                {% else %}
-                    <span class="text-muted small">-</span>
-                {% endif %}
-            </td>
-
-            <td class="text-end">
-                {% if not emp.devolvido %}
-                    <form action="{% url 'devolver_item' emp.id %}" method="post" class="d-inline" onsubmit="return confirm('Confirmar a devolução deste item?');">
-                        {% csrf_token %}
-                        <button type="submit" class="btn btn-sm btn-outline-success" title="Registrar Devolução">
-                            <i class="bi bi-box-arrow-in-left"></i> Devolver
-                        </button>
-                    </form>
-                {% else %}
-                    <button class="btn btn-sm btn-light disabled border-0">
-                        <i class="bi bi-archive"></i> Arquivado
-                    </button>
-                {% endif %}
-            </td>
-        </tr>
-        {% empty %}
-        <tr>
-            <td colspan="8" class="text-center py-5 text-muted">
-                <i class="bi bi-clipboard-x fs-1 d-block mb-3"></i>
-                Nenhum histórico encontrado.
-            </td>
-        </tr>
-        {% endfor %}
-    </tbody>
-    </table>
+    <div class="col-sm-6 col-lg-3">
+        <a href="{% url 'lista_emprestimos' %}?status=finalizado{% if busca %}&busca={{ busca }}{% endif %}" class="text-decoration-none">
+            <div class="card border-0 shadow-sm rounded-3 h-100 border-start border-4 border-success hover-shadow transition {% if status_filtro == 'finalizado' %}ring-2 ring-success{% endif %}">
+                <div class="card-body p-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="text-muted small fw-semibold text-uppercase">Finalizados</span>
+                            <h3 class="fw-bold mb-0 text-success">{{ total_finalizados|default:0 }}</h3>
+                        </div>
+                        <div class="bg-success-subtle p-3 rounded-circle text-success">
+                            <i class="bi bi-check-circle fs-4"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </a>
     </div>
 </div>
+
+<!-- BARRA DE FILTROS E PESQUISA -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-3">
+        <form method="get" class="row g-2 align-items-center">
+            <div class="col-md-5">
+                <div class="input-group">
+                    <span class="input-group-text bg-white border-end-0 text-muted">
+                        <i class="bi bi-search"></i>
+                    </span>
+                    <input type="text" name="busca" class="form-control border-start-0 ps-0" 
+                           placeholder="Buscar por solicitante, produto, lote, observação..." 
+                           value="{{ busca }}">
+                </div>
+            </div>
+
+            <div class="col-md-5">
+                <div class="btn-group w-100" role="group" aria-label="Filtro de Status">
+                    <a href="{% url 'lista_emprestimos' %}{% if busca %}?busca={{ busca }}{% endif %}" 
+                       class="btn btn-sm {% if not status_filtro %}btn-dark{% else %}btn-outline-secondary{% endif %}">
+                        Todos
+                    </a>
+                    <a href="{% url 'lista_emprestimos' %}?status=pendentes{% if busca %}&busca={{ busca }}{% endif %}" 
+                       class="btn btn-sm {% if status_filtro == 'pendentes' %}btn-danger{% else %}btn-outline-danger{% endif %}">
+                        Pendentes
+                    </a>
+                    <a href="{% url 'lista_emprestimos' %}?status=aberto{% if busca %}&busca={{ busca }}{% endif %}" 
+                       class="btn btn-sm {% if status_filtro == 'aberto' %}btn-warning text-dark fw-bold{% else %}btn-outline-warning text-dark{% endif %}">
+                        Em Aberto
+                    </a>
+                    <a href="{% url 'lista_emprestimos' %}?status=parcial{% if busca %}&busca={{ busca }}{% endif %}" 
+                       class="btn btn-sm {% if status_filtro == 'parcial' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                        Parcial
+                    </a>
+                    <a href="{% url 'lista_emprestimos' %}?status=finalizado{% if busca %}&busca={{ busca }}{% endif %}" 
+                       class="btn btn-sm {% if status_filtro == 'finalizado' %}btn-success{% else %}btn-outline-success{% endif %}">
+                        Finalizados
+                    </a>
+                </div>
+            </div>
+
+            <div class="col-md-2 text-md-end d-flex gap-1">
+                <button class="btn btn-dark w-100" type="submit">
+                    <i class="bi bi-funnel"></i> Filtrar
+                </button>
+                {% if busca or status_filtro %}
+                    <a href="{% url 'lista_emprestimos' %}" class="btn btn-outline-secondary" title="Limpar filtros">
+                        <i class="bi bi-x-lg"></i>
+                    </a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- TABELA DE EMPRÉSTIMOS -->
+<div class="card shadow-sm border-0">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th style="min-width: 130px;">Status</th>
+                    <th style="min-width: 220px;">Produto / Lote</th>
+                    <th style="min-width: 140px;">Quantidades</th>
+                    <th style="min-width: 160px;">Solicitante</th>
+                    <th style="min-width: 150px;">Saída</th>
+                    <th style="min-width: 150px;">Última Devolução</th>
+                    <th style="min-width: 160px;">Observação</th>
+                    <th class="text-end" style="min-width: 200px;">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for emp in emprestimos %}
+                <tr class="{% if emp.devolvido %}table-light opacity-75{% endif %}">
+                    <!-- STATUS -->
+                    <td>
+                        {% if emp.status_emprestimo == 'FINALIZADO' %}
+                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 rounded-pill">
+                                <i class="bi bi-check-all me-1"></i>Finalizado
+                            </span>
+                        {% elif emp.status_emprestimo == 'PARCIAL' %}
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 rounded-pill d-block text-center mb-1">
+                                <i class="bi bi-pie-chart-fill me-1"></i>Parcial ({{ emp.percentual_devolvido|floatformat:0 }}%)
+                            </span>
+                            <div class="progress" style="height: 4px;" title="{{ emp.percentual_devolvido }}% devolvido">
+                                <div class="progress-bar bg-primary" role="progressbar" style="width: {{ emp.percentual_devolvido }}%;"></div>
+                            </div>
+                        {% else %}
+                            <span class="badge bg-warning-subtle text-dark border border-warning-subtle px-2 py-1 rounded-pill">
+                                <i class="bi bi-hourglass-split me-1"></i>Em Aberto
+                            </span>
+                        {% endif %}
+                    </td>
+
+                    <!-- PRODUTO & LOTE -->
+                    <td>
+                        <div class="fw-bold text-dark fs-6">{{ emp.produto.nome }}</div>
+                        <div class="d-flex flex-wrap gap-1 mt-1 small">
+                            {% if emp.lote %}
+                                <span class="badge bg-secondary-subtle text-secondary border">
+                                    <i class="bi bi-boxes me-1"></i>Lote: {{ emp.lote.numero_lote }}
+                                </span>
+                            {% else %}
+                                <span class="badge bg-light text-muted border">Sem lote vinculado</span>
+                            {% endif %}
+                            {% if emp.codigo_grupo %}
+                                <span class="badge bg-light text-secondary border font-monospace" title="Código de agrupamento">
+                                    {{ emp.codigo_grupo }}
+                                </span>
+                            {% endif %}
+                        </div>
+                    </td>
+
+                    <!-- QUANTIDADES -->
+                    <td>
+                        <div class="small text-muted">
+                            Total: <strong class="text-dark">{{ emp.quantidade|floatformat:0 }}</strong> {{ emp.produto.get_unidade_display }}
+                        </div>
+                        <div class="small text-muted">
+                            Devolvido: <strong class="text-success">{{ emp.quantidade_devolvida|floatformat:0 }}</strong>
+                        </div>
+                        {% if not emp.devolvido and emp.quantidade_pendente > 0 %}
+                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle fw-semibold mt-1">
+                                Pendente: {{ emp.quantidade_pendente|floatformat:0 }}
+                            </span>
+                        {% else %}
+                            <span class="badge bg-success-subtle text-success border border-success-subtle small mt-1">
+                                Sem pendências
+                            </span>
+                        {% endif %}
+                    </td>
+
+                    <!-- SOLICITANTE -->
+                    <td>
+                        <div class="fw-semibold text-dark d-flex align-items-center gap-1">
+                            <i class="bi bi-person-fill text-secondary"></i>
+                            <span>{{ emp.solicitante }}</span>
+                        </div>
+                    </td>
+
+                    <!-- SAÍDA -->
+                    <td>
+                        <div class="text-dark">{{ emp.data_saida|date:"d/m/Y H:i" }}</div>
+                        <small class="text-muted d-block">
+                            Por: {{ emp.responsavel_saida.get_full_name|default:emp.responsavel_saida.username|default:"Sistema" }}
+                        </small>
+                    </td>
+
+                    <!-- ÚLTIMA DEVOLUÇÃO -->
+                    <td>
+                        {% if emp.data_devolucao %}
+                            <div class="text-success fw-semibold">{{ emp.data_devolucao|date:"d/m/Y H:i" }}</div>
+                            <small class="text-muted d-block">
+                                Por: {{ emp.responsavel_devolucao.get_full_name|default:emp.responsavel_devolucao.username|default:"-" }}
+                            </small>
+                        {% else %}
+                            <span class="text-muted small">-</span>
+                        {% endif %}
+                    </td>
+
+                    <!-- OBSERVAÇÃO -->
+                    <td>
+                        {% if emp.observacao %}
+                            <span title="{{ emp.observacao }}" data-bs-toggle="tooltip" class="d-inline-block text-truncate" style="max-width: 150px;">
+                                {{ emp.observacao }}
+                            </span>
+                        {% else %}
+                            <span class="text-muted small">-</span>
+                        {% endif %}
+                    </td>
+
+                    <!-- AÇÕES -->
+                    <td class="text-end">
+                        <div class="btn-group btn-group-sm" role="group">
+                            {% if not emp.devolvido and emp.quantidade_pendente > 0 %}
+                                <!-- Botão Devolução Parcial -->
+                                <button type="button" class="btn btn-outline-primary btn-abrir-devolucao-parcial" 
+                                        title="Devolução Parcial"
+                                        data-bs-toggle="modal" 
+                                        data-bs-target="#modalDevolucaoParcial"
+                                        data-id="{{ emp.id }}"
+                                        data-produto="{{ emp.produto.nome }}"
+                                        data-solicitante="{{ emp.solicitante }}"
+                                        data-total="{{ emp.quantidade }}"
+                                        data-devolvido="{{ emp.quantidade_devolvida|default:0 }}"
+                                        data-pendente="{{ emp.quantidade_pendente }}"
+                                        data-unidade="{{ emp.produto.get_unidade_display }}"
+                                        data-lote="{{ emp.lote.numero_lote|default:'Geral' }}">
+                                    <i class="bi bi-pie-chart me-1"></i> Parcial
+                                </button>
+
+                                <!-- Botão Devolução Total -->
+                                <form action="{% url 'devolver_item' emp.id %}" method="post" class="d-inline" 
+                                      onsubmit="return confirm('Confirmar a devolução TOTAL de {{ emp.quantidade_pendente|floatformat:0 }} {{ emp.produto.get_unidade_display }} do item {{ emp.produto.nome }}?');">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-outline-success" title="Devolução Total do Saldo Pendente">
+                                        <i class="bi bi-box-arrow-in-left me-1"></i> Devolver Tudo
+                                    </button>
+                                </form>
+                            {% endif %}
+
+                            <!-- Botão Ver Histórico / Auditoria -->
+                            <button type="button" class="btn btn-outline-secondary btn-ver-historico" 
+                                    title="Ver Histórico e Trilha de Auditoria"
+                                    data-id="{{ emp.id }}">
+                                <i class="bi bi-clock-history"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" class="text-center py-5 text-muted">
+                        <i class="bi bi-clipboard-x fs-1 d-block mb-3 text-secondary"></i>
+                        <h5>Nenhum empréstimo encontrado</h5>
+                        <p class="mb-0 text-muted">Ajuste os filtros de busca ou registre um novo empréstimo de ferramenta/material.</p>
+                        <a href="{% url 'registrar_emprestimo' %}" class="btn btn-sm btn-warning mt-3 fw-bold">
+                            <i class="bi bi-plus-lg me-1"></i> Registrar Empréstimo
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODAL DE DEVOLUÇÃO PARCIAL -->
+<!-- ========================================================================= -->
+<div class="modal fade" id="modalDevolucaoParcial" tabindex="-1" aria-labelledby="modalDevolucaoParcialLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content shadow-lg border-0">
+            <div class="modal-header bg-primary text-white py-3">
+                <h5 class="modal-title fw-bold d-flex align-items-center gap-2" id="modalDevolucaoParcialLabel">
+                    <i class="bi bi-box-arrow-in-left"></i> Registrar Devolução Parcial
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <form id="formDevolucaoParcial" method="post" action="">
+                {% csrf_token %}
+                <div class="modal-body p-4">
+                    <!-- Resumo do Item -->
+                    <div class="card border-primary bg-primary-subtle p-3 mb-3">
+                        <div class="fw-bold text-dark fs-6" id="modalParcialProduto">-</div>
+                        <div class="small text-muted mt-1">
+                            <span class="text-dark">Solicitante:</span> <strong id="modalParcialSolicitante">-</strong>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top border-primary-subtle small">
+                            <span>Lote de Retorno: <strong id="modalParcialLote">-</strong></span>
+                            <span>Saldo Pendente: <strong class="badge bg-danger fs-6" id="modalParcialPendente">0</strong></span>
+                        </div>
+                    </div>
+
+                    <!-- Quantidade a Devolver -->
+                    <div class="mb-3">
+                        <label for="inputParcialQtd" class="form-label fw-bold text-dark">
+                            Quantidade a Devolver <span class="text-danger">*</span>
+                        </label>
+                        <div class="input-group input-group-lg">
+                            <input type="number" name="quantidade" id="inputParcialQtd" class="form-control" 
+                                   min="1" step="1" value="1" required>
+                            <span class="input-group-text bg-light text-muted" id="modalParcialUnidade">un</span>
+                        </div>
+                        <div class="form-text text-muted" id="modalParcialAjuda">
+                            Informe quantas unidades estão sendo devolvidas agora. O restante permanecerá em aberto.
+                        </div>
+                        <div class="form-text text-danger d-none" id="modalParcialErroQtd">
+                            A quantidade não pode ser maior que o saldo pendente!
+                        </div>
+                    </div>
+
+                    <!-- Observação -->
+                    <div class="mb-2">
+                        <label for="inputParcialObs" class="form-label fw-semibold text-secondary small">
+                            Observação / Condição do Item (Opcional)
+                        </label>
+                        <textarea name="observacao" id="inputParcialObs" class="form-control" rows="2" 
+                                  placeholder="Ex: Devolveu 2 unidades em perfeito estado, 1 com desgaste."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light py-2">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary fw-bold" id="btnConfirmarDevolucaoParcial">
+                        <i class="bi bi-check-lg me-1"></i> Confirmar Devolução
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODAL DE HISTÓRICO & TRILHA DE AUDITORIA DO EMPRÉSTIMO -->
+<!-- ========================================================================= -->
+<div class="modal fade" id="modalHistoricoEmprestimo" tabindex="-1" aria-labelledby="modalHistoricoEmprestimoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content shadow-lg border-0">
+            <div class="modal-header bg-dark text-white py-3">
+                <h5 class="modal-title fw-bold d-flex align-items-center gap-2" id="modalHistoricoEmprestimoLabel">
+                    <i class="bi bi-clock-history text-warning"></i> Trilha de Auditoria do Empréstimo
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body p-4">
+                <!-- Cabeçalho do Empréstimo -->
+                <div class="card bg-light border-0 p-3 mb-4 rounded-3">
+                    <div class="row align-items-center">
+                        <div class="col-md-7">
+                            <span class="badge bg-secondary-subtle text-secondary small mb-1" id="histBadgeCodigo">EMP-00</span>
+                            <h5 class="fw-bold text-dark mb-1" id="histProdutoNome">-</h5>
+                            <div class="small text-muted">
+                                Solicitante: <strong class="text-dark" id="histSolicitante">-</strong> | 
+                                Lote: <strong class="text-dark" id="histLote">-</strong>
+                            </div>
+                        </div>
+                        <div class="col-md-5 text-md-end mt-2 mt-md-0">
+                            <div class="small text-muted">Status Atual:</div>
+                            <span id="histStatusBadge" class="badge bg-warning fs-6 px-3 py-1 rounded-pill">Em Aberto</span>
+                            <div class="small mt-1 text-muted" id="histResumoQtd">
+                                Total: 0 | Devolvido: 0 | Pendente: 0
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Timeline de Eventos Gravados -->
+                <h6 class="fw-bold text-secondary text-uppercase small border-bottom pb-2 mb-3">
+                    <i class="bi bi-journal-text me-1"></i> Linha do Tempo de Ações Registradas
+                </h6>
+
+                <div id="histLoading" class="text-center py-4">
+                    <div class="spinner-border text-warning" role="status">
+                        <span class="visually-hidden">Carregando...</span>
+                    </div>
+                    <div class="small text-muted mt-2">Carregando histórico de auditoria...</div>
+                </div>
+
+                <div id="histTimeline" class="d-none">
+                    <!-- Eventos inseridos dinamicamente via JS -->
+                </div>
+            </div>
+            <div class="modal-footer bg-light py-2">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .hover-shadow:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 .5rem 1rem rgba(0,0,0,.15)!important;
+    }
+    .transition {
+        transition: all 0.2s ease-in-out;
+    }
+    .timeline-item {
+        position: relative;
+        padding-left: 32px;
+        padding-bottom: 24px;
+        border-left: 2px solid #dee2e6;
+    }
+    .timeline-item:last-child {
+        border-left: 2px solid transparent;
+        padding-bottom: 0;
+    }
+    .timeline-icon {
+        position: absolute;
+        left: -13px;
+        top: 0;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // -------------------------------------------------------------
+        // 1. CONFIGURAÇÃO DO MODAL DE DEVOLUÇÃO PARCIAL
+        // -------------------------------------------------------------
+        const modalDevolucaoParcialEl = document.getElementById('modalDevolucaoParcial');
+        const formDevolucaoParcial = document.getElementById('formDevolucaoParcial');
+        const modalParcialProduto = document.getElementById('modalParcialProduto');
+        const modalParcialSolicitante = document.getElementById('modalParcialSolicitante');
+        const modalParcialLote = document.getElementById('modalParcialLote');
+        const modalParcialPendente = document.getElementById('modalParcialPendente');
+        const modalParcialUnidade = document.getElementById('modalParcialUnidade');
+        const inputParcialQtd = document.getElementById('inputParcialQtd');
+        const modalParcialErroQtd = document.getElementById('modalParcialErroQtd');
+        const btnConfirmarParcial = document.getElementById('btnConfirmarDevolucaoParcial');
+        let saldoPendenteMax = 0;
+
+        document.querySelectorAll('.btn-abrir-devolucao-parcial').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const id = this.dataset.id;
+                const produto = this.dataset.produto;
+                const solicitante = this.dataset.solicitante;
+                const pendente = parseFloat(this.dataset.pendente || 0);
+                const unidade = this.dataset.unidade || 'un';
+                const lote = this.dataset.lote || 'Geral';
+
+                saldoPendenteMax = pendente;
+                formDevolucaoParcial.action = `/emprestimos/devolver-parcial/${id}/`;
+                modalParcialProduto.textContent = produto;
+                modalParcialSolicitante.textContent = solicitante;
+                modalParcialLote.textContent = lote;
+                modalParcialPendente.textContent = `${pendente} ${unidade}`;
+                modalParcialUnidade.textContent = unidade;
+
+                inputParcialQtd.max = pendente;
+                inputParcialQtd.value = pendente > 1 ? 1 : pendente;
+                inputParcialQtd.classList.remove('is-invalid');
+                modalParcialErroQtd.classList.add('d-none');
+                btnConfirmarParcial.disabled = false;
+            });
+        });
+
+        inputParcialQtd.addEventListener('input', function() {
+            const val = parseFloat(this.value) || 0;
+            if (val <= 0 || val > saldoPendenteMax) {
+                inputParcialQtd.classList.add('is-invalid');
+                modalParcialErroQtd.classList.remove('d-none');
+                btnConfirmarParcial.disabled = true;
+            } else {
+                inputParcialQtd.classList.remove('is-invalid');
+                modalParcialErroQtd.classList.add('d-none');
+                btnConfirmarParcial.disabled = false;
+            }
+        });
+
+        // -------------------------------------------------------------
+        // 2. CONFIGURAÇÃO DO MODAL DE HISTÓRICO / AUDITORIA
+        // -------------------------------------------------------------
+        const modalHistoricoEl = document.getElementById('modalHistoricoEmprestimo');
+        const modalHistoricoBS = new bootstrap.Modal(modalHistoricoEl);
+        const histLoading = document.getElementById('histLoading');
+        const histTimeline = document.getElementById('histTimeline');
+        const histBadgeCodigo = document.getElementById('histBadgeCodigo');
+        const histProdutoNome = document.getElementById('histProdutoNome');
+        const histSolicitante = document.getElementById('histSolicitante');
+        const histLote = document.getElementById('histLote');
+        const histStatusBadge = document.getElementById('histStatusBadge');
+        const histResumoQtd = document.getElementById('histResumoQtd');
+
+        document.querySelectorAll('.btn-ver-historico').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const id = this.dataset.id;
+                abrirHistoricoEmprestimo(id);
+            });
+        });
+
+        window.abrirHistoricoEmprestimo = function(id) {
+            histLoading.classList.remove('d-none');
+            histTimeline.classList.add('d-none');
+            histTimeline.innerHTML = '';
+            modalHistoricoBS.show();
+
+            fetch(`/api/emprestimos/historico/${id}/`)
+                .then(res => res.json())
+                .then(data => {
+                    histLoading.classList.add('d-none');
+                    histTimeline.classList.remove('d-none');
+
+                    histBadgeCodigo.textContent = data.codigo_grupo;
+                    histProdutoNome.textContent = data.produto;
+                    histSolicitante.textContent = data.solicitante;
+                    histLote.textContent = data.lote;
+
+                    if (data.status === 'FINALIZADO') {
+                        histStatusBadge.className = 'badge bg-success fs-6 px-3 py-1 rounded-pill';
+                        histStatusBadge.innerHTML = '<i class="bi bi-check-all me-1"></i>Finalizado';
+                    } else if (data.status === 'PARCIAL') {
+                        histStatusBadge.className = 'badge bg-primary fs-6 px-3 py-1 rounded-pill';
+                        histStatusBadge.innerHTML = `<i class="bi bi-pie-chart-fill me-1"></i>Parcial (${data.percentual}%)`;
+                    } else {
+                        histStatusBadge.className = 'badge bg-warning text-dark fs-6 px-3 py-1 rounded-pill';
+                        histStatusBadge.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Em Aberto';
+                    }
+
+                    histResumoQtd.innerHTML = `Total: <strong>${data.quantidade_total}</strong> | Devolvido: <strong class="text-success">${data.quantidade_devolvida}</strong> | Pendente: <strong class="text-danger">${data.quantidade_pendente}</strong> ${data.unidade}`;
+
+                    if (!data.historicos || data.historicos.length === 0) {
+                        histTimeline.innerHTML = '<div class="text-muted text-center py-3">Nenhum evento registrado ainda.</div>';
+                        return;
+                    }
+
+                    let htmlTimeline = '';
+                    data.historicos.forEach(h => {
+                        let iconClass = 'bi-check-lg';
+                        let bgClass = 'bg-primary text-white';
+                        let badgeAcao = `<span class="badge bg-primary-subtle text-primary border border-primary-subtle">${h.tipo_acao_display}</span>`;
+
+                        if (h.tipo_acao === 'CRIACAO') {
+                            iconClass = 'bi-box-arrow-right';
+                            bgClass = 'bg-warning text-dark';
+                            badgeAcao = `<span class="badge bg-warning-subtle text-dark border border-warning-subtle">${h.tipo_acao_display}</span>`;
+                        } else if (h.tipo_acao === 'DEVOLUCAO_TOTAL') {
+                            iconClass = 'bi-check-all';
+                            bgClass = 'bg-success text-white';
+                            badgeAcao = `<span class="badge bg-success-subtle text-success border border-success-subtle">${h.tipo_acao_display}</span>`;
+                        } else if (h.tipo_acao === 'DEVOLUCAO_PARCIAL') {
+                            iconClass = 'bi-pie-chart-fill';
+                            bgClass = 'bg-info text-white';
+                            badgeAcao = `<span class="badge bg-info-subtle text-info border border-info-subtle">${h.tipo_acao_display}</span>`;
+                        }
+
+                        htmlTimeline += `
+                            <div class="timeline-item">
+                                <div class="timeline-icon ${bgClass}">
+                                    <i class="bi ${iconClass}"></i>
+                                </div>
+                                <div class="card border-0 bg-light p-3 shadow-none rounded-3">
+                                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-1">
+                                        <div class="d-flex align-items-center gap-2">
+                                            ${badgeAcao}
+                                            <strong class="text-dark">Qtd: ${h.quantidade} ${data.unidade}</strong>
+                                        </div>
+                                        <div class="small text-muted">
+                                            <i class="bi bi-clock me-1"></i>${h.data}
+                                        </div>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center small text-secondary mt-1">
+                                        <div><i class="bi bi-person me-1"></i>Responsável: <strong>${h.usuario}</strong></div>
+                                        <div>Saldo Pendente após ação: <strong class="text-dark">${h.saldo_restante} ${data.unidade}</strong></div>
+                                    </div>
+                                    ${h.observacao ? `<div class="mt-2 pt-2 border-top small text-dark"><i class="bi bi-chat-left-text me-1 text-muted"></i>${h.observacao}</div>` : ''}
+                                </div>
+                            </div>
+                        `;
+                    });
+
+                    histTimeline.innerHTML = htmlTimeline;
+                })
+                .catch(err => {
+                    console.error('Erro ao buscar histórico:', err);
+                    histLoading.classList.add('d-none');
+                    histTimeline.classList.remove('d-none');
+                    histTimeline.innerHTML = '<div class="alert alert-danger">Não foi possível carregar a trilha de auditoria.</div>';
+                });
+        };
+    });
+</script>
 {% endblock %}

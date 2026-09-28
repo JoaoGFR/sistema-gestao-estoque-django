@@ -31,6 +31,8 @@ urlpatterns = [
     path('emprestimos/', views.lista_emprestimos, name='lista_emprestimos'),
     path('emprestimos/novo/', views.registrar_emprestimo, name='registrar_emprestimo'),
     path('emprestimos/devolver/<int:pk>/', views.devolver_item, name='devolver_item'),
+    path('emprestimos/devolver-parcial/<int:pk>/', views.devolver_emprestimo_parcial, name='devolver_emprestimo_parcial'),
+    path('api/emprestimos/historico/<int:pk>/', views.api_historico_emprestimo, name='api_historico_emprestimo'),
 
     # --- EQUIPE ---
     path('equipe/', views.lista_funcionarios, name='lista_funcionarios'),
@@ -96,6 +98,9 @@ urlpatterns = [
     # --- CREDIÁRIO / CONTAS A RECEBER ---
     path('crediario/', views.painel_crediario, name='painel_crediario'),
     path('crediario/baixar/<int:pk>/', views.baixar_parcela, name='baixar_parcela'),
+
+    # --- GESTÃO DE MÓDULOS & PREFERÊNCIAS ---
+    path('configuracoes/modulos/', views.configurar_modulos, name='configurar_modulos'),
 
     # --- GESTÃO DE ASSINATURAS SAAS & MERCADO PAGO ---
     path('minha-assinatura/', views.minha_assinatura, name='minha_assinatura'),

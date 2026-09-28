@@ -21,6 +21,7 @@
    - [2.10 Simulador de Preços (Pricing & PDF)](#210-simulador-de-preços-pricing--pdf)
    - [2.11 Endpoints de API Assíncrona (JSON)](#211-endpoints-de-api-assíncrona-json)
    - [2.12 Gestão de Assinaturas SaaS, Mercado Pago & Migrações em Nuvem](#212-gestão-de-assinaturas-saas-mercado-pago--migrações-em-nuvem)
+   - [2.13 Modulação de Recursos & Módulos da Empresa](#213-modulação-de-recursos--módulos-da-empresa)
 3. [Mapa de Modelos de Dados (`estoque/models.py`)](#-mapa-de-modelos-de-dados-estoquemodelspy)
 4. [Mapa de Formulários & Validações (`estoque/forms.py`)](#-mapa-de-formulários-estoqueformspy)
 5. [Mapa de Rotas e URLs (`urls.py`)](#-mapa-de-rotas-e-urls)
@@ -50,9 +51,11 @@ Arquivo: [`estoque/views.py`](file:///c:/sistemaestoque/estoque/views.py)
 | [`entrada_estoque`](file:///c:/sistemaestoque/estoque/views.py#L253-L269) | L253-269 | `/estoque/nova-entrada/` | GET, POST | `@login_required` | Registro de novo lote com NF (upload) e quantidades |
 | [`registrar_saida`](file:///c:/sistemaestoque/estoque/views.py#L273-L473) | L273-473 | `/saidas/nova/` | GET, POST | `@login_required`, `@transaction.atomic` | Baixas de estoque: Suporte a Múltiplos Itens (carrinho) ou lote individual |
 | [`lista_saidas`](file:///c:/sistemaestoque/estoque/views.py#L475-L481) | L475-481 | `/saidas/` | GET | `@login_required` | Histórico de saídas de estoque com tag de baixa agrupada |
-| [`registrar_emprestimo`](file:///c:/sistemaestoque/estoque/views.py#L486-L550) | L486-550 | `/emprestimos/novo/` | GET, POST | `@login_required`, `@transaction.atomic` | Empréstimo com baixa em lote por FIFO |
-| [`lista_emprestimos`](file:///c:/sistemaestoque/estoque/views.py#L552-L558) | L552-558 | `/emprestimos/` | GET | `@login_required` | Listagem de empréstimos ativos e concluídos |
-| [`devolver_item`](file:///c:/sistemaestoque/estoque/views.py#L561-L587) | L561-587 | `/emprestimos/devolver/<int:pk>/` | POST | `@login_required`, `@transaction.atomic` | Estorno do empréstimo de volta para o lote original |
+| [`registrar_emprestimo`](file:///c:/sistemaestoque/estoque/views.py) | - | `/emprestimos/novo/` | GET, POST | `@login_required`, `@transaction.atomic` | Empréstimo com seleção direta de lote ou FIFO automático, auditoria em `HistoricoEmprestimo` |
+| [`lista_emprestimos`](file:///c:/sistemaestoque/estoque/views.py) | - | `/emprestimos/` | GET | `@login_required` | Gestão de empréstimos com cards de métricas, busca, filtros de status, devolução parcial/total e modal de auditoria |
+| [`devolver_item`](file:///c:/sistemaestoque/estoque/views.py) | - | `/emprestimos/devolver/<int:pk>/` | POST | `@login_required`, `@transaction.atomic` | Devolução total do saldo pendente com estorno ao lote de origem e registro no histórico |
+| [`devolver_emprestimo_parcial`](file:///c:/sistemaestoque/estoque/views.py) | - | `/emprestimos/devolver-parcial/<int:pk>/` | POST | `@login_required`, `@transaction.atomic` | Devolução parcial fracionada com estorno proporcional ao lote e registro na trilha de auditoria |
+| [`api_historico_emprestimo`](file:///c:/sistemaestoque/estoque/views.py) | - | `/api/emprestimos/historico/<int:pk>/` | GET | `@login_required` | JSON: Linha do tempo e trilha completa de auditoria do empréstimo (criação, devoluções parciais e totais) |
 | [`lista_funcionarios`](file:///c:/sistemaestoque/estoque/views.py#L590-L598) | L590-598 | `/equipe/` | GET | `@login_required`, dono (`e_dono`) | Gestão de membros e funcionários da empresa |
 | [`criar_funcionario`](file:///c:/sistemaestoque/estoque/views.py#L600-L637) | L600-637 | `/equipe/novo/` | GET, POST | `@login_required`, dono (`e_dono`) | Cria usuário com prefixo de empresa (`empresa.usuario`) |
 | [`editar_funcionario`](file:///c:/sistemaestoque/estoque/views.py#L641-L701) | L641-701 | `/equipe/editar/<int:pk>/` | GET, POST | `@login_required`, `@transaction.atomic`, dono (`e_dono`) | Edição de cadastro, função e status ativo/inativo com preservação de histórico |
@@ -96,6 +99,7 @@ Arquivo: [`estoque/views.py`](file:///c:/sistemaestoque/estoque/views.py)
 | [`painel_crediario`](file:///c:/sistemaestoque/estoque/views.py#L2034-L2114) | L2034-2114 | `/crediario/` | GET | `@login_required` | Painel financeiro de contas a receber, atrasos e recebimentos |
 | [`baixar_parcela`](file:///c:/sistemaestoque/estoque/views.py#L2117-L2183) | L2117-2183 | `/crediario/baixar/<int:pk>/` | POST | `@login_required`, `@transaction.atomic` | Registro de quitação/amortização de parcelas no crediário |
 | [`_garantir_coluna_order_id`](file:///c:/sistemaestoque/estoque/views.py#L2925-L2944) | L2925-2944 | *Interna (Helper)* | Python | - | DDL idempotente 'ADD COLUMN IF NOT EXISTS' para prevenir Server Error 500 na Vercel/Postgres |
+| [`configurar_modulos`](file:///c:/sistemaestoque/estoque/views.py) | - | `/configuracoes/modulos/` | GET, POST | `@login_required`, dono (`e_dono`)/super | Painel de controle de módulos (Feature Toggles): ativa/desativa Empréstimos, PDV, Crediário, Simulador e Lotes |
 | [`minha_assinatura`](file:///c:/sistemaestoque/estoque/views.py#L2946-L3028) | L2946-3028 | `/minha-assinatura/` | GET | `@login_required` | Painel do lojista: status da assinatura, dias restantes de trial/vigência e checkout |
 | [`iniciar_checkout_mercadopago`](file:///c:/sistemaestoque/estoque/views.py#L3030-L3079) | L3030-3079 | `/assinatura/pagar/` | GET | `@login_required` | Gera preferência no Mercado Pago (Checkout Pro) com `statement_descriptor` e Pix/Cartão |
 | [`simular_pagamento_mp`](file:///c:/sistemaestoque/estoque/views.py#L3082-L3112) | L3082-3112 | `/assinatura/simular-pagamento/` | GET | `@login_required` | Simulação rápida em ambiente de testes para validação sem cartão real |
@@ -220,20 +224,24 @@ Arquivo: [`estoque/views.py`](file:///c:/sistemaestoque/estoque/views.py)
   - *Extrato Unificado:* Junta `Lote` (entradas), `SaidaEstoque` (saídas) e `Emprestimo` (empréstimos), ordena por data decrescente e filtra por período (`data_inicio`, `data_fim`) e tipo.
   - *Template:* [`estoque/relatorio_movimentacoes.html`](file:///c:/sistemaestoque/estoque/templates/estoque/relatorio_movimentacoes.html).
 
-### 2.9 Módulo de Backups
-- **`_is_serverless()`** [`L857-859`](file:///c:/sistemaestoque/estoque/views.py#L857-L859):
+### 2.9 Módulo de Backups & Administração do Banco de Dados
+- **`_is_serverless()`** [`L1735-1737`](file:///c:/sistemaestoque/estoque/views.py#L1735-L1737):
   - Detecta se a execução ocorre em container serverless (Vercel).
-- **`painel_backups(request)`** [`L861-898`](file:///c:/sistemaestoque/estoque/views.py#L861-L898):
+- **`painel_backups(request)`** [`L1739-1776`](file:///c:/sistemaestoque/estoque/views.py#L1739-L1776):
   - Lista arquivos `.json` na pasta `/backups/` com tamanho e data de modificação.
+  - Oferece atalho e card dedicado para disparo de migrações do banco (`executar_migracoes_superadmin`).
   - *Template:* [`estoque/painel_backups.html`](file:///c:/sistemaestoque/estoque/templates/estoque/painel_backups.html).
-- **`criar_backup(request)`** [`L900-947`](file:///c:/sistemaestoque/estoque/views.py#L900-L947):
+- **`criar_backup(request)`** [`L1778-1825`](file:///c:/sistemaestoque/estoque/views.py#L1778-L1825):
   - Executa `call_command('dumpdata')`. Em ambiente serverless, envia diretamente como stream HTTP para download; em local/Docker grava no disco.
-- **`baixar_backup(request, filename)`** [`L949-967`](file:///c:/sistemaestoque/estoque/views.py#L949-L967):
+- **`baixar_backup(request, filename)`** [`L1827-1845`](file:///c:/sistemaestoque/estoque/views.py#L1827-L1845):
   - Protegido contra Path Traversal (`os.path.realpath` e checagem de prefixo de diretório).
-- **`excluir_backup(request, filename)`** [`L969-982`](file:///c:/sistemaestoque/estoque/views.py#L969-L982):
+- **`excluir_backup(request, filename)`** [`L1847-1860`](file:///c:/sistemaestoque/estoque/views.py#L1847-L1860):
   - Exclui arquivo físico sanitizado.
-- **`restaurar_backup(request, filename)`** [`L984-1002`](file:///c:/sistemaestoque/estoque/views.py#L984-L1002):
+- **`restaurar_backup(request, filename)`** [`L1862-1880`](file:///c:/sistemaestoque/estoque/views.py#L1862-L1880):
   - Executa `call_command('loaddata')` para reinjetar a massa de dados.
+- **`executar_migracoes_superadmin(request)`** [`L3762-3796`](file:///c:/sistemaestoque/estoque/views.py#L3762-L3796):
+  - Executa `call_command('migrate', interactive=False)` diretamente via web para Superusuários com tela de console estilo terminal. Essencial para plataformas serverless (Vercel) e containers **Portainer / Docker** sem necessidade de abrir o shell do container.
+  - *Template:* [`estoque/superadmin_migracoes.html`](file:///c:/sistemaestoque/estoque/templates/estoque/superadmin_migracoes.html).
 
 ### 2.10 Simulador de Preços (Pricing & PDF)
 - **`simulador_preco(request)`** [`L1005-1019`](file:///c:/sistemaestoque/estoque/views.py#L1005-L1019):
@@ -296,6 +304,19 @@ Arquivo: [`estoque/views.py`](file:///c:/sistemaestoque/estoque/views.py)
   - Executa `call_command('migrate', interactive=False)` diretamente via web para Superusuários com tela de console estilo terminal. Essencial para plataformas serverless como a Vercel.
   - *Template:* [`estoque/superadmin_migracoes.html`](file:///c:/sistemaestoque/estoque/templates/estoque/superadmin_migracoes.html).
 
+### 2.13 Modulação de Recursos & Módulos da Empresa
+- **`configurar_modulos(request)`** [`L3815-3843`](file:///c:/sistemaestoque/estoque/views.py#L3815-L3843):
+  - *Permissão:* Exclusivo para administradores/donos da empresa (`e_dono=True`) ou superusuários.
+  - *Feature Toggles:* Permite ativar e desativar individualmente 5 módulos:
+    1. `modulo_vendas_pdv`: PDV, Vendas no Balcão, Tabela de Preços e Precificação Comercial nos detalhes do produto.
+    2. `modulo_emprestimos`: Controle de Cautelas / Empréstimos e Devoluções.
+    3. `modulo_clientes_crediario`: Cadastro de Clientes, Vendas a Prazo e Contas a Receber (Crediário).
+    4. `modulo_simulador_precos`: Simulador Avançado de Preço, Margens e Tributos.
+    5. `modulo_controle_lotes`: Rastreabilidade por Lote, Validade e Fabricação.
+  - *Decorador `@requer_modulo(*nomes, modo='any')`* ([`estoque/decorators.py`](file:///c:/sistemaestoque/estoque/decorators.py)): Bloqueia o acesso a URLs restritas caso o módulo correspondente esteja desativado na empresa, emitindo aviso amigável e redirecionando para o dashboard.
+  - *Context Processor `modulos_empresa`* ([`estoque/context_processors.py`](file:///c:/sistemaestoque/estoque/context_processors.py)): Injeta o objeto `modulos` em todos os templates para ocultação dinâmica de botões, itens de menu (`base.html`), cards de KPI (`dashboard.html`), colunas e painel de precificação no detalhamento do produto (`historico_produto.html`).
+  - *Template:* [`estoque/configurar_modulos.html`](file:///c:/sistemaestoque/estoque/templates/estoque/configurar_modulos.html).
+
 ---
 
 ## 🗄️ Mapa de Modelos de Dados (`estoque/models.py`)
@@ -304,7 +325,8 @@ Arquivo: [`estoque/models.py`](file:///c:/sistemaestoque/estoque/models.py)
 
 | Modelo | Linhas | Campos Principais | Relações Chave | Métodos e `@property` |
 | :--- | :--- | :--- | :--- | :--- |
-| **`Empresa`** | L7-13 | `nome`, `cnpj`, `ativo` | Entidade raiz do Multi-tenant | `__str__` |
+| **`Empresa`** | L7-13 | `nome`, `cnpj`, `ativo` | Entidade raiz do Multi-tenant | `@property configuracao`<br>`__str__` |
+| **`ConfiguracaoEmpresa`** | L80-120 | `modulo_emprestimos`, `modulo_vendas_pdv`, `modulo_clientes_crediario`, `modulo_simulador_precos`, `modulo_controle_lotes` | `empresa` (1:1 `Empresa`, `related_name='configuracao_obj'`) | Feature Toggles de ativação/desativação dinâmica de funções por tenant |
 | **`UserProfile`** | L16-22 | `e_dono` | `user` (1:1 `User`), `empresa` (FK `Empresa`) | `__str__` |
 | **`Categoria`** | L25-30 | `nome` | `empresa` (FK `Empresa`) | `__str__` |
 | **`Localizacao`** | L33-38 | `nome` (Endereço/Prateleira) | `empresa` (FK `Empresa`) | `__str__` |
@@ -317,7 +339,7 @@ Arquivo: [`estoque/models.py`](file:///c:/sistemaestoque/estoque/models.py)
 | **`AliquotaImposto`**| L152-158| `nome`, `percentual` | `empresa` (FK `Empresa`) | `__str__` |
 | **`SimulacaoPreco`** | L161-231| `preco_custo`, `quantidade_estoque`, `preco_custo_futuro`, `quantidade_futura`, `frete_valor`, `tipo_frete`, `outros_valor`, `tipo_outros`, `aliquota_nome`, `aliquota_percentual`, `margem_desejada`, `metodo`, `preco_sugerido`, `preco_praticado`, `lucro_liquido`, `margem_realizada` | `empresa` (FK), `produto` (FK) | `@property quantidade_total`<br>`@property lucro_total_lote`<br>`@property custo_efetivo` |
 | **`Cliente`** | L238-285 | `nome`, `tipo_pessoa`, `cpf_cnpj`, `telefone`, `email`, `endereco`, `cidade`, `limite_credito`, `ativo`, `observacoes` | `empresa` (FK `Empresa`) | `@property saldo_devedor`<br>`@property limite_disponivel`<br>`@property tem_debitos_vencidos` |
-| **`Venda`** | L288-340 | `codigo_venda`, `valor_subtotal`, `desconto`, `valor_total`, `forma_pagamento`, `status`, `status_pagamento`, `observacoes` | `empresa` (FK), `cliente` (FK Null), `usuario` (FK Null `User`) | `__str__` |
+| **`Venda`** | L499-545 | `codigo_venda`, `valor_subtotal`, `desconto`, `valor_adicional`, `descricao_adicional`, `valor_total`, `forma_pagamento`, `status`, `status_pagamento`, `observacoes` | `empresa` (FK), `cliente` (FK Null), `usuario` (FK Null `User`) | `__str__` |
 | **`ItemVenda`** | L343-356 | `quantidade`, `preco_unitario`, `subtotal` | `venda` (FK `Venda`), `produto` (FK), `lote` (FK Null), `saida_estoque` (FK Null) | `__str__` |
 | **`ContaReceber`** | L359-402 | `numero_parcela`, `total_parcelas`, `valor_parcela`, `valor_pago`, `data_vencimento`, `data_pagamento`, `status` | `empresa` (FK), `cliente` (FK), `venda` (FK) | `@property saldo_restante`<br>`@property esta_vencida`<br>`@property dias_atraso` |
 | **`PagamentoCrediario`**| L405-430 | `valor_recebido`, `forma_pagamento`, `data_recebimento`, `observacoes` | `empresa` (FK), `conta` (FK `ContaReceber`), `usuario` (FK Null) | `__str__` |
@@ -344,6 +366,7 @@ Arquivo: [`estoque/forms.py`](file:///c:/sistemaestoque/estoque/forms.py)
 | **`EditarFuncionarioForm`** | L246-308 | Form padrão | `first_name`, `last_name`, `email`, `e_dono`, `is_active`, `nova_senha` | Valida colisão de e-mail com outros usuários, validação opcional de senha, preservação de integridade |
 | **`ClienteForm`** | L318-348 | `Cliente` | `nome`, `tipo_pessoa`, `cpf_cnpj`, `telefone`, `email`, `endereco`, `cidade`, `limite_credito`, `ativo`, `observacoes` | Validação de limite de crédito não negativo; formatação de campos Bootstrap 5 |
 | **`ReceberPagamentoForm`** | L351-372 | Form padrão | `valor_recebido`, `forma_pagamento`, `data_recebimento`, `observacoes` | Input destacado para valor recebido, data padrão hoje e seleção de forma de pagamento |
+| **`ConfiguracaoModulosForm`** | L560-580 | `ConfiguracaoEmpresa` | `modulo_emprestimos`, `modulo_vendas_pdv`, `modulo_clientes_crediario`, `modulo_simulador_precos`, `modulo_controle_lotes` | Switches Bootstrap 5 (`role="switch"`) para ativar/desativar módulos da empresa |
 
 
 ---

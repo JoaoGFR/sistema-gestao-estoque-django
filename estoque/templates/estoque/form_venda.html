@@ -277,10 +277,43 @@
                             <div class="col-12 col-md-6">
                                 <label class="form-label fw-semibold">Desconto Total (R$)</label>
                                 <div class="input-group">
-                                    <span class="input-group-text bg-light">R$</span>
+                                    <span class="input-group-text bg-light text-danger fw-bold">- R$</span>
                                     <input type="number" name="desconto" id="inputDesconto" class="form-control" step="0.01" min="0" value="0.00">
                                 </div>
                             </div>
+                        </div>
+
+                        <!-- ACRÉSCIMO, FRETE E VALORES À PARTE -->
+                        <div class="card bg-light border-0 p-3 mb-3 rounded-3">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <label class="form-label fw-semibold mb-0 d-flex align-items-center gap-1">
+                                    <i class="bi bi-truck text-primary"></i> Acréscimo / Frete / Taxas (R$)
+                                </label>
+                                <span class="badge bg-secondary-subtle text-secondary small">Opcional</span>
+                            </div>
+                            <div class="row g-2">
+                                <div class="col-12 col-sm-7">
+                                    <input type="text" name="descricao_adicional" id="inputDescricaoAdicional" class="form-control" placeholder="Ex: Frete, Taxa de Entrega, Mão de Obra..." list="sugestoesAdicional">
+                                    <datalist id="sugestoesAdicional">
+                                        <option value="Frete">
+                                        <option value="Taxa de Entrega">
+                                        <option value="Entrega Motoboy">
+                                        <option value="Mão de Obra / Serviço">
+                                        <option value="Instalação">
+                                        <option value="Embalagem Especial">
+                                        <option value="Acréscimo Geral">
+                                    </datalist>
+                                </div>
+                                <div class="col-12 col-sm-5">
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-white text-success fw-bold">+ R$</span>
+                                        <input type="number" name="valor_adicional" id="inputValorAdicional" class="form-control" step="0.01" min="0" value="0.00" placeholder="0,00">
+                                    </div>
+                                </div>
+                            </div>
+                            <small class="text-muted mt-1 d-block" style="font-size: 0.76rem;">
+                                Digite o tipo (ex: <em>Frete</em>) e o valor. Ele será somado ao valor final e registrado no comprovante.
+                            </small>
                         </div>
 
                         <!-- PAINEL DINÂMICO 1: DINHEIRO (TROCO) -->
@@ -333,15 +366,27 @@
                             </div>
                         </div>
 
+                        <!-- CAMPO DE OBSERVAÇÕES / ANOTAÇÕES DA VENDA -->
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold d-flex align-items-center gap-1 mb-1">
+                                <i class="bi bi-chat-left-text text-secondary"></i> Observações / Anotações da Venda
+                            </label>
+                            <textarea name="observacoes" id="inputObservacoes" class="form-control" rows="2" placeholder="Anotações internas, instruções de entrega, preferências ou observações da negociação..."></textarea>
+                        </div>
+
                         <!-- Totalizadores -->
-                        <div class="card bg-white border p-3 mb-3">
+                        <div class="card bg-white border p-3 mb-3 rounded-3 shadow-sm">
                             <div class="d-flex justify-content-between align-items-center mb-1">
-                                <span class="text-muted">Subtotal:</span>
+                                <span class="text-muted">Subtotal dos Itens:</span>
                                 <span class="fw-bold text-dark" id="lblSubtotal">R$ 0,00</span>
                             </div>
                             <div class="d-flex justify-content-between align-items-center mb-1">
                                 <span class="text-muted">Desconto:</span>
                                 <span class="text-danger fw-semibold" id="lblDesconto">- R$ 0,00</span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mb-1 d-none" id="linhaAdicional">
+                                <span class="text-muted" id="lblNomeAdicional">(+) Frete / Acréscimo:</span>
+                                <span class="text-success fw-semibold" id="lblValorAdicional">+ R$ 0,00</span>
                             </div>
                             <hr class="my-2">
                             <div class="d-flex justify-content-between align-items-center">
@@ -390,6 +435,11 @@ document.addEventListener('DOMContentLoaded', function () {
     const badgeContador = document.getElementById('badgeContador');
     const selFormaPagamento = document.getElementById('selFormaPagamento');
     const inputDesconto = document.getElementById('inputDesconto');
+    const inputValorAdicional = document.getElementById('inputValorAdicional');
+    const inputDescricaoAdicional = document.getElementById('inputDescricaoAdicional');
+    const linhaAdicional = document.getElementById('linhaAdicional');
+    const lblNomeAdicional = document.getElementById('lblNomeAdicional');
+    const lblValorAdicional = document.getElementById('lblValorAdicional');
     const lblSubtotal = document.getElementById('lblSubtotal');
     const lblDesconto = document.getElementById('lblDesconto');
     const lblTotalFinal = document.getElementById('lblTotalFinal');
@@ -598,10 +648,21 @@ document.addEventListener('DOMContentLoaded', function () {
     function recalcularTotais() {
         const subtotal = carrinho.reduce((acc, it) => acc + it.subtotal, 0);
         const desc = parseFloat(inputDesconto.value.replace(',', '.') || 0);
-        const total = Math.max(0, subtotal - desc);
+        const adicional = parseFloat(inputValorAdicional.value.replace(',', '.') || 0);
+        const total = Math.max(0, subtotal - desc + adicional);
 
         lblSubtotal.textContent = `R$ ${subtotal.toFixed(2).replace('.', ',')}`;
         lblDesconto.textContent = `- R$ ${desc.toFixed(2).replace('.', ',')}`;
+
+        if (adicional > 0) {
+            const descr = (inputDescricaoAdicional.value || '').trim() || 'Frete / Acréscimo';
+            lblNomeAdicional.textContent = `(+) ${descr}:`;
+            lblValorAdicional.textContent = `+ R$ ${adicional.toFixed(2).replace('.', ',')}`;
+            linhaAdicional.classList.remove('d-none');
+        } else {
+            linhaAdicional.classList.add('d-none');
+        }
+
         lblTotalFinal.textContent = `R$ ${total.toFixed(2).replace('.', ',')}`;
 
         // Cálculo do troco em dinheiro
@@ -623,6 +684,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Eventos de alteração financeira
     inputDesconto.addEventListener('input', recalcularTotais);
+    inputValorAdicional.addEventListener('input', recalcularTotais);
+    inputDescricaoAdicional.addEventListener('input', recalcularTotais);
     inputValorRecebido.addEventListener('input', recalcularTotais);
     selNumParcelas.addEventListener('change', recalcularTotais);
 

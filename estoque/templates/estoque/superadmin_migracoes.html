@@ -7,7 +7,7 @@
         <div>
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb mb-1">
-                    <li class="breadcrumb-item"><a href="{% url 'painel_superadmin_assinaturas' %}" class="text-decoration-none">Gestão de Assinaturas</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'painel_backups' %}" class="text-decoration-none">Gerenciador de Backups</a></li>
                     <li class="breadcrumb-item active" aria-current="page">Migrações do Banco</li>
                 </ol>
             </nav>
@@ -21,8 +21,8 @@
             <a href="{% url 'executar_migracoes_superadmin' %}" class="btn btn-outline-warning">
                 <i class="bi bi-arrow-clockwise me-1"></i> Executar Novamente
             </a>
-            <a href="{% url 'painel_superadmin_assinaturas' %}" class="btn btn-primary">
-                <i class="bi bi-arrow-left me-1"></i> Voltar para Assinaturas
+            <a href="{% url 'painel_backups' %}" class="btn btn-primary">
+                <i class="bi bi-arrow-left me-1"></i> Voltar para Backups
             </a>
         </div>
     </div>

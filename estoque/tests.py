@@ -9,7 +9,8 @@ from unittest.mock import patch, MagicMock
 from .models import (
     Empresa, Produto, SimulacaoPreco, UserProfile, Lote, Cliente,
     Venda, ItemVenda, ContaReceber, PagamentoCrediario, SaidaEstoque,
-    PagamentoAssinatura, HistoricoPreco, AliquotaImposto, Categoria
+    PagamentoAssinatura, HistoricoPreco, AliquotaImposto, Categoria,
+    Emprestimo, HistoricoEmprestimo, ConfiguracaoEmpresa
 )
 from django.core.files.uploadedfile import SimpleUploadedFile
 
@@ -1975,6 +1976,8 @@ class BackupSystemTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, 'Gerenciador de Backups')
         self.assertContains(resp, 'Restaurar Backup do Computador')
+        self.assertContains(resp, 'Executar Migrações')
+        self.assertContains(resp, 'Sincronização de Esquema do Banco de Dados')
 
     def test_criar_backup_requer_superadmin(self):
         self.client.force_login(self.user_comum)
@@ -2020,6 +2023,21 @@ class BackupSystemTests(TestCase):
 
         # Confirma que a categoria foi restaurada no banco
         self.assertTrue(Categoria.objects.filter(id=8888, nome="Categoria Restaurada Via Upload").exists())
+
+    def test_executar_migracoes_superadmin_bloqueio_e_sucesso(self):
+        """Testa restrição de segurança e execução de migrações do banco pelo painel web"""
+        # 1. Usuário comum é bloqueado com 404
+        self.client.force_login(self.user_comum)
+        resp_bloqueado = self.client.get(reverse('executar_migracoes_superadmin'), HTTP_HOST='localhost')
+        self.assertEqual(resp_bloqueado.status_code, 404)
+
+        # 2. Superadmin executa com sucesso
+        self.client.force_login(self.superadmin)
+        resp_ok = self.client.get(reverse('executar_migracoes_superadmin'), HTTP_HOST='localhost')
+        self.assertEqual(resp_ok.status_code, 200)
+        self.assertContains(resp_ok, 'Execução de Migrações')
+        self.assertContains(resp_ok, 'Gerenciador de Backups')
+        self.assertContains(resp_ok, 'python manage.py migrate')
 
 
 class MercadoPagoRequisitosHomologacaoTestCase(TestCase):
@@ -2217,3 +2235,585 @@ class MercadoPagoRequisitosHomologacaoTestCase(TestCase):
         self.assertEqual(pag.status, 'PENDENTE')
         self.assertEqual(pag.mp_order_id, 'ORD01M3TESTE123')
         self.assertEqual(pag.dias_concedidos, 1)
+
+
+class EmprestimoTestCase(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='operador', password='password123')
+        self.empresa = Empresa.objects.create(nome='Oficina Central', cnpj='99.888.777/0001-11')
+        UserProfile.objects.create(user=self.user, empresa=self.empresa, e_dono=True)
+
+        self.produto = Produto.objects.create(
+            empresa=self.empresa,
+            nome='Furadeira Bosch 750W',
+            unidade='UN',
+            ativo=True
+        )
+        self.lote_a = Lote.objects.create(
+            produto=self.produto,
+            numero_lote='LT-001',
+            quantidade_inicial=10,
+            quantidade_atual=10,
+            status='ATIVO'
+        )
+        self.lote_b = Lote.objects.create(
+            produto=self.produto,
+            numero_lote='LT-002',
+            quantidade_inicial=5,
+            quantidade_atual=5,
+            status='ATIVO'
+        )
+
+    def test_emprestimo_selecionando_lote_especifico(self):
+        """Testa o registro de empréstimo escolhendo um lote específico e validando o histórico"""
+        self.client.force_login(self.user)
+        response = self.client.post(reverse('registrar_emprestimo'), {
+            'produto': self.produto.id,
+            'lote': self.lote_b.id,
+            'quantidade': 3,
+            'solicitante': 'Carlos Eletricista',
+            'observacao': 'Serviço externo setor Norte',
+        }, HTTP_HOST='localhost')
+
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(response, reverse('lista_emprestimos'))
+
+        # Lote B deve ter 2 unidades restantes
+        self.lote_b.refresh_from_db()
+        self.assertEqual(self.lote_b.quantidade_atual, 2)
+        # Lote A não deve ter sido afetado
+        self.lote_a.refresh_from_db()
+        self.assertEqual(self.lote_a.quantidade_atual, 10)
+
+        # Registro do Empréstimo
+        emp = Emprestimo.objects.filter(solicitante='Carlos Eletricista').first()
+        self.assertIsNotNone(emp)
+        self.assertEqual(emp.produto, self.produto)
+        self.assertEqual(emp.lote, self.lote_b)
+        self.assertEqual(emp.quantidade, Decimal('3.00'))
+        self.assertEqual(emp.quantidade_devolvida, Decimal('0.00'))
+        self.assertEqual(emp.quantidade_pendente, Decimal('3.00'))
+        self.assertFalse(emp.devolvido)
+        self.assertEqual(emp.status_emprestimo, 'ABERTO')
+
+        # Trilha de auditoria / Histórico
+        hist = emp.historicos.first()
+        self.assertIsNotNone(hist)
+        self.assertEqual(hist.tipo_acao, 'CRIACAO')
+        self.assertEqual(hist.quantidade, Decimal('3.00'))
+        self.assertEqual(hist.saldo_restante, Decimal('3.00'))
+        self.assertEqual(hist.usuario, self.user)
+        self.assertIn('LT-002', hist.observacao)
+
+    def test_emprestimo_modo_automatico_fifo(self):
+        """Testa empréstimo sem selecionar lote (modo automático FIFO)"""
+        self.client.force_login(self.user)
+        response = self.client.post(reverse('registrar_emprestimo'), {
+            'produto': self.produto.id,
+            'lote': '',  # Automático
+            'quantidade': 4,
+            'solicitante': 'Mariana Mecânica',
+            'observacao': 'Manutenção preventiva',
+        }, HTTP_HOST='localhost')
+
+        self.assertEqual(response.status_code, 302)
+
+        # Lote A deve ter sido decrementado primeiro (10 - 4 = 6)
+        self.lote_a.refresh_from_db()
+        self.assertEqual(self.lote_a.quantidade_atual, 6)
+
+        emp = Emprestimo.objects.filter(solicitante='Mariana Mecânica').first()
+        self.assertIsNotNone(emp)
+        self.assertEqual(emp.lote, self.lote_a)
+        self.assertEqual(emp.quantidade, Decimal('4.00'))
+
+    def test_devolucao_total(self):
+        """Testa devolução total do item emprestado, retornando o saldo ao lote de origem"""
+        emp = Emprestimo.objects.create(
+            produto=self.produto,
+            lote=self.lote_a,
+            quantidade=Decimal('5.00'),
+            quantidade_devolvida=Decimal('0.00'),
+            solicitante='Pedro Pedreiro',
+            responsavel_saida=self.user
+        )
+        self.lote_a.quantidade_atual = 5
+        self.lote_a.save()
+
+        self.client.force_login(self.user)
+        response = self.client.post(reverse('devolver_item', args=[emp.id]), {
+            'observacao': 'Devolvido limpo e revisado',
+        }, HTTP_HOST='localhost')
+
+        self.assertEqual(response.status_code, 302)
+
+        # Estoque restaurado no lote
+        self.lote_a.refresh_from_db()
+        self.assertEqual(self.lote_a.quantidade_atual, 10)
+
+        # Empréstimo finalizado
+        emp.refresh_from_db()
+        self.assertTrue(emp.devolvido)
+        self.assertEqual(emp.quantidade_devolvida, Decimal('5.00'))
+        self.assertEqual(emp.quantidade_pendente, Decimal('0.00'))
+        self.assertEqual(emp.status_emprestimo, 'FINALIZADO')
+        self.assertEqual(emp.responsavel_devolucao, self.user)
+        self.assertIsNotNone(emp.data_devolucao)
+
+        # Histórico de devolução total
+        hist = emp.historicos.filter(tipo_acao='DEVOLUCAO_TOTAL').first()
+        self.assertIsNotNone(hist)
+        self.assertEqual(hist.quantidade, Decimal('5.00'))
+        self.assertEqual(hist.saldo_restante, Decimal('0.00'))
+        self.assertIn('Devolvido limpo e revisado', hist.observacao)
+
+    def test_devolucao_parcial(self):
+        """Testa o novo fluxo de devolução parcial, fracionando devoluções e auditando cada etapa"""
+        emp = Emprestimo.objects.create(
+            produto=self.produto,
+            lote=self.lote_a,
+            quantidade=Decimal('10.00'),
+            quantidade_devolvida=Decimal('0.00'),
+            solicitante='Equipe Obra 1',
+            responsavel_saida=self.user
+        )
+        self.lote_a.quantidade_atual = 0
+        self.lote_a.status = 'ESGOTADO'
+        self.lote_a.save()
+
+        self.client.force_login(self.user)
+
+        # 1ª Devolução Parcial: devolve 4 unidades
+        resp1 = self.client.post(reverse('devolver_emprestimo_parcial', args=[emp.id]), {
+            'quantidade': '4',
+            'observacao': '4 unidades devolvidas no final do turno',
+        }, HTTP_HOST='localhost')
+        self.assertEqual(resp1.status_code, 302)
+
+        self.lote_a.refresh_from_db()
+        self.assertEqual(self.lote_a.quantidade_atual, 4)
+        self.assertEqual(self.lote_a.status, 'ATIVO')
+
+        emp.refresh_from_db()
+        self.assertFalse(emp.devolvido)
+        self.assertEqual(emp.quantidade_devolvida, Decimal('4.00'))
+        self.assertEqual(emp.quantidade_pendente, Decimal('6.00'))
+        self.assertEqual(emp.status_emprestimo, 'PARCIAL')
+        self.assertEqual(emp.percentual_devolvido, 40.0)
+
+        hist1 = emp.historicos.filter(tipo_acao='DEVOLUCAO_PARCIAL').first()
+        self.assertIsNotNone(hist1)
+        self.assertEqual(hist1.quantidade, Decimal('4.00'))
+        self.assertEqual(hist1.saldo_restante, Decimal('6.00'))
+
+        # Tentativa inválida: tentar devolver 7 quando só restam 6
+        resp_invalido = self.client.post(reverse('devolver_emprestimo_parcial', args=[emp.id]), {
+            'quantidade': '7',
+        }, HTTP_HOST='localhost')
+        self.assertEqual(resp_invalido.status_code, 302)
+        emp.refresh_from_db()
+        self.assertEqual(emp.quantidade_devolvida, Decimal('4.00'))  # Não deve mudar
+
+        # 2ª Devolução Parcial: devolve as 6 unidades restantes
+        resp2 = self.client.post(reverse('devolver_emprestimo_parcial', args=[emp.id]), {
+            'quantidade': '6',
+            'observacao': 'Últimas 6 unidades devolvidas',
+        }, HTTP_HOST='localhost')
+        self.assertEqual(resp2.status_code, 302)
+
+        self.lote_a.refresh_from_db()
+        self.assertEqual(self.lote_a.quantidade_atual, 10)
+
+        emp.refresh_from_db()
+        self.assertTrue(emp.devolvido)
+        self.assertEqual(emp.quantidade_devolvida, Decimal('10.00'))
+        self.assertEqual(emp.quantidade_pendente, Decimal('0.00'))
+        self.assertEqual(emp.status_emprestimo, 'FINALIZADO')
+        self.assertEqual(emp.percentual_devolvido, 100.0)
+
+        hist2 = emp.historicos.filter(tipo_acao='DEVOLUCAO_TOTAL').first()
+        self.assertIsNotNone(hist2)
+        self.assertEqual(hist2.quantidade, Decimal('6.00'))
+        self.assertEqual(hist2.saldo_restante, Decimal('0.00'))
+
+    def test_api_historico_emprestimo(self):
+        """Testa o endpoint JSON de consulta à trilha de auditoria do empréstimo"""
+        emp = Emprestimo.objects.create(
+            produto=self.produto,
+            lote=self.lote_a,
+            quantidade=Decimal('3.00'),
+            quantidade_devolvida=Decimal('1.00'),
+            solicitante='Beto Soldador',
+            responsavel_saida=self.user
+        )
+        HistoricoEmprestimo.objects.create(
+            emprestimo=emp,
+            usuario=self.user,
+            tipo_acao='CRIACAO',
+            quantidade=Decimal('3.00'),
+            saldo_restante=Decimal('3.00'),
+            observacao='Início do serviço'
+        )
+        HistoricoEmprestimo.objects.create(
+            emprestimo=emp,
+            usuario=self.user,
+            tipo_acao='DEVOLUCAO_PARCIAL',
+            quantidade=Decimal('1.00'),
+            saldo_restante=Decimal('2.00'),
+            observacao='Devolvido 1 item'
+        )
+
+        self.client.force_login(self.user)
+        response = self.client.get(reverse('api_historico_emprestimo', args=[emp.id]), HTTP_HOST='localhost')
+        self.assertEqual(response.status_code, 200)
+
+        data = response.json()
+        self.assertTrue(data['sucesso'])
+        self.assertEqual(data['produto'], 'Furadeira Bosch 750W')
+        self.assertEqual(data['solicitante'], 'Beto Soldador')
+        self.assertEqual(data['quantidade_total'], '3')
+        self.assertEqual(data['quantidade_devolvida'], '1')
+        self.assertEqual(data['quantidade_pendente'], '2')
+        self.assertEqual(data['status'], 'PARCIAL')
+        self.assertEqual(len(data['historicos']), 2)
+
+    def test_lista_emprestimos_busca_e_filtros(self):
+        """Testa a listagem de empréstimos com busca por solicitante e filtros de status"""
+        e1 = Emprestimo.objects.create(
+            produto=self.produto, lote=self.lote_a, quantidade=Decimal('2.00'),
+            solicitante='Ana Silva', responsavel_saida=self.user, devolvido=False
+        )
+        e2 = Emprestimo.objects.create(
+            produto=self.produto, lote=self.lote_b, quantidade=Decimal('3.00'),
+            quantidade_devolvida=Decimal('3.00'), solicitante='Bruno Costa',
+            responsavel_saida=self.user, devolvido=True
+        )
+
+        self.client.force_login(self.user)
+
+        # Busca por nome
+        resp_busca = self.client.get(reverse('lista_emprestimos') + '?busca=Ana', HTTP_HOST='localhost')
+        self.assertContains(resp_busca, 'Ana Silva')
+        self.assertNotContains(resp_busca, 'Bruno Costa')
+
+        # Filtro por status finalizado
+        resp_fin = self.client.get(reverse('lista_emprestimos') + '?status=finalizado', HTTP_HOST='localhost')
+        self.assertContains(resp_fin, 'Bruno Costa')
+        self.assertNotContains(resp_fin, 'Ana Silva')
+
+
+class ModulacaoRecursosTestCase(TestCase):
+    def setUp(self):
+        self.empresa = Empresa.objects.create(
+            nome='Empresa Modular',
+            cnpj='11.222.333/0001-44',
+            status_assinatura='ATIVA',
+            assinatura_fim=timezone.now() + timedelta(days=30)
+        )
+        self.dono = User.objects.create_user(
+            username='dono_modular',
+            email='dono@modular.com',
+            password='Password123!'
+        )
+        UserProfile.objects.create(
+            user=self.dono,
+            empresa=self.empresa,
+            e_dono=True
+        )
+
+        self.funcionario = User.objects.create_user(
+            username='func_modular',
+            email='func@modular.com',
+            password='Password123!'
+        )
+        UserProfile.objects.create(
+            user=self.funcionario,
+            empresa=self.empresa,
+            e_dono=False
+        )
+
+        self.produto = Produto.objects.create(
+            empresa=self.empresa,
+            nome='Parafusadeira Teste',
+            disponivel_venda=True,
+            preco_venda=Decimal('150.00')
+        )
+
+    def test_configuracao_empresa_gerada_com_padrao_ativo(self):
+        """Verifica se a configuração de módulos é gerada automaticamente com tudo ativo"""
+        config = self.empresa.configuracao
+        self.assertIsNotNone(config)
+        self.assertTrue(config.modulo_emprestimos)
+        self.assertTrue(config.modulo_vendas_pdv)
+        self.assertTrue(config.modulo_clientes_crediario)
+        self.assertTrue(config.modulo_simulador_precos)
+        self.assertTrue(config.modulo_controle_lotes)
+
+    def test_acesso_bloqueado_quando_modulo_desativado(self):
+        """Quando o módulo é desligado, usuário comum é redirecionado ao tentar acessar URL"""
+        config = self.empresa.configuracao
+        config.modulo_emprestimos = False
+        config.save()
+
+        self.client.force_login(self.funcionario)
+
+        # Rota de empréstimos deve bloquear e redirecionar para dashboard
+        resp = self.client.get(reverse('lista_emprestimos'), HTTP_HOST='localhost')
+        self.assertEqual(resp.status_code, 302)
+        self.assertRedirects(resp, reverse('dashboard'))
+
+        # Rota de novo empréstimo também deve bloquear
+        resp_novo = self.client.get(reverse('registrar_emprestimo'), HTTP_HOST='localhost')
+        self.assertEqual(resp_novo.status_code, 302)
+        self.assertRedirects(resp_novo, reverse('dashboard'))
+
+    def test_acesso_liberado_quando_modulo_ativo(self):
+        """Quando o módulo está ativo, acesso ocorre normalmente com status 200"""
+        config = self.empresa.configuracao
+        config.modulo_emprestimos = True
+        config.save()
+
+        self.client.force_login(self.funcionario)
+        resp = self.client.get(reverse('lista_emprestimos'), HTTP_HOST='localhost')
+        self.assertEqual(resp.status_code, 200)
+
+    def test_superuser_ignora_bloqueio_de_modulo(self):
+        """Superusuários conseguem acessar rotas de módulos desativados para suporte"""
+        config = self.empresa.configuracao
+        config.modulo_vendas_pdv = False
+        config.save()
+
+        super_user = User.objects.create_superuser(
+            username='admin_supremo',
+            password='AdminPassword123!'
+        )
+        UserProfile.objects.create(user=super_user, empresa=self.empresa, e_dono=True)
+
+        self.client.force_login(super_user)
+        resp = self.client.get(reverse('lista_vendas'), HTTP_HOST='localhost')
+        self.assertEqual(resp.status_code, 200)
+
+    def test_gestao_modulos_apenas_dono_ou_super(self):
+        """Funcionário não pode acessar a tela de configuração de módulos, mas dono pode"""
+        # Funcionário tenta acessar
+        self.client.force_login(self.funcionario)
+        resp_func = self.client.get(reverse('configurar_modulos'), HTTP_HOST='localhost')
+        self.assertEqual(resp_func.status_code, 302)
+        self.assertRedirects(resp_func, reverse('dashboard'))
+
+        # Dono acessa normalmente
+        self.client.force_login(self.dono)
+        resp_dono = self.client.get(reverse('configurar_modulos'), HTTP_HOST='localhost')
+        self.assertEqual(resp_dono.status_code, 200)
+        self.assertContains(resp_dono, 'Módulos do Sistema')
+
+    def test_dono_consegue_alterar_modulos(self):
+        """Dono consegue postar novos estados para os switches dos módulos"""
+        self.client.force_login(self.dono)
+
+        post_data = {
+            'modulo_vendas_pdv': 'on',
+            # 'modulo_emprestimos' omitido (desativado no switch)
+            'modulo_clientes_crediario': 'on',
+            'modulo_simulador_precos': 'on',
+            'modulo_controle_lotes': 'on',
+        }
+
+        resp = self.client.post(reverse('configurar_modulos'), data=post_data, HTTP_HOST='localhost')
+        self.assertEqual(resp.status_code, 302)
+        self.assertRedirects(resp, reverse('configurar_modulos'))
+
+        # Recarrega do banco
+        config = ConfiguracaoEmpresa.objects.get(empresa=self.empresa)
+        self.assertTrue(config.modulo_vendas_pdv)
+        self.assertFalse(config.modulo_emprestimos)
+        self.assertTrue(config.modulo_clientes_crediario)
+
+    def test_desativar_pdv_bloqueia_tabela_precos_e_apis(self):
+        """Ao desativar o módulo de PDV/Vendas, a tabela de preços e suas APIs são bloqueadas"""
+        config = self.empresa.configuracao
+        config.modulo_vendas_pdv = False
+        config.save()
+
+        self.client.force_login(self.funcionario)
+
+        # Tela da Tabela de Preços bloqueada
+        resp = self.client.get(reverse('tabela_precos'), HTTP_HOST='localhost')
+        self.assertEqual(resp.status_code, 302)
+        self.assertRedirects(resp, reverse('dashboard'))
+
+        # API de atualização de preços bloqueada
+        resp_api = self.client.post(
+            reverse('atualizar_preco_produto_api', args=[self.produto.pk]),
+            data={'preco_venda': '199.90'},
+            HTTP_HOST='localhost'
+        )
+        self.assertEqual(resp_api.status_code, 302)
+
+        # API de histórico de preços bloqueada
+        resp_hist = self.client.get(
+            reverse('api_historico_precos', args=[self.produto.pk]),
+            HTTP_HOST='localhost'
+        )
+        self.assertEqual(resp_hist.status_code, 302)
+
+    def test_desativar_pdv_remove_dashboard_precos_do_detalhamento_produto(self):
+        """Ao desativar PDV, o detalhamento do produto oculta os cards de preços, margem e aba de auditoria"""
+        config = self.empresa.configuracao
+        config.modulo_vendas_pdv = False
+        config.save()
+
+        self.client.force_login(self.funcionario)
+        resp = self.client.get(reverse('historico_produto', args=[self.produto.pk]), HTTP_HOST='localhost')
+        self.assertEqual(resp.status_code, 200)
+
+        # Elementos de precificação não devem estar visíveis
+        self.assertNotContains(resp, 'Auditoria de Preços de Venda')
+        self.assertNotContains(resp, 'Preço de Venda Vigente')
+        self.assertNotContains(resp, 'Margem & Markup')
+        self.assertNotContains(resp, 'id="btnModoPreco"')
+
+        # Agora reativa o módulo PDV e verifica que reaparecem
+        config.modulo_vendas_pdv = True
+        config.save()
+
+        resp_ativo = self.client.get(reverse('historico_produto', args=[self.produto.pk]), HTTP_HOST='localhost')
+        self.assertEqual(resp_ativo.status_code, 200)
+        self.assertContains(resp_ativo, 'Auditoria de Preços de Venda')
+        self.assertContains(resp_ativo, 'Preço de Venda Vigente')
+        self.assertContains(resp_ativo, 'Margem & Markup')
+        self.assertContains(resp_ativo, 'id="btnModoPreco"')
+
+
+class VendasPDVTestCase(TestCase):
+    def setUp(self):
+        self.empresa = Empresa.objects.create(
+            nome='Loja Comercial PDV',
+            cnpj='44.555.666/0001-77',
+            status_assinatura='ATIVA',
+            assinatura_fim=timezone.now() + timedelta(days=30)
+        )
+        self.usuario = User.objects.create_user(
+            username='vendedor_pdv',
+            email='vendedor@loja.com',
+            password='Password123!'
+        )
+        self.perfil = UserProfile.objects.create(
+            user=self.usuario,
+            empresa=self.empresa,
+            e_dono=True
+        )
+        self.cliente = Cliente.objects.create(
+            empresa=self.empresa,
+            nome='Maria Souza',
+            cpf_cnpj='123.456.789-00',
+            telefone='(11) 98888-7777',
+            limite_credito=Decimal('1000.00')
+        )
+        self.produto = Produto.objects.create(
+            empresa=self.empresa,
+            nome='Furadeira Profissional',
+            preco_venda=Decimal('150.00'),
+            disponivel_venda=True,
+            controla_lote=True
+        )
+        self.lote = Lote.objects.create(
+            produto=self.produto,
+            numero_lote='LT-2026-01',
+            quantidade_inicial=50,
+            quantidade_atual=50,
+            preco_compra=Decimal('80.00'),
+            status='ATIVO'
+        )
+
+    def test_venda_com_frete_adicional_e_observacoes(self):
+        """Valida realização de venda somando frete/acréscimo ao total e registrando observações"""
+        self.client.force_login(self.usuario)
+
+        carrinho = [
+            {
+                'produto_id': self.produto.id,
+                'quantidade': 2,
+                'preco_unitario': 150.00,
+                'lote_id': self.lote.id
+            }
+        ]
+
+        post_data = {
+            'itens_json': json.dumps(carrinho),
+            'forma_pagamento': 'PIX',
+            'cliente_id': self.cliente.id,
+            'desconto': '20.00',
+            'valor_adicional': '35.50',
+            'descricao_adicional': 'Frete Expresso Motoboy',
+            'observacoes': 'Entregar na portaria do bloco B após as 14h.'
+        }
+
+        resp = self.client.post(reverse('registrar_venda'), data=post_data, HTTP_HOST='localhost')
+        venda = Venda.objects.filter(empresa=self.empresa).first()
+        self.assertIsNotNone(venda)
+        self.assertEqual(resp.status_code, 302)
+        self.assertRedirects(resp, reverse('detalhe_venda', args=[venda.pk]))
+
+        # Subtotal: 2 x 150 = 300.00 | Desconto: 20.00 | Frete: 35.50 | Total: 300 - 20 + 35.50 = 315.50
+        self.assertEqual(venda.valor_subtotal, Decimal('300.00'))
+        self.assertEqual(venda.desconto, Decimal('20.00'))
+        self.assertEqual(venda.valor_adicional, Decimal('35.50'))
+        self.assertEqual(venda.descricao_adicional, 'Frete Expresso Motoboy')
+        self.assertEqual(venda.valor_total, Decimal('315.50'))
+        self.assertEqual(venda.observacoes, 'Entregar na portaria do bloco B após as 14h.')
+
+        # Valida renderização no Detalhe da Venda
+        resp_detalhe = self.client.get(reverse('detalhe_venda', args=[venda.pk]), HTTP_HOST='localhost')
+        self.assertEqual(resp_detalhe.status_code, 200)
+        self.assertContains(resp_detalhe, 'Frete Expresso Motoboy')
+        self.assertContains(resp_detalhe, '35,50')
+        self.assertContains(resp_detalhe, '315,50')
+        self.assertContains(resp_detalhe, 'Entregar na portaria do bloco B após as 14h.')
+
+        # Valida renderização no Cupom Térmico
+        resp_cupom = self.client.get(reverse('imprimir_cupom_venda', args=[venda.pk]), HTTP_HOST='localhost')
+        self.assertEqual(resp_cupom.status_code, 200)
+        self.assertContains(resp_cupom, 'FRETE EXPRESSO MOTOBOY')
+        self.assertContains(resp_cupom, '35,50')
+        self.assertContains(resp_cupom, '315,50')
+        self.assertContains(resp_cupom, 'Entregar na portaria do bloco B após as 14h.')
+
+    def test_venda_crediario_parcelas_inclui_frete(self):
+        """Valida que o cálculo de parcelas do crediário divide o valor total final com frete incluso"""
+        self.client.force_login(self.usuario)
+
+        carrinho = [
+            {
+                'produto_id': self.produto.id,
+                'quantidade': 1,
+                'preco_unitario': 180.00,
+                'lote_id': self.lote.id
+            }
+        ]
+
+        post_data = {
+            'itens_json': json.dumps(carrinho),
+            'forma_pagamento': 'CREDIARIO',
+            'cliente_id': self.cliente.id,
+            'desconto': '0.00',
+            'valor_adicional': '20.00',
+            'descricao_adicional': 'Taxa de Entrega',
+            'num_parcelas': 2,
+            'intervalo_dias': 30,
+            'observacoes': 'Cliente solicitou carnê impresso.'
+        }
+
+        resp = self.client.post(reverse('registrar_venda'), data=post_data, HTTP_HOST='localhost')
+        venda = Venda.objects.filter(empresa=self.empresa).first()
+        self.assertIsNotNone(venda)
+        self.assertEqual(venda.valor_total, Decimal('200.00'))  # 180 + 20
+
+        # Parcelas geradas: 200.00 / 2 = 2 parcelas de R$ 100,00
+        parcelas = venda.parcelas.order_by('numero_parcela')
+        self.assertEqual(parcelas.count(), 2)
+        self.assertEqual(parcelas[0].valor_parcela, Decimal('100.00'))
+        self.assertEqual(parcelas[1].valor_parcela, Decimal('100.00'))
+
+
+

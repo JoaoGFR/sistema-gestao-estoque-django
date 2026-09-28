@@ -140,6 +140,12 @@
                             <span class="text-muted">Desconto Concedido:</span>
                             <span class="text-danger fw-semibold">- R$ {{ venda.desconto|floatformat:2 }}</span>
                         </div>
+                        {% if venda.valor_adicional > 0 %}
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="text-muted">{{ venda.descricao_adicional|default:"Acréscimo / Frete" }}:</span>
+                            <span class="text-success fw-semibold">+ R$ {{ venda.valor_adicional|floatformat:2 }}</span>
+                        </div>
+                        {% endif %}
                         <hr class="my-2">
                         <div class="d-flex justify-content-between align-items-center">
                             <span class="fs-5 fw-bold text-dark">Total da Venda:</span>
@@ -293,6 +299,12 @@
         <div class="linha-print">
             <span>DESCONTO:</span>
             <span>- R$ {{ venda.desconto|floatformat:2 }}</span>
+        </div>
+        {% endif %}
+        {% if venda.valor_adicional > 0 %}
+        <div class="linha-print">
+            <span>{{ venda.descricao_adicional|upper|default:"ACRÉSCIMO / FRETE" }}:</span>
+            <span>+ R$ {{ venda.valor_adicional|floatformat:2 }}</span>
         </div>
         {% endif %}
 

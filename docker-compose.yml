@@ -16,7 +16,7 @@ services:
   # Serviço do Site (Django)
   web:
     # Usa a imagem publicada no Docker Hub — não faz build no servidor
-    image: joaogfro/sistema-estoque:1.6.1
+    image: joaogfro/sistema-estoque:1.9
     restart: always
     # Roda migrate automaticamente antes de iniciar o servidor.
     # Isso garante que as tabelas do django-axes (e qualquer migration futura)

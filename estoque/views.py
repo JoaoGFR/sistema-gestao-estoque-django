@@ -11,7 +11,7 @@ from django.db.models import Sum, F, Q, Case, When, IntegerField
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 from datetime import timedelta
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from django.db import transaction
 from django.http import JsonResponse
 from django.utils.text import slugify
@@ -19,9 +19,10 @@ from django.views.decorators.csrf import csrf_exempt
 
 logger = logging.getLogger(__name__)
 from .models import (
-    Produto, Emprestimo, SaidaEstoque, Empresa, UserProfile, Lote, Categoria,
+    Produto, Emprestimo, HistoricoEmprestimo, SaidaEstoque, Empresa, UserProfile, Lote, Categoria,
     Localizacao, AliquotaImposto, SimulacaoPreco, Cliente, Venda, ItemVenda,
-    ContaReceber, PagamentoCrediario, PagamentoAssinatura, HistoricoPreco
+    ContaReceber, PagamentoCrediario, PagamentoAssinatura, HistoricoPreco,
+    ConfiguracaoEmpresa
 )
 from .mercadopago_service import (
     criar_preferencia_assinatura, consultar_pagamento_mp,
@@ -42,8 +43,9 @@ from django.db.models import ProtectedError
 from .forms import (
     ProdutoForm, EmprestimoForm, SaidaEstoqueForm, CadastroSaaSForm,
     FuncionarioForm, LoteForm, AliquotaImpostoForm, EditarFuncionarioForm,
-    ClienteForm, ReceberPagamentoForm
+    ClienteForm, ReceberPagamentoForm, ConfiguracaoModulosForm
 )
+from .decorators import requer_modulo
 import os
 from django.conf import settings
 from django.core.management import call_command
@@ -749,67 +751,127 @@ def lista_saidas(request):
 
 # --- EMPRÉSTIMOS ---
 @login_required
+@requer_modulo('modulo_emprestimos')
 @transaction.atomic
 def registrar_emprestimo(request):
+    import uuid
     empresa = get_empresa_usuario(request.user)
     
     if request.method == 'POST':
         form = EmprestimoForm(request.user, request.POST)
         if form.is_valid():
-            dados_emprestimo = form.save(commit=False)
-            produto = dados_emprestimo.produto
-            qtd_solicitada = dados_emprestimo.quantidade 
-            
-            # 1. VALIDAÇÃO TOTAL
-            estoque_total = Lote.objects.filter(
-                produto=produto, 
-                status='ATIVO', 
-                produto__empresa=empresa 
-            ).aggregate(total=Sum('quantidade_atual'))['total'] or 0
-            
-            if estoque_total < qtd_solicitada:
-                messages.error(request, f"Estoque insuficiente! Disponível: {estoque_total}. Solicitado: {qtd_solicitada}.")
-            else:
-                # 2. ALGORITMO FIFO (COM SELECT_FOR_UPDATE PARA CONCORRÊNCIA)
-                lotes_disponiveis = Lote.objects.select_for_update().filter(
-                    produto=produto, 
-                    status='ATIVO', 
-                    quantidade_atual__gt=0,
-                    produto__empresa=empresa 
-                ).order_by('data_entrada')
+            produto = form.cleaned_data['produto']
+            lote_especifico = form.cleaned_data.get('lote')
+            qtd_solicitada = form.cleaned_data['quantidade']
+            solicitante = form.cleaned_data['solicitante']
+            observacao = form.cleaned_data.get('observacao') or ''
+            codigo_grupo = f"EMP-{uuid.uuid4().hex[:8].upper()}"
 
-                qtd_restante_para_emprestar = qtd_solicitada
-
-                for lote in lotes_disponiveis:
-                    if qtd_restante_para_emprestar <= 0:
-                        break
-
-                    quantidade_a_retirar = min(lote.quantidade_atual, qtd_restante_para_emprestar)
-                    
-                    lote.quantidade_atual -= quantidade_a_retirar
+            # 1. ALOCAÇÃO EM LOTE ESPECÍFICO SELECIONADO
+            if lote_especifico:
+                lote = Lote.objects.select_for_update().get(id=lote_especifico.id, produto__empresa=empresa)
+                if lote.quantidade_atual < qtd_solicitada:
+                    messages.error(
+                        request, 
+                        f"Estoque insuficiente no lote selecionado! O Lote '{lote.numero_lote}' possui apenas {lote.quantidade_atual} {produto.get_unidade_display()}."
+                    )
+                else:
+                    lote.quantidade_atual -= qtd_solicitada
                     lote.save()
 
-                    Emprestimo.objects.create(
+                    emp = Emprestimo.objects.create(
                         produto=produto,
                         lote=lote,
-                        quantidade=quantidade_a_retirar,
-                        solicitante=dados_emprestimo.solicitante,
-                        observacao=dados_emprestimo.observacao,
+                        quantidade=qtd_solicitada,
+                        quantidade_devolvida=Decimal('0.00'),
+                        solicitante=solicitante,
+                        observacao=observacao,
                         responsavel_saida=request.user,
-                        data_saida=timezone.now() 
+                        data_saida=timezone.now(),
+                        codigo_grupo=codigo_grupo
                     )
 
-                    qtd_restante_para_emprestar -= quantidade_a_retirar
+                    HistoricoEmprestimo.objects.create(
+                        emprestimo=emp,
+                        usuario=request.user,
+                        tipo_acao='CRIACAO',
+                        quantidade=qtd_solicitada,
+                        saldo_restante=qtd_solicitada,
+                        observacao=f"Saída manual do Lote '{lote.numero_lote}' para {solicitante}." + (f" Obs: {observacao}" if observacao else "")
+                    )
 
-                messages.success(request, f"Empréstimo de {qtd_solicitada} itens registrado com sucesso!")
-                return redirect('lista_emprestimos')
+                    messages.success(
+                        request, 
+                        f"Empréstimo de {qtd_solicitada} {produto.get_unidade_display()} (Lote {lote.numero_lote}) registrado com sucesso!"
+                    )
+                    return redirect('lista_emprestimos')
+
+            # 2. ALOCAÇÃO AUTOMÁTICA (FIFO/FEFO - Lote mais antigo primeiro)
+            else:
+                estoque_total = Lote.objects.filter(
+                    produto=produto, 
+                    status='ATIVO', 
+                    produto__empresa=empresa 
+                ).aggregate(total=Sum('quantidade_atual'))['total'] or 0
+
+                if estoque_total < qtd_solicitada:
+                    messages.error(
+                        request, 
+                        f"Estoque insuficiente! Disponível: {estoque_total} {produto.get_unidade_display()}. Solicitado: {qtd_solicitada}."
+                    )
+                else:
+                    lotes_disponiveis = Lote.objects.select_for_update().filter(
+                        produto=produto, 
+                        status='ATIVO', 
+                        quantidade_atual__gt=0,
+                        produto__empresa=empresa 
+                    ).order_by('data_validade', 'data_entrada')
+
+                    qtd_restante = qtd_solicitada
+
+                    for lote in lotes_disponiveis:
+                        if qtd_restante <= 0:
+                            break
+
+                        qtd_a_retirar = min(lote.quantidade_atual, qtd_restante)
+                        lote.quantidade_atual -= qtd_a_retirar
+                        lote.save()
+
+                        emp = Emprestimo.objects.create(
+                            produto=produto,
+                            lote=lote,
+                            quantidade=qtd_a_retirar,
+                            quantidade_devolvida=Decimal('0.00'),
+                            solicitante=solicitante,
+                            observacao=observacao,
+                            responsavel_saida=request.user,
+                            data_saida=timezone.now(),
+                            codigo_grupo=codigo_grupo
+                        )
+
+                        HistoricoEmprestimo.objects.create(
+                            emprestimo=emp,
+                            usuario=request.user,
+                            tipo_acao='CRIACAO',
+                            quantidade=qtd_a_retirar,
+                            saldo_restante=qtd_a_retirar,
+                            observacao=f"Alocação automática (FIFO) do Lote '{lote.numero_lote}' para {solicitante}." + (f" Obs: {observacao}" if observacao else "")
+                        )
+
+                        qtd_restante -= qtd_a_retirar
+
+                    messages.success(
+                        request, 
+                        f"Empréstimo de {qtd_solicitada} {produto.get_unidade_display()} registrado com sucesso!"
+                    )
+                    return redirect('lista_emprestimos')
     else:
         form = EmprestimoForm(request.user)
 
-    produtos = Produto.objects.filter(empresa=empresa).select_related('categoria', 'localizacao').annotate(
+    produtos = Produto.objects.filter(empresa=empresa, ativo=True).select_related('categoria', 'localizacao').annotate(
         saldo_ativo=Coalesce(Sum('lotes__quantidade_atual', filter=Q(lotes__status='ATIVO')), 0)
     ).order_by('nome')
-    produtos_data = list(Produto.objects.filter(empresa=empresa).values('id', 'nome', 'categoria_id'))
+    produtos_data = list(Produto.objects.filter(empresa=empresa, ativo=True).values('id', 'nome', 'categoria_id'))
     import json
     produtos_json = json.dumps(produtos_data, default=str)
 
@@ -820,41 +882,262 @@ def registrar_emprestimo(request):
     })
 
 @login_required
+@requer_modulo('modulo_emprestimos')
 def lista_emprestimos(request):
     empresa = get_empresa_usuario(request.user)
-    emprestimos = Emprestimo.objects.filter(
+    busca = request.GET.get('busca', '').strip()
+    status_filtro = request.GET.get('status', '').strip()
+
+    qs_base = Emprestimo.objects.filter(
         produto__empresa=empresa
-    ).select_related('produto', 'lote', 'responsavel_saida').order_by('-data_saida')
-    return render(request, 'estoque/lista_emprestimos.html', {'emprestimos': emprestimos})
+    ).select_related('produto', 'lote', 'responsavel_saida', 'responsavel_devolucao')
+
+    # Métricas para os Cards de Resumo
+    total_registros = qs_base.count()
+    total_abertos = qs_base.filter(devolvido=False, quantidade_devolvida=Decimal('0.00')).count()
+    total_parciais = qs_base.filter(devolvido=False, quantidade_devolvida__gt=Decimal('0.00')).count()
+    total_finalizados = qs_base.filter(devolvido=True).count()
+
+    qs = qs_base
+    if busca:
+        qs = qs.filter(
+            Q(solicitante__icontains=busca) |
+            Q(produto__nome__icontains=busca) |
+            Q(lote__numero_lote__icontains=busca) |
+            Q(observacao__icontains=busca) |
+            Q(codigo_grupo__icontains=busca)
+        )
+
+    if status_filtro == 'aberto':
+        qs = qs.filter(devolvido=False, quantidade_devolvida=Decimal('0.00'))
+    elif status_filtro == 'parcial':
+        qs = qs.filter(devolvido=False, quantidade_devolvida__gt=Decimal('0.00'))
+    elif status_filtro == 'pendentes':
+        qs = qs.filter(devolvido=False)
+    elif status_filtro == 'finalizado':
+        qs = qs.filter(devolvido=True)
+
+    emprestimos = qs.order_by('-data_saida')
+
+    return render(request, 'estoque/lista_emprestimos.html', {
+        'emprestimos': emprestimos,
+        'busca': busca,
+        'status_filtro': status_filtro,
+        'total_registros': total_registros,
+        'total_abertos': total_abertos,
+        'total_parciais': total_parciais,
+        'total_finalizados': total_finalizados,
+    })
 
 @login_required
+@requer_modulo('modulo_emprestimos')
 @transaction.atomic
 def devolver_item(request, pk):
-    # [SEGURANÇA M4] Filtra pelo empresa do usuário para prevenir IDOR —
-    # impede que um usuário de outra empresa devolva empréstimos que não são seus.
+    # [SEGURANÇA M4] Filtra pela empresa do usuário para prevenir IDOR
     empresa = get_empresa_usuario(request.user)
-    emprestimo = get_object_or_404(Emprestimo, pk=pk, produto__empresa=empresa)
+    emprestimo = get_object_or_404(Emprestimo.objects.select_for_update(), pk=pk, produto__empresa=empresa)
     
     if request.method == 'POST':
-        if not emprestimo.devolvido:
-            if emprestimo.lote:
-                lote = emprestimo.lote
-                lote.quantidade_atual += emprestimo.quantidade
-                if lote.status == 'ESGOTADO' and lote.quantidade_atual > 0:
-                    lote.status = 'ATIVO'
-                
-                lote.save()
+        if not emprestimo.devolvido and emprestimo.quantidade_pendente > Decimal('0.00'):
+            qtd_a_devolver = emprestimo.quantidade_pendente
+            motivo_devolucao = request.POST.get('observacao', '').strip()
             
+            # Devolve as unidades restantes ao lote
+            if emprestimo.lote:
+                lote = Lote.objects.select_for_update().get(id=emprestimo.lote.id)
+                lote.quantidade_atual += qtd_a_devolver
+                lote.save()
+            else:
+                lote_ativo = Lote.objects.filter(produto=emprestimo.produto, status='ATIVO').first()
+                if lote_ativo:
+                    lote_ativo.quantidade_atual += qtd_a_devolver
+                    lote_ativo.save()
+                    emprestimo.lote = lote_ativo
+                else:
+                    novo_lote = Lote.objects.create(
+                        produto=emprestimo.produto,
+                        numero_lote='RETORNO',
+                        quantidade_inicial=qtd_a_devolver,
+                        quantidade_atual=qtd_a_devolver,
+                        status='ATIVO'
+                    )
+                    emprestimo.lote = novo_lote
+
+            emprestimo.quantidade_devolvida = emprestimo.quantidade
             emprestimo.devolvido = True
             emprestimo.data_devolucao = timezone.now()
             emprestimo.responsavel_devolucao = request.user
             emprestimo.save()
             
-            messages.success(request, f"Devolução de {emprestimo.quantidade} itens confirmada com sucesso!")
+            obs_texto = f"Devolução total de {qtd_a_devolver} {emprestimo.produto.get_unidade_display()} confirmada."
+            if motivo_devolucao:
+                obs_texto += f" Obs: {motivo_devolucao}"
+            
+            HistoricoEmprestimo.objects.create(
+                emprestimo=emprestimo,
+                usuario=request.user,
+                tipo_acao='DEVOLUCAO_TOTAL',
+                quantidade=qtd_a_devolver,
+                saldo_restante=Decimal('0.00'),
+                observacao=obs_texto
+            )
+            
+            messages.success(request, f"Devolução total de {qtd_a_devolver} {emprestimo.produto.get_unidade_display()} confirmada com sucesso!")
         else:
-            messages.warning(request, "Este item já foi devolvido.")
+            messages.warning(request, "Este empréstimo já foi finalizado.")
             
     return redirect('lista_emprestimos')
+
+@login_required
+@requer_modulo('modulo_emprestimos')
+@transaction.atomic
+def devolver_emprestimo_parcial(request, pk):
+    """Realiza devolução parcial de um empréstimo, devolvendo saldo ao lote e auditando no histórico"""
+    empresa = get_empresa_usuario(request.user)
+    emprestimo = get_object_or_404(Emprestimo.objects.select_for_update(), pk=pk, produto__empresa=empresa)
+    
+    if request.method == 'POST':
+        if emprestimo.devolvido or emprestimo.quantidade_pendente <= Decimal('0.00'):
+            messages.warning(request, "Este empréstimo já está totalmente finalizado.")
+            return redirect('lista_emprestimos')
+
+        raw_qtd = request.POST.get('quantidade', '').strip().replace(',', '.')
+        observacao = request.POST.get('observacao', '').strip()
+
+        try:
+            qtd_a_devolver = Decimal(raw_qtd)
+        except (ValueError, TypeError, InvalidOperation):
+            messages.error(request, "Informe um valor numérico válido para a quantidade a devolver.")
+            return redirect('lista_emprestimos')
+
+        if qtd_a_devolver <= Decimal('0.00'):
+            messages.error(request, "A quantidade a devolver deve ser maior que zero.")
+            return redirect('lista_emprestimos')
+
+        if qtd_a_devolver > emprestimo.quantidade_pendente:
+            messages.error(
+                request, 
+                f"A quantidade a devolver ({qtd_a_devolver}) não pode ultrapassar o saldo pendente ({emprestimo.quantidade_pendente})."
+            )
+            return redirect('lista_emprestimos')
+
+        # 1. Restaura estoque no lote
+        if emprestimo.lote:
+            lote = Lote.objects.select_for_update().get(id=emprestimo.lote.id)
+            lote.quantidade_atual += qtd_a_devolver
+            lote.save()
+        else:
+            lote_ativo = Lote.objects.filter(produto=emprestimo.produto, status='ATIVO').first()
+            if lote_ativo:
+                lote_ativo.quantidade_atual += qtd_a_devolver
+                lote_ativo.save()
+                emprestimo.lote = lote_ativo
+            else:
+                novo_lote = Lote.objects.create(
+                    produto=emprestimo.produto,
+                    numero_lote='RETORNO',
+                    quantidade_inicial=qtd_a_devolver,
+                    quantidade_atual=qtd_a_devolver,
+                    status='ATIVO'
+                )
+                emprestimo.lote = novo_lote
+
+        # 2. Atualiza empréstimo
+        emprestimo.quantidade_devolvida = (emprestimo.quantidade_devolvida or Decimal('0.00')) + qtd_a_devolver
+        emprestimo.responsavel_devolucao = request.user
+        emprestimo.data_devolucao = timezone.now()
+
+        is_finalizado = emprestimo.quantidade_devolvida >= emprestimo.quantidade
+        if is_finalizado:
+            emprestimo.devolvido = True
+            tipo_acao = 'DEVOLUCAO_TOTAL'
+            msg = f"Devolução concluída! Todas as {emprestimo.quantidade} unidades do item foram devolvidas ao estoque."
+        else:
+            tipo_acao = 'DEVOLUCAO_PARCIAL'
+            msg = f"Devolução parcial de {qtd_a_devolver} {emprestimo.produto.get_unidade_display()} confirmada! Saldo restante: {emprestimo.quantidade_pendente}."
+
+        emprestimo.save()
+
+        # 3. Registra na trilha de auditoria
+        obs_texto = f"Devolução parcial de {qtd_a_devolver} {emprestimo.produto.get_unidade_display()}. Restante pendente: {emprestimo.quantidade_pendente}."
+        if observacao:
+            obs_texto += f" Obs: {observacao}"
+
+        HistoricoEmprestimo.objects.create(
+            emprestimo=emprestimo,
+            usuario=request.user,
+            tipo_acao=tipo_acao,
+            quantidade=qtd_a_devolver,
+            saldo_restante=emprestimo.quantidade_pendente,
+            observacao=obs_texto
+        )
+
+        messages.success(request, msg)
+
+    return redirect('lista_emprestimos')
+
+@login_required
+@requer_modulo('modulo_emprestimos')
+def api_historico_emprestimo(request, pk):
+    """Retorna o histórico de eventos e auditoria de um empréstimo em formato JSON"""
+    empresa = get_empresa_usuario(request.user)
+    emprestimo = get_object_or_404(Emprestimo, pk=pk, produto__empresa=empresa)
+
+    historicos = emprestimo.historicos.all().select_related('usuario').order_by('-data_registro')
+    
+    # Retrocompatibilidade com registros legados
+    if not historicos.exists():
+        HistoricoEmprestimo.objects.create(
+            emprestimo=emprestimo,
+            usuario=emprestimo.responsavel_saida,
+            tipo_acao='CRIACAO',
+            quantidade=emprestimo.quantidade,
+            saldo_restante=Decimal('0.00') if emprestimo.devolvido else emprestimo.quantidade,
+            observacao=f"Empréstimo inicial para {emprestimo.solicitante}.",
+            data_registro=emprestimo.data_saida or timezone.now()
+        )
+        if emprestimo.devolvido:
+            HistoricoEmprestimo.objects.create(
+                emprestimo=emprestimo,
+                usuario=emprestimo.responsavel_devolucao or emprestimo.responsavel_saida,
+                tipo_acao='DEVOLUCAO_TOTAL',
+                quantidade=emprestimo.quantidade,
+                saldo_restante=Decimal('0.00'),
+                observacao="Devolução total confirmada.",
+                data_registro=emprestimo.data_devolucao or emprestimo.data_saida or timezone.now()
+            )
+        historicos = emprestimo.historicos.all().select_related('usuario').order_by('-data_registro')
+
+    dados_historico = []
+    for h in historicos:
+        dados_historico.append({
+            'id': h.id,
+            'tipo_acao': h.tipo_acao,
+            'tipo_acao_display': h.get_tipo_acao_display(),
+            'quantidade': f"{h.quantidade:.2f}".rstrip('0').rstrip('.') if h.quantidade % 1 == 0 else f"{h.quantidade:.2f}",
+            'saldo_restante': f"{h.saldo_restante:.2f}".rstrip('0').rstrip('.') if h.saldo_restante % 1 == 0 else f"{h.saldo_restante:.2f}",
+            'usuario': h.usuario.get_full_name() or h.usuario.username if h.usuario else 'Sistema',
+            'data': h.data_registro.strftime('%d/%m/%Y %H:%M'),
+            'observacao': h.observacao or '',
+        })
+
+    return JsonResponse({
+        'sucesso': True,
+        'emprestimo_id': emprestimo.id,
+        'codigo_grupo': emprestimo.codigo_grupo or f"EMP-{emprestimo.id}",
+        'produto': emprestimo.produto.nome,
+        'unidade': emprestimo.produto.get_unidade_display(),
+        'solicitante': emprestimo.solicitante,
+        'lote': emprestimo.lote.numero_lote if emprestimo.lote else 'N/A',
+        'quantidade_total': f"{emprestimo.quantidade:.2f}".rstrip('0').rstrip('.') if emprestimo.quantidade % 1 == 0 else f"{emprestimo.quantidade:.2f}",
+        'quantidade_devolvida': f"{emprestimo.quantidade_devolvida:.2f}".rstrip('0').rstrip('.') if emprestimo.quantidade_devolvida % 1 == 0 else f"{emprestimo.quantidade_devolvida:.2f}",
+        'quantidade_pendente': f"{emprestimo.quantidade_pendente:.2f}".rstrip('0').rstrip('.') if emprestimo.quantidade_pendente % 1 == 0 else f"{emprestimo.quantidade_pendente:.2f}",
+        'status': emprestimo.status_emprestimo,
+        'percentual': emprestimo.percentual_devolvido,
+        'data_saida': emprestimo.data_saida.strftime('%d/%m/%Y %H:%M') if emprestimo.data_saida else '-',
+        'responsavel_saida': emprestimo.responsavel_saida.get_full_name() or emprestimo.responsavel_saida.username if emprestimo.responsavel_saida else 'Sistema',
+        'historicos': dados_historico,
+    })
 
 # --- EQUIPE ---
 @login_required
@@ -1692,6 +1975,7 @@ def restaurar_backup_upload(request):
 # =============================================================================
 
 @login_required
+@requer_modulo('modulo_vendas_pdv')
 def tabela_precos(request):
     empresa = get_empresa_usuario(request.user)
     if not empresa:
@@ -1740,6 +2024,7 @@ def tabela_precos(request):
 
 
 @login_required
+@requer_modulo('modulo_vendas_pdv')
 def atualizar_preco_produto_api(request, pk):
     """API para atualização rápida de preço e status de venda a partir da tabela de preços"""
     if request.method != 'POST':
@@ -1788,6 +2073,7 @@ def atualizar_preco_produto_api(request, pk):
 
 
 @login_required
+@requer_modulo('modulo_vendas_pdv')
 def api_historico_precos(request, pk):
     """Retorna os registros de alterações de preços de um determinado produto"""
     empresa = get_empresa_usuario(request.user)
@@ -1820,6 +2106,7 @@ def api_historico_precos(request, pk):
 
 
 @login_required
+@requer_modulo('modulo_simulador_precos')
 def simulador_preco(request):
     empresa = get_empresa_usuario(request.user)
     if not empresa:
@@ -1837,6 +2124,7 @@ def simulador_preco(request):
 
 
 @login_required
+@requer_modulo('modulo_simulador_precos')
 def criar_aliquota_api(request):
     if request.method == 'POST':
         empresa = get_empresa_usuario(request.user)
@@ -1862,6 +2150,7 @@ def criar_aliquota_api(request):
 
 
 @login_required
+@requer_modulo('modulo_simulador_precos')
 def api_produto_preco(request, pk):
     try:
         empresa = get_empresa_usuario(request.user)
@@ -1886,6 +2175,7 @@ def api_produto_preco(request, pk):
 
 
 @login_required
+@requer_modulo('modulo_simulador_precos')
 def lista_simulacoes(request):
     empresa = get_empresa_usuario(request.user)
     query = request.GET.get('q', '')
@@ -1908,6 +2198,7 @@ def lista_simulacoes(request):
 
 
 @login_required
+@requer_modulo('modulo_simulador_precos')
 def salvar_simulacao_api(request):
     if request.method == 'POST':
         empresa = get_empresa_usuario(request.user)
@@ -1969,6 +2260,7 @@ def salvar_simulacao_api(request):
 
 
 @login_required
+@requer_modulo('modulo_simulador_precos')
 def excluir_simulacao(request, pk):
     empresa = get_empresa_usuario(request.user)
     simulacao = get_object_or_404(SimulacaoPreco, pk=pk, empresa=empresa)
@@ -1980,6 +2272,7 @@ def excluir_simulacao(request, pk):
 
 
 @login_required
+@requer_modulo('modulo_simulador_precos')
 def excluir_aliquota_api(request, pk):
     if request.method == 'POST':
         empresa = get_empresa_usuario(request.user)
@@ -1995,6 +2288,7 @@ def excluir_aliquota_api(request, pk):
 
 
 @login_required
+@requer_modulo('modulo_simulador_precos')
 def simulador_pdf(request):
     empresa = get_empresa_usuario(request.user)
     
@@ -2162,6 +2456,7 @@ def simulador_pdf(request):
 
 
 @login_required
+@requer_modulo('modulo_simulador_precos')
 def lista_simulacoes_pdf(request):
     empresa = get_empresa_usuario(request.user)
     query = request.GET.get('q', '')
@@ -2207,6 +2502,7 @@ def lista_simulacoes_pdf(request):
 # -----------------------------------------------------------------------------
 
 @login_required
+@requer_modulo('modulo_clientes_crediario')
 def lista_clientes(request):
     empresa = get_empresa_usuario(request.user)
     if not empresa:
@@ -2258,6 +2554,7 @@ def lista_clientes(request):
 
 
 @login_required
+@requer_modulo('modulo_clientes_crediario')
 def criar_cliente(request):
     empresa = get_empresa_usuario(request.user)
     if not empresa:
@@ -2281,6 +2578,7 @@ def criar_cliente(request):
 
 
 @login_required
+@requer_modulo('modulo_clientes_crediario')
 def editar_cliente(request, pk):
     empresa = get_empresa_usuario(request.user)
     if not empresa:
@@ -2305,6 +2603,7 @@ def editar_cliente(request, pk):
 
 
 @login_required
+@requer_modulo('modulo_clientes_crediario')
 def detalhe_cliente(request, pk):
     empresa = get_empresa_usuario(request.user)
     if not empresa:
@@ -2324,6 +2623,7 @@ def detalhe_cliente(request, pk):
 
 
 @login_required
+@requer_modulo('modulo_clientes_crediario')
 def api_buscar_clientes(request):
     empresa = get_empresa_usuario(request.user)
     if not empresa:
@@ -2403,6 +2703,7 @@ def api_buscar_produtos(request):
 # -----------------------------------------------------------------------------
 
 @login_required
+@requer_modulo('modulo_vendas_pdv')
 def registrar_venda(request):
     import uuid
     empresa = get_empresa_usuario(request.user)
@@ -2416,6 +2717,8 @@ def registrar_venda(request):
         forma_pagamento = request.POST.get('forma_pagamento', 'DINHEIRO')
         cliente_id = request.POST.get('cliente_id')
         desconto_str = request.POST.get('desconto', '0').replace(',', '.')
+        valor_adicional_str = request.POST.get('valor_adicional', '0').replace(',', '.')
+        descricao_adicional = request.POST.get('descricao_adicional', '').strip()
         observacoes = request.POST.get('observacoes', '').strip()
 
         # Parâmetros de Crediário
@@ -2429,6 +2732,16 @@ def registrar_venda(request):
                 desconto = 0.0
         except ValueError:
             desconto = 0.0
+
+        try:
+            valor_adicional = float(valor_adicional_str) if valor_adicional_str else 0.0
+            if valor_adicional < 0:
+                valor_adicional = 0.0
+        except ValueError:
+            valor_adicional = 0.0
+
+        if valor_adicional > 0 and not descricao_adicional:
+            descricao_adicional = "Frete / Acréscimo"
 
         if not itens_json:
             error_message = "Adicione ao menos um produto à venda antes de finalizar."
@@ -2542,7 +2855,7 @@ def registrar_venda(request):
                             if restante > 0:
                                 raise ValueError(f"Inconsistência de saldo para o produto '{produto.nome}'. Restaram {restante} unidades sem lote.")
 
-                    valor_total = max(0.0, round(subtotal_geral - desconto, 2))
+                    valor_total = max(0.0, round(subtotal_geral - desconto + valor_adicional, 2))
 
                     # Validação de Limite de Crediário
                     if forma_pagamento == 'CREDIARIO' and cliente:
@@ -2559,6 +2872,8 @@ def registrar_venda(request):
                         usuario=request.user,
                         valor_subtotal=subtotal_geral,
                         desconto=desconto,
+                        valor_adicional=valor_adicional,
+                        descricao_adicional=descricao_adicional,
                         valor_total=valor_total,
                         forma_pagamento=forma_pagamento,
                         status='CONCLUIDA',
@@ -2634,6 +2949,7 @@ def registrar_venda(request):
 
 
 @login_required
+@requer_modulo('modulo_vendas_pdv')
 def lista_vendas(request):
     empresa = get_empresa_usuario(request.user)
     if not empresa:
@@ -2681,6 +2997,7 @@ def lista_vendas(request):
 
 
 @login_required
+@requer_modulo('modulo_vendas_pdv')
 def detalhe_venda(request, pk):
     empresa = get_empresa_usuario(request.user)
     if not empresa:
@@ -2698,6 +3015,7 @@ def detalhe_venda(request, pk):
 
 
 @login_required
+@requer_modulo('modulo_vendas_pdv')
 def imprimir_cupom_venda(request, pk):
     """
     Renderiza o cupom não fiscal otimizado especificamente para impressoras térmicas
@@ -2720,6 +3038,7 @@ def imprimir_cupom_venda(request, pk):
 
 
 @login_required
+@requer_modulo('modulo_vendas_pdv')
 def cancelar_venda(request, pk):
     empresa = get_empresa_usuario(request.user)
     if not empresa:
@@ -2777,6 +3096,7 @@ def cancelar_venda(request, pk):
 # -----------------------------------------------------------------------------
 
 @login_required
+@requer_modulo('modulo_clientes_crediario')
 def painel_crediario(request):
     empresa = get_empresa_usuario(request.user)
     if not empresa:
@@ -2857,6 +3177,7 @@ def painel_crediario(request):
 
 
 @login_required
+@requer_modulo('modulo_clientes_crediario')
 def baixar_parcela(request, pk):
     empresa = get_empresa_usuario(request.user)
     if not empresa:
@@ -2941,6 +3262,39 @@ def _garantir_coluna_order_id():
                     cursor.execute("ALTER TABLE estoque_pagamentoassinatura ADD COLUMN mp_order_id varchar(150);")
     except Exception as e:
         logger.warning(f"[Garantia Coluna] Aviso ao verificar/criar coluna mp_order_id: {e}")
+
+
+@login_required
+def configurar_modulos(request):
+    empresa = get_empresa_usuario(request.user)
+    if not empresa:
+        messages.error(request, "Empresa não vinculada ao seu usuário.")
+        return redirect('dashboard')
+
+    userprofile = getattr(request.user, 'userprofile', None)
+    if not (userprofile and userprofile.e_dono) and not request.user.is_superuser:
+        messages.error(request, "Acesso restrito. Apenas o proprietário ou administrador da empresa pode ativar ou desativar módulos.")
+        return redirect('dashboard')
+
+    config = empresa.configuracao
+
+    if request.method == 'POST':
+        form = ConfiguracaoModulosForm(request.POST, instance=config)
+        if form.is_valid():
+            form.save()
+            messages.success(
+                request,
+                "Configurações de módulos salvas com sucesso! A interface e as permissões foram atualizadas para todos os usuários da empresa."
+            )
+            return redirect('configurar_modulos')
+    else:
+        form = ConfiguracaoModulosForm(instance=config)
+
+    return render(request, 'estoque/configurar_modulos.html', {
+        'form': form,
+        'config': config,
+        'empresa': empresa,
+    })
 
 
 @login_required

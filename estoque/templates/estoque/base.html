@@ -127,11 +127,13 @@
                                     <i class="bi bi-box-arrow-in-down text-success me-2"></i> Entradas / Lotes
                                 </a>
                             </li>
+                            {% if not modulos or modulos.modulo_emprestimos %}
                             <li>
                                 <a class="dropdown-item py-2" href="{% url 'lista_emprestimos' %}">
                                     <i class="bi bi-person-badge text-warning me-2"></i> Empréstimos
                                 </a>
                             </li>
+                            {% endif %}
                             <li>
                                 <a class="dropdown-item py-2" href="{% url 'lista_saidas' %}">
                                     <i class="bi bi-box-arrow-right text-danger me-2"></i> Baixas / Saídas
@@ -141,6 +143,7 @@
                     </li>
 
                     <!-- Vendas Dropdown -->
+                    {% if not modulos or modulos.modulo_vendas_pdv %}
                     <li class="nav-item dropdown ms-lg-2">
                         <a class="nav-link dropdown-toggle text-primary fw-semibold" href="#" id="navbarVendas" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             <div class="nav-item-content d-inline-flex">
@@ -166,8 +169,10 @@
                             </li>
                         </ul>
                     </li>
+                    {% endif %}
 
                     <!-- Clientes & Crediário Dropdown -->
+                    {% if not modulos or modulos.modulo_clientes_crediario %}
                     <li class="nav-item dropdown ms-lg-2">
                         <a class="nav-link dropdown-toggle text-warning fw-semibold" href="#" id="navbarClientes" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             <div class="nav-item-content d-inline-flex">
@@ -193,8 +198,10 @@
                             </li>
                         </ul>
                     </li>
+                    {% endif %}
 
                     <!-- Preços & Simulações Dropdown -->
+                    {% if not modulos or modulos.modulo_simulador_precos %}
                     <li class="nav-item dropdown ms-lg-2">
                         <a class="nav-link dropdown-toggle text-warning fw-semibold" href="#" id="navbarPrecos" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             <div class="nav-item-content d-inline-flex">
@@ -202,12 +209,14 @@
                             </div>
                         </a>
                         <ul class="dropdown-menu dropdown-menu-dark border-0 shadow-lg mt-2" aria-labelledby="navbarPrecos">
+                            {% if not modulos or modulos.modulo_vendas_pdv %}
                             <li>
                                 <a class="dropdown-item py-2" href="{% url 'tabela_precos' %}">
                                     <i class="bi bi-tags-fill text-success me-2"></i> Tabela de Preços de Venda
                                 </a>
                             </li>
                             <li><hr class="dropdown-divider border-secondary"></li>
+                            {% endif %}
                             <li>
                                 <a class="dropdown-item py-2" href="{% url 'simulador_preco' %}">
                                     <i class="bi bi-calculator text-warning me-2"></i> Simulador de Preço
@@ -220,6 +229,7 @@
                             </li>
                         </ul>
                     </li>
+                    {% endif %}
 
                     <!-- Relatórios -->
                     <li class="nav-item ms-lg-2">
@@ -244,6 +254,13 @@
                                         <i class="bi bi-shield-check text-success me-2"></i> Minha Assinatura
                                     </a>
                                 </li>
+                                {% if user.userprofile.e_dono or user.is_superuser %}
+                                    <li>
+                                        <a class="dropdown-item py-2" href="{% url 'configurar_modulos' %}">
+                                            <i class="bi bi-toggles2 text-primary me-2"></i> Módulos do Sistema
+                                        </a>
+                                    </li>
+                                {% endif %}
                                 {% if user.userprofile.e_dono %}
                                     <li>
                                         <a class="dropdown-item py-2" href="{% url 'lista_funcionarios' %}">

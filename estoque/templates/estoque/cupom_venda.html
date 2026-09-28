@@ -294,6 +294,12 @@
             <span>- R$ {{ venda.desconto|floatformat:2 }}</span>
         </div>
         {% endif %}
+        {% if venda.valor_adicional > 0 %}
+        <div class="linha-financeira">
+            <span>{{ venda.descricao_adicional|upper|default:"ACRÉSCIMO / FRETE" }}:</span>
+            <span>+ R$ {{ venda.valor_adicional|floatformat:2 }}</span>
+        </div>
+        {% endif %}
 
         <div class="linha-tracejada"></div>
 

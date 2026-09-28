@@ -3,7 +3,8 @@ from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from .models import (
     Produto, Emprestimo, SaidaEstoque, Lote, UserProfile, Categoria, Localizacao,
-    AliquotaImposto, Cliente, Venda, ItemVenda, ContaReceber, PagamentoCrediario
+    AliquotaImposto, Cliente, Venda, ItemVenda, ContaReceber, PagamentoCrediario,
+    ConfiguracaoEmpresa
 )
 from django.utils.text import slugify
 from django.utils import timezone
@@ -148,6 +149,8 @@ class LoteForm(forms.ModelForm):
         
         return cleaned_data
 
+from decimal import Decimal
+
 # --- OUTROS FORMULÁRIOS (Empréstimo, Saída, Funcionário) ---
 
 class EmprestimoForm(forms.ModelForm):
@@ -157,15 +160,22 @@ class EmprestimoForm(forms.ModelForm):
         required=False,
         widget=forms.Select(attrs={'class': 'form-select', 'id': 'id_categoria_filtro'})
     )
+    lote = forms.ModelChoiceField(
+        queryset=Lote.objects.none(),
+        required=False,
+        label="Lote de Origem",
+        empty_label="Automático (Mais antigo / FIFO)",
+        widget=forms.Select(attrs={'class': 'form-select', 'id': 'id_lote'})
+    )
 
     class Meta:
         model = Emprestimo
-        fields = ['categoria_filtro', 'produto', 'quantidade', 'solicitante', 'observacao'] # <--- Adicione 'quantidade'
+        fields = ['categoria_filtro', 'produto', 'lote', 'quantidade', 'solicitante', 'observacao']
         widgets = {
             'produto': forms.Select(attrs={'class': 'form-select', 'id': 'id_produto'}),
-            'quantidade': forms.NumberInput(attrs={'class': 'form-control', 'min': '1', 'step': '1'}), 
+            'quantidade': forms.NumberInput(attrs={'class': 'form-control', 'min': '1', 'step': '1', 'id': 'id_quantidade'}), 
             'solicitante': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nome de quem está retirando'}),
-            'observacao': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'observacao': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Observações adicionais (opcional)'}),
         }
 
     def __init__(self, user, *args, **kwargs):
@@ -173,7 +183,62 @@ class EmprestimoForm(forms.ModelForm):
         if user and hasattr(user, 'userprofile'):
             empresa = user.userprofile.empresa
             self.fields['categoria_filtro'].queryset = Categoria.objects.filter(empresa=empresa)
-            self.fields['produto'].queryset = Produto.objects.filter(empresa=empresa).order_by('nome')
+            self.fields['produto'].queryset = Produto.objects.filter(empresa=empresa, ativo=True).order_by('nome')
+            self.fields['lote'].queryset = Lote.objects.filter(
+                produto__empresa=empresa, 
+                status='ATIVO', 
+                quantidade_atual__gt=0
+            ).order_by('data_validade', 'data_entrada')
+
+    def clean(self):
+        cleaned_data = super().clean()
+        produto = cleaned_data.get('produto')
+        lote = cleaned_data.get('lote')
+        quantidade = cleaned_data.get('quantidade')
+
+        if not produto:
+            return cleaned_data
+
+        if lote and lote.produto_id != produto.id:
+            self.add_error('lote', 'O lote selecionado não pertence ao produto informado.')
+
+        if quantidade and quantidade <= Decimal('0.00'):
+            self.add_error('quantidade', 'A quantidade a emprestar deve ser maior que zero.')
+
+        if lote and quantidade:
+            if quantidade > lote.quantidade_atual:
+                self.add_error(
+                    'quantidade', 
+                    f"O Lote '{lote.numero_lote}' possui apenas {lote.quantidade_atual} unidades disponíveis."
+                )
+        elif produto and quantidade:
+            saldo_total = sum(
+                l.quantidade_atual for l in Lote.objects.filter(
+                    produto=produto, status='ATIVO', quantidade_atual__gt=0
+                )
+            )
+            if quantidade > saldo_total:
+                self.add_error(
+                    'quantidade', 
+                    f"Estoque insuficiente! Saldo total disponível deste produto: {saldo_total}."
+                )
+
+        return cleaned_data
+
+
+class DevolucaoParcialForm(forms.Form):
+    quantidade = forms.DecimalField(
+        min_value=Decimal('0.01'),
+        decimal_places=2,
+        max_digits=10,
+        label="Quantidade a Devolver",
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '1', 'min': '1', 'id': 'id_qtd_devolucao'})
+    )
+    observacao = forms.CharField(
+        required=False,
+        label="Observação da Devolução",
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 2, 'placeholder': 'Ex: Devolvido em perfeito estado.'})
+    )
             
 
 class SaidaEstoqueForm(forms.ModelForm):
@@ -492,4 +557,24 @@ class ReceberPagamentoForm(forms.Form):
         required=False,
         widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ex: Pago via PIX pelo WhatsApp, recibo nº...'})
     )
+
+
+class ConfiguracaoModulosForm(forms.ModelForm):
+    class Meta:
+        model = ConfiguracaoEmpresa
+        fields = [
+            'modulo_emprestimos',
+            'modulo_vendas_pdv',
+            'modulo_clientes_crediario',
+            'modulo_simulador_precos',
+            'modulo_controle_lotes',
+        ]
+        widgets = {
+            'modulo_emprestimos': forms.CheckboxInput(attrs={'class': 'form-check-input', 'role': 'switch', 'id': 'switch_emprestimos'}),
+            'modulo_vendas_pdv': forms.CheckboxInput(attrs={'class': 'form-check-input', 'role': 'switch', 'id': 'switch_vendas_pdv'}),
+            'modulo_clientes_crediario': forms.CheckboxInput(attrs={'class': 'form-check-input', 'role': 'switch', 'id': 'switch_clientes_crediario'}),
+            'modulo_simulador_precos': forms.CheckboxInput(attrs={'class': 'form-check-input', 'role': 'switch', 'id': 'switch_simulador_precos'}),
+            'modulo_controle_lotes': forms.CheckboxInput(attrs={'class': 'form-check-input', 'role': 'switch', 'id': 'switch_controle_lotes'}),
+        }
+
 

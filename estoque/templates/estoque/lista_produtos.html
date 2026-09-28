@@ -17,9 +17,11 @@
             </h2>
         </div>
         <div class="d-flex flex-wrap gap-2 mt-2 mt-md-0">
+            {% if not modulos or modulos.modulo_vendas_pdv %}
             <a href="{% url 'tabela_precos' %}" class="btn btn-outline-success shadow-sm">
                 <i class="bi bi-tags-fill me-1"></i> Tabela de Preços (PDV)
             </a>
+            {% endif %}
             <a href="{% url 'entrada_estoque' %}" class="btn btn-outline-primary shadow-sm">
                 <i class="bi bi-box-arrow-in-down me-1"></i> Nova Entrada / Lote
             </a>
@@ -32,7 +34,7 @@
     <!-- Cards de Métricas do Estoque Geral -->
     <div class="row g-3 mb-4">
         <!-- Total de Produtos Ativos -->
-        <div class="col-12 col-sm-6 col-xl-3">
+        <div class="col-12 col-sm-6 {% if not modulos or modulos.modulo_vendas_pdv %}col-xl-3{% else %}col-xl-4{% endif %}">
             <div class="card border-0 shadow-sm rounded-3 p-3 bg-white border-start border-4 border-primary h-100">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
@@ -47,6 +49,7 @@
             </div>
         </div>
 
+        {% if not modulos or modulos.modulo_vendas_pdv %}
         <!-- Itens Destinados à Venda (PDV) -->
         <div class="col-12 col-sm-6 col-xl-3">
             <div class="card border-0 shadow-sm rounded-3 p-3 bg-white border-start border-4 border-success h-100">
@@ -62,9 +65,10 @@
                 </div>
             </div>
         </div>
+        {% endif %}
 
         <!-- Insumos e Uso Interno -->
-        <div class="col-12 col-sm-6 col-xl-3">
+        <div class="col-12 col-sm-6 {% if not modulos or modulos.modulo_vendas_pdv %}col-xl-3{% else %}col-xl-4{% endif %}">
             <div class="card border-0 shadow-sm rounded-3 p-3 bg-white border-start border-4 border-secondary h-100">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
@@ -80,7 +84,7 @@
         </div>
 
         <!-- Alerta de Estoque Crítico -->
-        <div class="col-12 col-sm-6 col-xl-3">
+        <div class="col-12 col-sm-6 {% if not modulos or modulos.modulo_vendas_pdv %}col-xl-3{% else %}col-xl-4{% endif %}">
             <div class="card border-0 shadow-sm rounded-3 p-3 bg-white border-start border-4 border-danger h-100">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
@@ -104,11 +108,13 @@
             <i class="bi bi-boxes me-1"></i> Todos Ativos ({{ total_ativos }})
         </a>
 
+        {% if not modulos or modulos.modulo_vendas_pdv %}
         <!-- Itens de Venda -->
         <a href="?tipo=venda{% if query %}&q={{ query }}{% endif %}{% if categoria_selecionada %}&categoria={{ categoria_selecionada }}{% endif %}" 
            class="btn btn-sm {% if filtro_tipo == 'venda' %}btn-success text-white{% else %}btn-outline-success bg-white{% endif %} rounded-pill px-3 shadow-sm">
             <i class="bi bi-tag-fill me-1"></i> Apenas Venda ({{ total_venda }})
         </a>
+        {% endif %}
 
         <!-- Insumos / Interno -->
         <a href="?tipo=insumo{% if query %}&q={{ query }}{% endif %}{% if categoria_selecionada %}&categoria={{ categoria_selecionada }}{% endif %}" 
@@ -184,7 +190,9 @@
                     <tr>
                         <th class="ps-3" style="min-width: 250px;">Produto / Identificação</th>
                         <th>Categoria</th>
+                        {% if not modulos or modulos.modulo_vendas_pdv %}
                         <th>Finalidade</th>
+                        {% endif %}
                         <th>Rastreio</th>
                         <th class="text-center">Saldo em Estoque</th>
                         <th class="text-end">Custo Médio</th>
@@ -224,6 +232,7 @@
                                 {% endif %}
                             </td>
 
+                            {% if not modulos or modulos.modulo_vendas_pdv %}
                             <!-- Finalidade: Venda vs Insumo -->
                             <td>
                                 {% if item.disponivel_venda %}
@@ -236,6 +245,7 @@
                                     </span>
                                 {% endif %}
                             </td>
+                            {% endif %}
 
                             <!-- Rastreabilidade: Lote e Validade -->
                             <td>
@@ -293,7 +303,7 @@
                         </tr>
                     {% empty %}
                         <tr>
-                            <td colspan="7" class="text-center py-5 text-muted">
+                            <td colspan="{% if modulos and not modulos.modulo_vendas_pdv %}6{% else %}7{% endif %}" class="text-center py-5 text-muted">
                                 <i class="bi bi-box-seam fs-1 d-block mb-2 text-secondary"></i>
                                 <h5>Nenhum produto encontrado</h5>
                                 <p class="small mb-3">Tente ajustar seus termos de busca ou filtros selecionados.</p>

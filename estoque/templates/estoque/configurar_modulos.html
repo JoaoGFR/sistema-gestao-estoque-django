@@ -1,0 +1,233 @@
+{% extends 'estoque/base.html' %}
+
+{% block content %}
+<div class="container-fluid py-3">
+    <!-- TÍTULO DA PÁGINA -->
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 pb-3 mb-4 border-bottom">
+        <div>
+            <h1 class="h2 fw-bold text-dark mb-1 d-flex align-items-center gap-2">
+                <i class="bi bi-toggles2 text-primary"></i> Módulos do Sistema
+            </h1>
+            <p class="text-muted small mb-0">
+                Ative ou desative as ferramentas conforme a necessidade do seu negócio ({{ empresa.nome }}).
+            </p>
+        </div>
+        <div>
+            <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary d-flex align-items-center gap-2">
+                <i class="bi bi-arrow-left"></i> Voltar ao Painel
+            </a>
+        </div>
+    </div>
+
+    <!-- BANNER EXPLICATIVO -->
+    <div class="alert alert-info border-0 shadow-sm rounded-4 p-3 mb-4">
+        <div class="d-flex align-items-start gap-3">
+            <div class="bg-info bg-opacity-10 text-info rounded-circle p-2 d-flex align-items-center justify-content-center flex-shrink-0" style="width: 44px; height: 44px;">
+                <i class="bi bi-lightbulb-fill fs-4"></i>
+            </div>
+            <div>
+                <h6 class="alert-heading fw-bold mb-1 text-dark">Personalização Inteligente por Empresa</h6>
+                <p class="mb-0 text-muted small">
+                    Ao desativar um módulo, os menus correspondentes, atalhos do painel e acessos diretos são <strong>ocultados</strong> para toda a sua equipe, mantendo a tela limpa e focada.
+                    <strong>Fique tranquilo:</strong> nenhum histórico ou dado cadastrado anteriormente será apagado ao desligar um módulo.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- FORMULÁRIO DE SELEÇÃO DOS MÓDULOS -->
+    <form method="POST">
+        {% csrf_token %}
+
+        <div class="row g-4 mb-4">
+            
+            <!-- MÓDULO 1: VENDAS / PDV -->
+            <div class="col-12 col-md-6 col-xl-4">
+                <div class="card h-100 border-0 shadow-sm rounded-4 position-relative overflow-hidden border-top border-4 border-primary">
+                    <div class="card-body p-4 d-flex flex-column">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="bg-primary bg-opacity-10 text-primary rounded-3 p-3">
+                                    <i class="bi bi-cart-check-fill fs-3"></i>
+                                </div>
+                                <div>
+                                    <span class="badge bg-primary-subtle text-primary small">Comercial & Balcão</span>
+                                    <h5 class="fw-bold mb-0 mt-1">Vendas / PDV</h5>
+                                </div>
+                            </div>
+                            <div class="form-check form-switch fs-4 mb-0">
+                                {{ form.modulo_vendas_pdv }}
+                            </div>
+                        </div>
+                        <p class="text-muted small flex-grow-1">
+                            Frente de caixa rápido para registrar vendas de balcão, cálculo automático de troco e descontos, baixa de estoque agrupada e emissão de comprovantes/cupons térmicos (80mm e 58mm).
+                        </p>
+                        <div class="bg-light rounded-3 p-2 text-muted small">
+                            <i class="bi bi-check2-circle text-primary me-1"></i> Inclui: PDV, Histórico de Vendas, Cancelamento e Cupom de Impressão.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MÓDULO 2: CLIENTES & CREDIÁRIO -->
+            <div class="col-12 col-md-6 col-xl-4">
+                <div class="card h-100 border-0 shadow-sm rounded-4 position-relative overflow-hidden border-top border-4 border-warning">
+                    <div class="card-body p-4 d-flex flex-column">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="bg-warning bg-opacity-10 text-warning rounded-3 p-3">
+                                    <i class="bi bi-people-fill fs-3"></i>
+                                </div>
+                                <div>
+                                    <span class="badge bg-warning-subtle text-warning-emphasis small">Financeiro & Crédito</span>
+                                    <h5 class="fw-bold mb-0 mt-1">Clientes & Crediário</h5>
+                                </div>
+                            </div>
+                            <div class="form-check form-switch fs-4 mb-0">
+                                {{ form.modulo_clientes_crediario }}
+                            </div>
+                        </div>
+                        <p class="text-muted small flex-grow-1">
+                            Cadastro completo de clientes (PF/PJ), concessão de limites de crédito para vendas a prazo (fiado/crediário próprio), acompanhamento de parcelas a receber e controle de inadimplência.
+                        </p>
+                        <div class="bg-light rounded-3 p-2 text-muted small">
+                            <i class="bi bi-check2-circle text-warning me-1"></i> Inclui: Painel de Contas a Receber, Baixa de Parcelas e Ficha do Cliente.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MÓDULO 3: EMPRÉSTIMOS & CAUTELAS -->
+            <div class="col-12 col-md-6 col-xl-4">
+                <div class="card h-100 border-0 shadow-sm rounded-4 position-relative overflow-hidden border-top border-4 border-success">
+                    <div class="card-body p-4 d-flex flex-column">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="bg-success bg-opacity-10 text-success rounded-3 p-3">
+                                    <i class="bi bi-person-badge fs-3"></i>
+                                </div>
+                                <div>
+                                    <span class="badge bg-success-subtle text-success small">Almoxarifado & Obras</span>
+                                    <h5 class="fw-bold mb-0 mt-1">Empréstimos & Cautelas</h5>
+                                </div>
+                            </div>
+                            <div class="form-check form-switch fs-4 mb-0">
+                                {{ form.modulo_emprestimos }}
+                            </div>
+                        </div>
+                        <p class="text-muted small flex-grow-1">
+                            Controle de saída e devolução de ferramentas, equipamentos e EPIs para colaboradores e terceirizados. Suporta devoluções parciais fracionadas e trilha de auditoria completa.
+                        </p>
+                        <div class="bg-light rounded-3 p-2 text-muted small">
+                            <i class="bi bi-check2-circle text-success me-1"></i> Inclui: Cautelas de Empréstimo, Devoluções Parciais e Linha do Tempo.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MÓDULO 4: PREÇOS & SIMULAÇÕES -->
+            <div class="col-12 col-md-6 col-xl-4">
+                <div class="card h-100 border-0 shadow-sm rounded-4 position-relative overflow-hidden border-top border-4 border-info">
+                    <div class="card-body p-4 d-flex flex-column">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="bg-info bg-opacity-10 text-info rounded-3 p-3">
+                                    <i class="bi bi-calculator-fill fs-3"></i>
+                                </div>
+                                <div>
+                                    <span class="badge bg-info-subtle text-info small">Gestão & Lucratividade</span>
+                                    <h5 class="fw-bold mb-0 mt-1">Preços & Margens</h5>
+                                </div>
+                            </div>
+                            <div class="form-check form-switch fs-4 mb-0">
+                                {{ form.modulo_simulador_precos }}
+                            </div>
+                        </div>
+                        <p class="text-muted small flex-grow-1">
+                            Simulador analítico para precificação científica. Permite calcular margens, markup (inside/outside), rateio de fretes, outros custos e impostos com geração de relatório em PDF.
+                        </p>
+                        <div class="bg-light rounded-3 p-2 text-muted small">
+                            <i class="bi bi-check2-circle text-info me-1"></i> Inclui: Simulador de Markup, Tabela de Preços e Exportação em PDF.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MÓDULO 5: CONTROLE DE LOTES & VALIDADES -->
+            <div class="col-12 col-md-6 col-xl-4">
+                <div class="card h-100 border-0 shadow-sm rounded-4 position-relative overflow-hidden border-top border-4 border-secondary">
+                    <div class="card-body p-4 d-flex flex-column">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="bg-secondary bg-opacity-10 text-secondary rounded-3 p-3">
+                                    <i class="bi bi-calendar-event fs-3"></i>
+                                </div>
+                                <div>
+                                    <span class="badge bg-secondary-subtle text-secondary small">Rastreabilidade & Validade</span>
+                                    <h5 class="fw-bold mb-0 mt-1">Controle de Lotes</h5>
+                                </div>
+                            </div>
+                            <div class="form-check form-switch fs-4 mb-0">
+                                {{ form.modulo_controle_lotes }}
+                            </div>
+                        </div>
+                        <p class="text-muted small flex-grow-1">
+                            Rastreamento de mercadorias por número de lote, datas de fabricação, datas de validade, histórico de compras, preços de custo específicos por remessa e alertas de itens a vencer.
+                        </p>
+                        <div class="bg-light rounded-3 p-2 text-muted small">
+                            <i class="bi bi-check2-circle text-secondary me-1"></i> Inclui: Entrada por Lotes, Alertas de Validade no Dashboard e NF.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MÓDULO FIXO (CORE): ESTOQUE BASE -->
+            <div class="col-12 col-md-6 col-xl-4">
+                <div class="card h-100 border-0 shadow-sm rounded-4 position-relative overflow-hidden border-top border-4 border-dark bg-light-subtle">
+                    <div class="card-body p-4 d-flex flex-column">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="bg-dark bg-opacity-10 text-dark rounded-3 p-3">
+                                    <i class="bi bi-box-seam-fill fs-3"></i>
+                                </div>
+                                <div>
+                                    <span class="badge bg-dark text-white small">Módulo Central (Core)</span>
+                                    <h5 class="fw-bold mb-0 mt-1">Gestão de Estoque</h5>
+                                </div>
+                            </div>
+                            <div>
+                                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 small">
+                                    <i class="bi bi-lock-fill me-1"></i> Sempre Ativo
+                                </span>
+                            </div>
+                        </div>
+                        <p class="text-muted small flex-grow-1">
+                            O coração do sistema. Cadastro de produtos, categorias, localizações no almoxarifado, histórico de movimentações, baixas manuais e relatórios patrimoniais de saldo físico.
+                        </p>
+                        <div class="bg-white rounded-3 p-2 text-muted small border">
+                            <i class="bi bi-check2-all text-dark me-1"></i> Função fundamental do sistema, sempre disponível.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- BARRA FLUTUANTE / FIXA DE SALVAR -->
+        <div class="card border-0 shadow-lg rounded-4 p-3 bg-white sticky-bottom mb-4">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div class="text-muted small d-flex align-items-center gap-2">
+                    <i class="bi bi-info-circle text-primary fs-5"></i>
+                    <span>As alterações serão aplicadas instantaneamente para todos os usuários logados da sua empresa.</span>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="{% url 'dashboard' %}" class="btn btn-light px-4">Cancelar</a>
+                    <button type="submit" class="btn btn-primary fw-bold px-4 d-flex align-items-center gap-2 shadow-sm">
+                        <i class="bi bi-check-lg fs-5"></i> Salvar Módulos Ativos
+                    </button>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}

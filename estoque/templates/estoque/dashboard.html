@@ -14,28 +14,41 @@
     
     <!-- ATALHOS RÁPIDOS OPERACIONAIS -->
     <div class="d-flex flex-wrap gap-2">
+        {% if not modulos or modulos.modulo_vendas_pdv %}
         <a href="{% url 'registrar_venda' %}" class="btn btn-success fw-bold shadow-sm d-flex align-items-center gap-2">
             <i class="bi bi-cart-plus-fill fs-5"></i>
             <span>Nova Venda (PDV)</span>
         </a>
+        {% endif %}
         <a href="{% url 'entrada_estoque' %}" class="btn btn-primary fw-semibold shadow-sm d-flex align-items-center gap-2">
             <i class="bi bi-box-arrow-in-down"></i>
             <span>Entrada</span>
         </a>
+        {% if not modulos or modulos.modulo_emprestimos %}
+        <a href="{% url 'registrar_emprestimo' %}" class="btn btn-warning fw-semibold shadow-sm d-flex align-items-center gap-2">
+            <i class="bi bi-person-badge"></i>
+            <span>Empréstimo</span>
+        </a>
+        {% endif %}
+        {% if not modulos or modulos.modulo_clientes_crediario %}
         <a href="{% url 'painel_crediario' %}" class="btn btn-outline-dark shadow-sm d-flex align-items-center gap-2">
             <i class="bi bi-calendar-check"></i>
             <span>Crediário</span>
         </a>
+        {% endif %}
+        {% if not modulos or modulos.modulo_simulador_precos %}
         <a href="{% url 'simulador_preco' %}" class="btn btn-outline-warning text-dark shadow-sm d-flex align-items-center gap-2">
             <i class="bi bi-calculator"></i>
             <span>Simulador</span>
         </a>
+        {% endif %}
     </div>
 </div>
 
 <!-- LINHA 1: CARDS DE MÉTRICAS / KPIS DE ALTO NÍVEL -->
 <div class="row g-3 mb-4">
     
+    {% if not modulos or modulos.modulo_vendas_pdv %}
     <!-- KPI 1: FATURAMENTO DO MÊS -->
     <div class="col-12 col-sm-6 col-xl-3">
         <div class="card shadow-sm border-0 rounded-3 h-100 border-start border-4 border-success">
@@ -60,9 +73,10 @@
             </div>
         </div>
     </div>
+    {% endif %}
 
     <!-- KPI 2: VALOR TOTAL EM ESTOQUE (PATRIMÔNIO) -->
-    <div class="col-12 col-sm-6 col-xl-3">
+    <div class="col-12 col-sm-6 {% if not modulos or modulos.modulo_vendas_pdv and modulos.modulo_clientes_crediario %}col-xl-3{% else %}col-xl-4{% endif %}">
         <div class="card shadow-sm border-0 rounded-3 h-100 border-start border-4 border-primary">
             <div class="card-body p-3">
                 <div class="d-flex justify-content-between align-items-start">
@@ -86,6 +100,7 @@
         </div>
     </div>
 
+    {% if not modulos or modulos.modulo_clientes_crediario %}
     <!-- KPI 3: CREDIÁRIO A RECEBER -->
     <div class="col-12 col-sm-6 col-xl-3">
         <div class="card shadow-sm border-0 rounded-3 h-100 border-start border-4 border-warning">
@@ -116,9 +131,10 @@
             </div>
         </div>
     </div>
+    {% endif %}
 
     <!-- KPI 4: ALERTAS OPERACIONAIS -->
-    <div class="col-12 col-sm-6 col-xl-3">
+    <div class="col-12 col-sm-6 {% if not modulos or modulos.modulo_vendas_pdv and modulos.modulo_clientes_crediario %}col-xl-3{% else %}col-xl-4{% endif %}">
         <div class="card shadow-sm border-0 rounded-3 h-100 border-start border-4 {% if estoque_baixo > 0 or qtd_lotes_vencendo > 0 %}border-danger{% else %}border-info{% endif %}">
             <div class="card-body p-3">
                 <div class="d-flex justify-content-between align-items-start">
@@ -135,8 +151,12 @@
                 </div>
                 <hr class="my-2 opacity-25">
                 <div class="d-flex justify-content-between align-items-center text-muted" style="font-size: 0.8rem;">
+                    {% if not modulos or modulos.modulo_controle_lotes %}
                     <span>Vencendo em 90 dias: <strong class="text-danger">{{ qtd_lotes_vencendo }}</strong></span>
+                    {% endif %}
+                    {% if not modulos or modulos.modulo_emprestimos %}
                     <span>Empréstimos: <strong>{{ emprestimos_pendentes }}</strong></span>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -144,6 +164,7 @@
 
 </div>
 
+{% if not modulos or modulos.modulo_vendas_pdv %}
 <!-- LINHA 2: GRÁFICOS VISUAIS INTERATIVOS (CHART.JS) -->
 <div class="row g-3 mb-4">
     
@@ -188,10 +209,12 @@
     </div>
 
 </div>
+{% endif %}
 
 <!-- LINHA 3: TABELAS E PAINEL OPERACIONAL -->
 <div class="row g-3 mb-4">
     
+    {% if not modulos or modulos.modulo_vendas_pdv %}
     <!-- ÚLTIMAS VENDAS REALIZADAS -->
     <div class="col-12 col-lg-7">
         <div class="card shadow-sm border-0 rounded-3 h-100">
@@ -259,9 +282,10 @@
             </div>
         </div>
     </div>
+    {% endif %}
 
     <!-- PAINEL DE ATENÇÃO: VALIDADES, ESTOQUE CRÍTICO E SAÍDAS -->
-    <div class="col-12 col-lg-5">
+    <div class="col-12 {% if not modulos or modulos.modulo_vendas_pdv %}col-lg-5{% endif %}">
         <div class="card shadow-sm border-0 rounded-3 h-100">
             <div class="card-header bg-white py-2 border-0">
                 <ul class="nav nav-tabs card-header-tabs" id="tabAlertasDashboard" role="tablist">

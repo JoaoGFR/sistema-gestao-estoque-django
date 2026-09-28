@@ -76,6 +76,61 @@ class Empresa(models.Model):
         perfil = self.userprofile_set.filter(e_dono=True).select_related('user').first()
         return perfil.user if perfil else None
 
+    @property
+    def configuracao(self):
+        try:
+            return self.configuracao_obj
+        except Exception:
+            config, _ = ConfiguracaoEmpresa.objects.get_or_create(empresa=self)
+            return config
+
+# 1.1 CONFIGURAÇÃO E MÓDULOS DA EMPRESA (FEATURE TOGGLES)
+class ConfiguracaoEmpresa(models.Model):
+    empresa = models.OneToOneField(Empresa, on_delete=models.CASCADE, related_name='configuracao_obj', verbose_name="Empresa")
+    
+    # Módulos Funcionais do Sistema (Liga / Desliga por Empresa)
+    modulo_emprestimos = models.BooleanField(
+        default=True,
+        verbose_name="Módulo de Empréstimos & Cautelas",
+        help_text="Controle de ferramentas, cautelas a colaboradores e histórico de devoluções."
+    )
+    modulo_vendas_pdv = models.BooleanField(
+        default=True,
+        verbose_name="Módulo de Vendas / PDV",
+        help_text="Frente de caixa rápido, registro de vendas no balcão e emissão de cupons."
+    )
+    modulo_clientes_crediario = models.BooleanField(
+        default=True,
+        verbose_name="Módulo de Clientes & Crediário",
+        help_text="Cadastro de clientes, limites de crédito, parcelamento próprio e contas a receber."
+    )
+    modulo_simulador_precos = models.BooleanField(
+        default=True,
+        verbose_name="Preços & Simulações de Custo",
+        help_text="Tabela de preços de venda, simulador de formação de preços (markup/margem) e relatórios de precificação."
+    )
+    modulo_controle_lotes = models.BooleanField(
+        default=True,
+        verbose_name="Controle Avançado de Lotes & Validades",
+        help_text="Rastreamento por lote, data de fabricação, validade e alertas de vencimento."
+    )
+
+    class Meta:
+        verbose_name = "Configuração de Módulos da Empresa"
+        verbose_name_plural = "Configurações de Módulos das Empresas"
+
+    def __str__(self):
+        return f"Módulos - {self.empresa.nome}"
+
+
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+
+@receiver(post_save, sender=Empresa)
+def garantir_configuracao_empresa(sender, instance, created, **kwargs):
+    if created:
+        ConfiguracaoEmpresa.objects.get_or_create(empresa=instance)
+
 # 2. PERFIL DE USUÁRIO
 class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
@@ -237,18 +292,73 @@ class SaidaEstoque(models.Model):
 
 # 9. EMPRÉSTIMO
 class Emprestimo(models.Model):
-    lote = models.ForeignKey(Lote, on_delete=models.CASCADE, null=True, blank=True)
-    quantidade = models.DecimalField(max_digits=10, decimal_places=2, default=1)
-    produto = models.ForeignKey(Produto, on_delete=models.CASCADE)
-    responsavel_saida = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='emprestimos_realizados')
+    produto = models.ForeignKey(Produto, on_delete=models.CASCADE, related_name='emprestimos')
+    lote = models.ForeignKey(Lote, on_delete=models.SET_NULL, null=True, blank=True, related_name='emprestimos', verbose_name="Lote de Origem")
+    quantidade = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('1.00'), verbose_name="Quantidade Emprestada")
+    quantidade_devolvida = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'), verbose_name="Quantidade Devolvida")
+    responsavel_saida = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='emprestimos_realizados', verbose_name="Responsável pela Saída")
+    responsavel_devolucao = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='emprestimos_recebidos', verbose_name="Responsável pela Devolução")
     solicitante = models.CharField(max_length=100, verbose_name="Nome do Solicitante")  
     data_saida = models.DateTimeField(default=timezone.now, verbose_name="Data de Saída")
-    data_devolucao = models.DateTimeField(null=True, blank=True)
-    devolvido = models.BooleanField(default=False)
-    observacao = models.TextField(blank=True, null=True)
+    data_devolucao = models.DateTimeField(null=True, blank=True, verbose_name="Data da Devolução")
+    devolvido = models.BooleanField(default=False, verbose_name="Totalmente Devolvido?")
+    observacao = models.TextField(blank=True, null=True, verbose_name="Observações")
+    codigo_grupo = models.CharField(max_length=32, blank=True, null=True, db_index=True, verbose_name="Código da Baixa/Empréstimo Agrupado")
+
+    class Meta:
+        ordering = ['-data_saida']
+        verbose_name = "Empréstimo"
+        verbose_name_plural = "Empréstimos"
+
+    @property
+    def quantidade_pendente(self):
+        devolvida = self.quantidade_devolvida or Decimal('0.00')
+        return max(Decimal('0.00'), self.quantidade - devolvida)
+
+    @property
+    def status_emprestimo(self):
+        if self.devolvido or self.quantidade_pendente <= Decimal('0.00'):
+            return 'FINALIZADO'
+        if (self.quantidade_devolvida or Decimal('0.00')) > Decimal('0.00'):
+            return 'PARCIAL'
+        return 'ABERTO'
+
+    @property
+    def percentual_devolvido(self):
+        if not self.quantidade or self.quantidade <= Decimal('0.00'):
+            return 100 if self.devolvido else 0
+        perc = (float(self.quantidade_devolvida or 0) / float(self.quantidade)) * 100
+        return min(100.0, max(0.0, round(perc, 1)))
 
     def __str__(self):
-        return f"{self.produto.nome} - {self.solicitante} ({self.quantidade})"
+        return f"{self.produto.nome} - {self.solicitante} ({self.quantidade_devolvida}/{self.quantidade})"
+
+
+# 9.1 HISTÓRICO / AUDITORIA DE AÇÕES DO EMPRÉSTIMO
+class HistoricoEmprestimo(models.Model):
+    TIPO_ACAO_CHOICES = [
+        ('CRIACAO', 'Empréstimo Criado / Saída'),
+        ('DEVOLUCAO_PARCIAL', 'Devolução Parcial'),
+        ('DEVOLUCAO_TOTAL', 'Devolução Total'),
+        ('OBSERVACAO', 'Observação / Anotação'),
+        ('CANCELAMENTO', 'Cancelamento'),
+    ]
+
+    emprestimo = models.ForeignKey(Emprestimo, on_delete=models.CASCADE, related_name='historicos', verbose_name="Empréstimo")
+    usuario = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Usuário Responsável")
+    tipo_acao = models.CharField(max_length=20, choices=TIPO_ACAO_CHOICES, default='CRIACAO', verbose_name="Tipo de Ação")
+    quantidade = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'), verbose_name="Quantidade Movimentada")
+    saldo_restante = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'), verbose_name="Saldo Pendente Após Ação")
+    observacao = models.TextField(blank=True, null=True, verbose_name="Detalhes / Observação")
+    data_registro = models.DateTimeField(default=timezone.now, verbose_name="Data do Registro")
+
+    class Meta:
+        ordering = ['-data_registro']
+        verbose_name = "Histórico de Empréstimo"
+        verbose_name_plural = "Históricos de Empréstimos"
+
+    def __str__(self):
+        return f"{self.get_tipo_acao_display()} ({self.quantidade}) - {self.emprestimo.produto.nome}"
 
 # 10. ALÍQUOTA DE IMPOSTO
 class AliquotaImposto(models.Model):
@@ -415,6 +525,8 @@ class Venda(models.Model):
     
     valor_subtotal = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Subtotal (R$)")
     desconto = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name="Desconto (R$)")
+    valor_adicional = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name="Acréscimo / Adicional (R$)")
+    descricao_adicional = models.CharField(max_length=100, blank=True, null=True, default="", verbose_name="Descrição do Adicional (ex: Frete, Taxa de Entrega)")
     valor_total = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Valor Total (R$)")
     
     forma_pagamento = models.CharField(max_length=20, choices=FORMAS_PAGAMENTO, default='DINHEIRO', verbose_name="Forma de Pagamento")

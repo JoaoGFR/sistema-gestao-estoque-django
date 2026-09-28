@@ -2,13 +2,16 @@
 
 {% block content %}
 <div class="row align-items-center mb-4 g-3">
-    <div class="col-md-8">
+    <div class="col-md-7">
         <h2 class="fw-bold mb-1 d-flex align-items-center gap-2">
-            <i class="bi bi-shield-check text-primary"></i> Gerenciador de Backups
+            <i class="bi bi-shield-check text-primary"></i> Gerenciador de Backups & Banco de Dados
         </h2>
-        <p class="text-muted mb-0">Crie cópias de segurança e restaure o banco de dados do sistema com total tranquilidade.</p>
+        <p class="text-muted mb-0">Crie cópias de segurança, restaure dados e sincronize as migrações de tabelas do sistema.</p>
     </div>
-    <div class="col-md-4 text-md-end">
+    <div class="col-md-5 text-md-end d-flex gap-2 justify-content-md-end flex-wrap">
+        <a href="{% url 'executar_migracoes_superadmin' %}" class="btn btn-outline-warning rounded-pill px-3 shadow-sm fw-semibold" title="Executar migrações pendentes no banco de dados (manage.py migrate)">
+            <i class="bi bi-database-gear me-1"></i> Executar Migrações
+        </a>
         <form action="{% url 'criar_backup' %}" method="post" class="d-inline">
             {% csrf_token %}
             <button type="submit" class="btn btn-primary rounded-pill px-4 shadow-sm fw-bold">
@@ -149,6 +152,33 @@
                         </table>
                     </div>
                 {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- CARD 3: SINCRONIZAÇÃO DE SCHEMA & MIGRAÇÕES (PORTAINER / DOCKER / NUVEM) -->
+<div class="card border-0 shadow-sm rounded-4 bg-white mb-4 border-start border-4 border-warning">
+    <div class="card-body p-4">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+            <div class="d-flex align-items-center gap-3">
+                <div class="bg-warning-subtle text-warning-emphasis p-3 rounded-circle fs-3 flex-shrink-0">
+                    <i class="bi bi-database-gear"></i>
+                </div>
+                <div>
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <h5 class="fw-bold text-dark mb-0">Sincronização de Esquema do Banco de Dados</h5>
+                        <span class="badge bg-warning-subtle text-dark border border-warning-subtle small">Portainer / Docker / Vercel</span>
+                    </div>
+                    <p class="text-muted small mb-0">
+                        Dispara o comando <code>python manage.py migrate</code> diretamente pelo processo do Django. Ideal para ambientes <strong>Portainer / Docker</strong>, VPS ou nuvem, aplicando novas tabelas e colunas sem precisar acessar o terminal/console do container.
+                    </p>
+                </div>
+            </div>
+            <div>
+                <a href="{% url 'executar_migracoes_superadmin' %}" class="btn btn-warning text-dark fw-bold rounded-pill px-4 shadow-sm text-nowrap">
+                    <i class="bi bi-play-circle-fill me-1"></i> Executar Migrações Agora
+                </a>
             </div>
         </div>
     </div>

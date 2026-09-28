@@ -29,7 +29,7 @@
                     </div>
 
                     <div class="row">
-                        <div class="col-md-9 mb-3">
+                        <div class="col-12 mb-3">
                             <label class="form-label fw-semibold">Produto <span class="text-danger">*</span></label>
                             <div class="d-none">
                                 {{ form.produto }}
@@ -71,8 +71,36 @@
                                 Este produto não possui estoque disponível para empréstimo.
                             </div>
                         </div>
-                        <div class="col-md-3 mb-3">
-                            {{ form.quantidade|as_crispy_field }}
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-7 mb-3">
+                            <label class="form-label fw-semibold" for="id_lote">
+                                Lote de Origem <span class="badge bg-secondary-subtle text-secondary small">Opcional</span>
+                            </label>
+                            <select name="lote" id="id_lote" class="form-select">
+                                <option value="">Automático (FIFO - Mais antigo primeiro)</option>
+                            </select>
+                            <div class="form-text text-muted" id="textoAjudaLote">
+                                O sistema priorizará o lote mais antigo. Selecione um lote para retirar especificamente dele.
+                            </div>
+                        </div>
+                        <div class="col-md-5 mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <label class="form-label fw-semibold mb-0" for="id_quantidade">
+                                    Quantidade <span class="text-danger">*</span>
+                                </label>
+                                <span id="badgeLimiteDisponivel" class="badge bg-secondary-subtle text-secondary border">
+                                    Disponível: -
+                                </span>
+                            </div>
+                            <div class="input-group">
+                                <input type="number" name="quantidade" id="id_quantidade" class="form-control" min="1" step="1" value="{{ form.quantidade.value|default:1 }}" required>
+                                <span class="input-group-text bg-light text-muted" id="spanUnidadeEmp">un</span>
+                            </div>
+                            <div class="form-text text-danger d-none" id="msgErroQtdEmp">
+                                Quantidade solicitada excede o saldo disponível!
+                            </div>
                         </div>
                     </div>
 
@@ -82,7 +110,7 @@
 
                     <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
                         <a href="{% url 'lista_emprestimos' %}" class="btn btn-secondary me-md-2">Cancelar</a>
-                        <button type="submit" class="btn btn-warning fw-bold">
+                        <button type="submit" class="btn btn-warning fw-bold" id="btnConfirmarEmprestimo">
                             <i class="bi bi-check-lg"></i> Confirmar Saída
                         </button>
                     </div>
@@ -97,6 +125,15 @@
         const selectProduto = document.getElementById('id_produto');
         const selectCategoria = document.getElementById('id_categoria_filtro');
         const msgEstoque = document.getElementById('msg-estoque');
+        const selectLote = document.getElementById('id_lote');
+        const inputQtd = document.getElementById('id_quantidade');
+        const spanUnidadeEmp = document.getElementById('spanUnidadeEmp');
+        const badgeLimiteDisponivel = document.getElementById('badgeLimiteDisponivel');
+        const msgErroQtdEmp = document.getElementById('msgErroQtdEmp');
+        const textoAjudaLote = document.getElementById('textoAjudaLote');
+        const btnConfirmar = document.getElementById('btnConfirmarEmprestimo');
+
+        let limiteDisponivelAtual = 0;
 
         function normalizarTextoEmp(txt) {
             if (!txt) return '';
@@ -127,6 +164,11 @@
                 btnAbrirModalProdEmp.classList.remove('d-none');
                 cardProdSelEmp.classList.add('d-none');
                 msgEstoque.classList.add('d-none');
+                selectLote.innerHTML = '<option value="">Automático (FIFO - Mais antigo primeiro)</option>';
+                badgeLimiteDisponivel.textContent = 'Disponível: -';
+                badgeLimiteDisponivel.className = 'badge bg-secondary-subtle text-secondary border';
+                limiteDisponivelAtual = 0;
+                validarQuantidadeEmp();
                 return;
             }
 
@@ -141,6 +183,7 @@
             const saldo = itemModal ? parseFloat(itemModal.dataset.saldo || 0) : 0;
             const unidade = itemModal ? itemModal.dataset.unidade : 'un';
 
+            spanUnidadeEmp.textContent = unidade;
             cardProdNomeEmp.textContent = nome;
 
             let badges = '';
@@ -149,7 +192,7 @@
             if (cat) badges += `<span class="badge bg-warning-subtle text-dark border border-warning-subtle">${cat}</span>`;
 
             if (saldo > 0) {
-                badges += `<span class="badge bg-success text-white">Saldo: ${saldo} ${unidade}</span>`;
+                badges += `<span class="badge bg-success text-white">Saldo Total: ${saldo} ${unidade}</span>`;
                 msgEstoque.classList.add('d-none');
             } else {
                 badges += `<span class="badge bg-danger text-white">Sem Estoque</span>`;
@@ -157,7 +200,84 @@
             }
 
             cardProdBadgesEmp.innerHTML = badges;
+
+            // Busca lotes disponíveis na API
+            carregarLotesDoProduto(selectProduto.value, saldo, unidade);
         }
+
+        function carregarLotesDoProduto(prodId, saldoTotal, unidade) {
+            selectLote.innerHTML = `<option value="" data-qtd="${saldoTotal}">Carregando lotes...</option>`;
+            fetch(`/api/lotes/${prodId}/`)
+                .then(res => res.json())
+                .then(data => {
+                    selectLote.innerHTML = `<option value="" data-qtd="${saldoTotal}">Automático (FIFO - Mais antigo primeiro)</option>`;
+                    if (Array.isArray(data) && data.length > 0) {
+                        data.forEach(lote => {
+                            const opt = document.createElement('option');
+                            opt.value = lote.id;
+                            opt.text = lote.texto;
+                            opt.dataset.qtd = lote.qtd_disponivel;
+                            selectLote.appendChild(opt);
+                        });
+                    }
+                    atualizarLimiteLoteEmp(saldoTotal, unidade);
+                })
+                .catch(err => {
+                    console.error('Erro ao buscar lotes:', err);
+                    selectLote.innerHTML = `<option value="" data-qtd="${saldoTotal}">Automático (FIFO - Mais antigo)</option>`;
+                    atualizarLimiteLoteEmp(saldoTotal, unidade);
+                });
+        }
+
+        function atualizarLimiteLoteEmp(saldoTotalDefault, unidadeDefault) {
+            const loteOpt = selectLote.options[selectLote.selectedIndex];
+            const prodOpt = selectProduto.options[selectProduto.selectedIndex];
+            const itemModal = selectProduto.value ? listaProdutosEmpEl.querySelector(`[data-id="${selectProduto.value}"]`) : null;
+            const unidade = itemModal ? itemModal.dataset.unidade : (unidadeDefault || 'un');
+            const saldoTotal = itemModal ? parseFloat(itemModal.dataset.saldo || 0) : (saldoTotalDefault || 0);
+
+            if (loteOpt && loteOpt.value) {
+                // Lote específico selecionado
+                const qtdLote = parseFloat(loteOpt.dataset.qtd || 0);
+                limiteDisponivelAtual = qtdLote;
+                badgeLimiteDisponivel.textContent = `Lote selecionado: ${qtdLote} ${unidade}`;
+                badgeLimiteDisponivel.className = 'badge bg-primary-subtle text-primary border border-primary-subtle';
+                textoAjudaLote.innerHTML = `<i class="bi bi-pin-angle-fill text-primary"></i> Saída vinculada exclusivamente a este lote.`;
+            } else {
+                // Automático FIFO
+                limiteDisponivelAtual = saldoTotal;
+                if (saldoTotal > 0) {
+                    badgeLimiteDisponivel.textContent = `Disponível Total: ${saldoTotal} ${unidade}`;
+                    badgeLimiteDisponivel.className = 'badge bg-success-subtle text-success border border-success-subtle';
+                    textoAjudaLote.innerHTML = `O sistema priorizará os lotes mais antigos até completar a quantidade.`;
+                } else {
+                    badgeLimiteDisponivel.textContent = `Sem estoque disponível`;
+                    badgeLimiteDisponivel.className = 'badge bg-danger-subtle text-danger border border-danger-subtle';
+                    textoAjudaLote.innerHTML = `Nenhum lote ativo com saldo disponível.`;
+                }
+            }
+
+            validarQuantidadeEmp();
+        }
+
+        function validarQuantidadeEmp() {
+            const qtdDigitada = parseFloat(inputQtd.value) || 0;
+            if (limiteDisponivelAtual > 0 && qtdDigitada > limiteDisponivelAtual) {
+                msgErroQtdEmp.classList.remove('d-none');
+                inputQtd.classList.add('is-invalid');
+                if (btnConfirmar) btnConfirmar.disabled = true;
+            } else {
+                msgErroQtdEmp.classList.add('d-none');
+                inputQtd.classList.remove('is-invalid');
+                if (btnConfirmar) btnConfirmar.disabled = false;
+            }
+        }
+
+        selectLote.addEventListener('change', function() {
+            atualizarLimiteLoteEmp();
+        });
+
+        inputQtd.addEventListener('input', validarQuantidadeEmp);
 
         btnLimparProdEmp.addEventListener('click', function() {
             selectProduto.value = '';

@@ -135,6 +135,7 @@
                     </div>
                 </div>
 
+                {% if not modulos or modulos.modulo_vendas_pdv %}
                 <!-- CARD 2: COMERCIALIZAÇÃO, TABELA DE PREÇO & MARGENS (DESTAQUE) -->
                 <div class="card border-0 shadow-sm rounded-3 mb-4 border-start border-4 border-primary">
                     <div class="card-header bg-white py-3 border-bottom d-flex align-items-center justify-content-between flex-wrap gap-2">
@@ -147,9 +148,11 @@
                                 <small class="text-muted">Defina se este item é vendido no PDV e estipule sua precificação</small>
                             </div>
                         </div>
+                        {% if not modulos or modulos.modulo_simulador_precos %}
                         <a href="{% url 'simulador_preco' %}" class="btn btn-sm btn-outline-primary" target="_blank" title="Abrir Simulador Avançado">
                             <i class="bi bi-calculator me-1"></i> Simulador com Impostos
                         </a>
+                        {% endif %}
                     </div>
                     <div class="card-body p-4">
 
@@ -238,6 +241,11 @@
 
                     </div>
                 </div>
+                {% else %}
+                <!-- Módulo de Vendas / PDV desativado na empresa -->
+                <input type="hidden" name="disponivel_venda" value="False">
+                <input type="hidden" name="preco_venda" value="{{ form.preco_venda.value|default:'0' }}">
+                {% endif %}
 
                 <!-- CARD 3: CÓDIGOS, RASTREABILIDADE E ENDEREÇAMENTO -->
                 <div class="card border-0 shadow-sm rounded-3 mb-4">
