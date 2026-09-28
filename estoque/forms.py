@@ -266,7 +266,7 @@ class SaidaEstoqueForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         if user and hasattr(user, 'userprofile'):
             self.fields['produto'].queryset = Produto.objects.filter(empresa=user.userprofile.empresa)
-            self.fields['lote_especifico'].queryset = Lote.objects.filter(produto__empresa=user.userprofile.empresa, status='ATIVO')
+            self.fields['lote_especifico'].queryset = Lote.objects.filter(produto__empresa=user.userprofile.empresa, status='ATIVO', quantidade_atual__gt=0)
             self.fields['lote_especifico'].widget.attrs.update({'class': 'form-select'})
 
     def clean(self):

@@ -207,7 +207,14 @@
 
         function carregarLotesDoProduto(prodId, saldoTotal, unidade) {
             selectLote.innerHTML = `<option value="" data-qtd="${saldoTotal}">Carregando lotes...</option>`;
-            fetch(`/api/lotes/${prodId}/`)
+            // Busca lotes com cache-buster e no-store
+            fetch(`/api/lotes/${prodId}/?_=${new Date().getTime()}`, {
+                cache: 'no-store',
+                headers: {
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache'
+                }
+            })
                 .then(res => res.json())
                 .then(data => {
                     selectLote.innerHTML = `<option value="" data-qtd="${saldoTotal}">Automático (FIFO - Mais antigo primeiro)</option>`;
@@ -350,6 +357,13 @@
         modalProdEmpEl.addEventListener('shown.bs.modal', function() {
             inputBuscaProdEmp.focus();
             inputBuscaProdEmp.select();
+        });
+
+        // Se o celular restaurar a página do cache (BFCache), recarrega
+        window.addEventListener('pageshow', function(event) {
+            if (event.persisted) {
+                window.location.reload();
+            }
         });
 
         atualizarCardProdutoEmp();

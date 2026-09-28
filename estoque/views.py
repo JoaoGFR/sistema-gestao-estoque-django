@@ -16,6 +16,7 @@ from django.db import transaction
 from django.http import JsonResponse
 from django.utils.text import slugify
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.cache import never_cache
 
 logger = logging.getLogger(__name__)
 from .models import (
@@ -538,6 +539,7 @@ def entrada_estoque(request):
 
 # --- SAÍDAS (FEFO & BAIXA MÚLTIPLA) ---
 @login_required
+@never_cache
 @transaction.atomic
 def registrar_saida(request):
     import json
@@ -1077,6 +1079,7 @@ def devolver_emprestimo_parcial(request, pk):
     return redirect('lista_emprestimos')
 
 @login_required
+@never_cache
 @requer_modulo('modulo_emprestimos')
 def api_historico_emprestimo(request, pk):
     """Retorna o histórico de eventos e auditoria de um empréstimo em formato JSON"""
@@ -1128,7 +1131,7 @@ def api_historico_emprestimo(request, pk):
     qtd_dev = emprestimo.quantidade_devolvida if emprestimo.quantidade_devolvida is not None else Decimal('0.00')
     qtd_pend = emprestimo.quantidade_pendente if emprestimo.quantidade_pendente is not None else Decimal('0.00')
 
-    return JsonResponse({
+    resp = JsonResponse({
         'sucesso': True,
         'emprestimo_id': emprestimo.id,
         'codigo_grupo': emprestimo.codigo_grupo or f"EMP-{emprestimo.id}",
@@ -1145,6 +1148,10 @@ def api_historico_emprestimo(request, pk):
         'responsavel_saida': (emprestimo.responsavel_saida.get_full_name() or emprestimo.responsavel_saida.username) if emprestimo.responsavel_saida else 'Sistema',
         'historicos': dados_historico,
     })
+    resp['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0, private'
+    resp['Pragma'] = 'no-cache'
+    resp['Expires'] = '0'
+    return resp
 
 # --- EQUIPE ---
 @login_required
@@ -1411,25 +1418,31 @@ def historico_produto(request, pk):
     return render(request, 'estoque/historico_produto.html', context)
 
 @login_required
+@never_cache
 def api_detalhes_produto(request, pk):
     """Retorna JSON com configurações do produto para o Frontend"""
     try:
         empresa = get_empresa_usuario(request.user)
         produto = Produto.objects.get(pk=pk, empresa=empresa)
-        return JsonResponse({
+        resp = JsonResponse({
             'controla_lote': produto.controla_lote,
             'unidade': produto.unidade,
             'disponivel_venda': produto.disponivel_venda,
             'preco_venda': f"{produto.preco_venda:.2f}",
             'preco_medio': f"{produto.preco_medio:.2f}",
         })
+        resp['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0, private'
+        resp['Pragma'] = 'no-cache'
+        resp['Expires'] = '0'
+        return resp
     except Produto.DoesNotExist:
         return JsonResponse({'error': 'Produto não encontrado'}, status=404)
     
 
 @login_required
+@never_cache
 def api_lotes_produto(request, pk):
-    """Retorna os lotes ativos de um produto para o dropdown"""
+    """Retorna os lotes ativos de um produto para o dropdown (sem cache)"""
     empresa = get_empresa_usuario(request.user)
     lotes = Lote.objects.filter(
         produto_id=pk, 
@@ -1450,7 +1463,11 @@ def api_lotes_produto(request, pk):
             'qtd_disponivel': l.quantidade_atual
         })
     
-    return JsonResponse(data, safe=False)
+    resp = JsonResponse(data, safe=False)
+    resp['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0, private'
+    resp['Pragma'] = 'no-cache'
+    resp['Expires'] = '0'
+    return resp
 
 @login_required
 def criar_categoria_api(request):

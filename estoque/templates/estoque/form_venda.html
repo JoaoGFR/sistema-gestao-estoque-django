@@ -493,8 +493,14 @@ document.addEventListener('DOMContentLoaded', function () {
             if (infoPrecoManual) infoPrecoManual.classList.remove('d-none');
         }
 
-        // Carrega lotes via API
-        fetch(`/api/lotes/${this.value}/`)
+        // Carrega lotes via API com cache-buster e no-store
+        fetch(`/api/lotes/${this.value}/?_=${new Date().getTime()}`, {
+            cache: 'no-store',
+            headers: {
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache'
+            }
+        })
             .then(res => res.json())
             .then(data => {
                 selLote.innerHTML = '<option value="">Automático (FIFO/FEFO - Mais antigo primeiro)</option>';
@@ -969,6 +975,13 @@ document.addEventListener('DOMContentLoaded', function () {
     modalCliEl.addEventListener('shown.bs.modal', function () {
         inputBuscaCli.focus();
         inputBuscaCli.select();
+    });
+
+    // Se o celular restaurar a página do cache (BFCache), recarrega
+    window.addEventListener('pageshow', function(event) {
+        if (event.persisted) {
+            window.location.reload();
+        }
     });
 
     // Se já havia cliente ou produto selecionado, renderiza o card

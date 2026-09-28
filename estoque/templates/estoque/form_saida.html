@@ -94,7 +94,7 @@
                     <label for="seletor_lote" class="form-label fw-bold small text-secondary text-uppercase">
                         Lote de Origem
                     </label>
-                    <select id="seletor_lote" class="form-select">
+                    <select id="seletor_lote" class="form-select" autocomplete="off">
                         <option value="">Automático (FEFO/FIFO - Mais antigo primeiro)</option>
                     </select>
                     <div class="form-text text-muted" id="textoAjudaLote">
@@ -307,8 +307,14 @@ document.addEventListener('DOMContentLoaded', function() {
         const unidade = option.getAttribute('data-unidade') || 'un';
         spanUnidade.textContent = unidade;
 
-        // Busca lotes na API
-        fetch(`/api/lotes/${produtoId}/`)
+        // Busca lotes na API com cache-buster e headers no-store para celulares
+        fetch(`/api/lotes/${produtoId}/?_=${new Date().getTime()}`, {
+            cache: 'no-store',
+            headers: {
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache'
+            }
+        })
             .then(res => res.json())
             .then(data => {
                 seletorLote.innerHTML = '<option value="" selected data-qtd="' + saldoTotal + '">Automático (FEFO/FIFO - Mais antigo primeiro)</option>';
@@ -698,6 +704,14 @@ document.addEventListener('DOMContentLoaded', function() {
     modalProdSaidaEl.addEventListener('shown.bs.modal', function() {
         inputBuscaProdSaida.focus();
         inputBuscaProdSaida.select();
+    });
+
+    // Se o celular restaurar a página do cache de segundo plano (BFCache ao alternar abas ou destravar tela),
+    // força a recarga limpa para garantir que a lista de produtos e lotes reflita o banco atualizado
+    window.addEventListener('pageshow', function(event) {
+        if (event.persisted) {
+            window.location.reload();
+        }
     });
 
     // Se já houver produto selecionado
