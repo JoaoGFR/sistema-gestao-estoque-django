@@ -80,6 +80,8 @@
                             <span class="text-muted">Status do Pagamento:</span>
                             {% if venda.status_pagamento == 'PAGO' %}
                                 <span class="badge bg-success">Pago</span>
+                            {% elif venda.forma_pagamento == 'CHEQUE' and venda.status_pagamento == 'PENDENTE' %}
+                                <span class="badge bg-warning text-dark"><i class="bi bi-clock-history me-1"></i>Em Carteira (A Compensar)</span>
                             {% elif venda.status_pagamento == 'PENDENTE' %}
                                 <span class="badge bg-warning text-dark">Em Aberto (Crediário)</span>
                             {% elif venda.status_pagamento == 'PARCIAL' %}
@@ -192,6 +194,133 @@
                                         <span class="badge bg-secondary">Cancelado</span>
                                     {% else %}
                                         <span class="badge bg-warning-subtle text-warning-emphasis">Pendente</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Seção de Cheques Vinculados -->
+            {% if venda.cheques.exists %}
+            <div class="mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h5 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                        <i class="bi bi-card-heading text-warning"></i> Informações do(s) Cheque(s) ({{ venda.cheques.count }})
+                    </h5>
+                    <a href="{% url 'lista_cheques' %}" class="btn btn-sm btn-outline-secondary d-print-none">
+                        <i class="bi bi-arrow-left-right me-1"></i> Ir para Controle de Cheques
+                    </a>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Nº Cheque</th>
+                                <th>Banco</th>
+                                <th>Agência / Conta</th>
+                                <th>Titular / Emitente</th>
+                                <th class="text-center">Bom Para (Compensação)</th>
+                                <th class="text-end">Valor</th>
+                                <th class="text-center">Situação</th>
+                                <th class="text-center d-print-none" style="width: 140px;">Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for chq in venda.cheques.all %}
+                            <tr>
+                                <td class="fw-bold text-dark">
+                                    Nº {{ chq.numero }}
+                                    <span class="badge bg-light text-dark border d-block mt-1" style="font-size: 0.72rem;">{{ chq.get_tipo_display }}</span>
+                                </td>
+                                <td><strong>{{ chq.banco }}</strong></td>
+                                <td>
+                                    <span class="small text-muted">Ag: {{ chq.agencia|default:"-" }}</span><br>
+                                    <span class="small text-muted">Cc: {{ chq.conta|default:"-" }}</span>
+                                </td>
+                                <td>
+                                    <strong>{{ chq.titular }}</strong>
+                                    {% if chq.cpf_cnpj_titular %}<small class="d-block text-muted">Doc: {{ chq.cpf_cnpj_titular }}</small>{% endif %}
+                                    {% if chq.telefone_titular %}<small class="d-block text-muted">Tel: {{ chq.telefone_titular }}</small>{% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <strong class="{% if chq.esta_vencido %}text-danger{% else %}text-dark{% endif %}">
+                                        {{ chq.data_compensacao|date:"d/m/Y" }}
+                                    </strong>
+                                    {% if chq.esta_vencido %}
+                                        <span class="badge bg-danger text-white d-block mt-1" style="font-size: 0.68rem;">Vencido</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end fw-bold text-success fs-6">
+                                    R$ {{ chq.valor|floatformat:2 }}
+                                </td>
+                                <td class="text-center">
+                                    {% if chq.status == 'COMPENSADO' %}
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                                            <i class="bi bi-check-circle me-1"></i>Compensado
+                                        </span>
+                                        {% if chq.data_baixa %}
+                                            <small class="d-block text-muted" style="font-size: 0.72rem;">em {{ chq.data_baixa|date:"d/m/Y" }}</small>
+                                        {% endif %}
+                                    {% elif chq.status == 'DEVOLVIDO' %}
+                                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1">
+                                            <i class="bi bi-arrow-return-left me-1"></i>Devolvido
+                                        </span>
+                                    {% elif chq.status == 'CANCELADO' %}
+                                        <span class="badge bg-secondary-subtle text-secondary border px-2 py-1">Cancelado</span>
+                                    {% else %}
+                                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1">
+                                            <i class="bi bi-clock-history me-1"></i>A Compensar
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center d-print-none">
+                                    {% if chq.status != 'CANCELADO' %}
+                                    <div class="dropdown">
+                                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                            Status
+                                        </button>
+                                        <ul class="dropdown-menu dropdown-menu-end shadow">
+                                            {% if chq.status != 'COMPENSADO' %}
+                                            <li>
+                                                <form method="POST" action="{% url 'alterar_status_cheque' chq.pk %}">
+                                                    {% csrf_token %}
+                                                    <input type="hidden" name="novo_status" value="COMPENSADO">
+                                                    <button type="submit" class="dropdown-item text-success">
+                                                        <i class="bi bi-check-circle me-2"></i>Marcar como Compensado
+                                                    </button>
+                                                </form>
+                                            </li>
+                                            {% endif %}
+                                            {% if chq.status != 'DEVOLVIDO' %}
+                                            <li>
+                                                <form method="POST" action="{% url 'alterar_status_cheque' chq.pk %}">
+                                                    {% csrf_token %}
+                                                    <input type="hidden" name="novo_status" value="DEVOLVIDO">
+                                                    <button type="submit" class="dropdown-item text-danger">
+                                                        <i class="bi bi-arrow-return-left me-2"></i>Marcar como Devolvido
+                                                    </button>
+                                                </form>
+                                            </li>
+                                            {% endif %}
+                                            {% if chq.status != 'PENDENTE' %}
+                                            <li>
+                                                <form method="POST" action="{% url 'alterar_status_cheque' chq.pk %}">
+                                                    {% csrf_token %}
+                                                    <input type="hidden" name="novo_status" value="PENDENTE">
+                                                    <button type="submit" class="dropdown-item text-warning">
+                                                        <i class="bi bi-clock-history me-2"></i>Voltar para A Compensar
+                                                    </button>
+                                                </form>
+                                            </li>
+                                            {% endif %}
+                                        </ul>
+                                    </div>
+                                    {% else %}
+                                        <span class="text-muted small">-</span>
                                     {% endif %}
                                 </td>
                             </tr>
@@ -330,6 +459,21 @@
         <div class="linha-print" style="font-size: 10px;">
             <span>Parc. {{ p.numero_parcela }}/{{ p.total_parcelas }} ({{ p.data_vencimento|date:"d/m/Y" }}):</span>
             <strong>R$ {{ p.valor_parcela|floatformat:2 }}</strong>
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        {% if venda.cheques.exists %}
+        <div class="linha-tracejada"></div>
+        <div class="text-center fw-bold" style="font-size: 11px;">DADOS DO(S) CHEQUE(S)</div>
+        <div class="linha-tracejada"></div>
+        {% for chq in venda.cheques.all %}
+        <div class="linha-print" style="font-size: 10px;">
+            <span>Chq {{ chq.numero }} ({{ chq.banco }}):</span>
+            <strong>R$ {{ chq.valor|floatformat:2 }}</strong>
+        </div>
+        <div style="font-size: 9px; color: #333; margin-bottom: 2px;">
+            Bom para: {{ chq.data_compensacao|date:"d/m/Y" }} | Titular: {{ chq.titular }}
         </div>
         {% endfor %}
         {% endif %}

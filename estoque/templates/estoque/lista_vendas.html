@@ -14,6 +14,9 @@
             <p class="text-muted mb-0">Consulte todas as operações de venda realizadas, formas de pagamento e status de recebimento.</p>
         </div>
         <div class="d-flex gap-2">
+            <a href="{% url 'lista_cheques' %}" class="btn btn-outline-info d-flex align-items-center gap-2">
+                <i class="bi bi-card-heading"></i> Controle de Cheques
+            </a>
             <a href="{% url 'painel_crediario' %}" class="btn btn-outline-warning d-flex align-items-center gap-2">
                 <i class="bi bi-credit-card-2-front"></i> Painel do Crediário
             </a>
@@ -56,6 +59,7 @@
                         <option value="PIX" {% if forma_pagamento == 'PIX' %}selected{% endif %}>PIX</option>
                         <option value="DEBITO" {% if forma_pagamento == 'DEBITO' %}selected{% endif %}>Débito</option>
                         <option value="CREDITO" {% if forma_pagamento == 'CREDITO' %}selected{% endif %}>Crédito</option>
+                        <option value="CHEQUE" {% if forma_pagamento == 'CHEQUE' %}selected{% endif %}>Cheque</option>
                         <option value="CREDIARIO" {% if forma_pagamento == 'CREDIARIO' %}selected{% endif %}>Crediário</option>
                     </select>
                 </div>
@@ -145,6 +149,8 @@
                         <td class="text-center">
                             {% if venda.status_pagamento == 'PAGO' %}
                                 <span class="badge bg-success">Pago</span>
+                            {% elif venda.forma_pagamento == 'CHEQUE' and venda.status_pagamento == 'PENDENTE' %}
+                                <span class="badge bg-warning text-dark"><i class="bi bi-clock-history me-1"></i>A Compensar</span>
                             {% elif venda.status_pagamento == 'PENDENTE' %}
                                 <span class="badge bg-warning text-dark">A Prazo (Aberto)</span>
                             {% elif venda.status_pagamento == 'PARCIAL' %}

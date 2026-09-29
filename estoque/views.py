@@ -23,7 +23,7 @@ from .models import (
     Produto, Emprestimo, HistoricoEmprestimo, SaidaEstoque, Empresa, UserProfile, Lote, Categoria,
     Localizacao, AliquotaImposto, SimulacaoPreco, Cliente, Venda, ItemVenda,
     ContaReceber, PagamentoCrediario, PagamentoAssinatura, HistoricoPreco,
-    ConfiguracaoEmpresa
+    ConfiguracaoEmpresa, Cheque
 )
 from .mercadopago_service import (
     criar_preferencia_assinatura, consultar_pagamento_mp,
@@ -161,7 +161,7 @@ def dashboard(request):
     hoje = timezone.now().date()
     mes_atual = hoje.month
     ano_atual = hoje.year
-    daqui_90_dias = hoje + timedelta(days=90)
+    daqui_180_dias = hoje + timedelta(days=180)
 
     # 1. FINANCEIRO DE VENDAS (PDV)
     vendas_mes_qs = Venda.objects.filter(empresa=empresa, data_venda__year=ano_atual, data_venda__month=mes_atual, status='CONCLUIDA')
@@ -217,14 +217,14 @@ def dashboard(request):
         devolvido=False
     ).count()
 
-    # 6. VENCIMENTOS PRÓXIMOS (PRÓXIMOS 90 DIAS)
+    # 6. VENCIMENTOS PRÓXIMOS (PRÓXIMOS 180 DIAS)
     lotes_vencendo = lotes_ativos.filter(
         quantidade_atual__gt=0,
-        data_validade__range=[hoje, daqui_90_dias]
+        data_validade__range=[hoje, daqui_180_dias]
     ).select_related('produto').order_by('data_validade')[:5]
     qtd_lotes_vencendo = lotes_ativos.filter(
         quantidade_atual__gt=0,
-        data_validade__range=[hoje, daqui_90_dias]
+        data_validade__range=[hoje, daqui_180_dias]
     ).count()
 
     # 7. ÚLTIMAS VENDAS E SAÍDAS
@@ -253,6 +253,7 @@ def dashboard(request):
         'PIX': 'PIX',
         'DEBITO': 'Débito',
         'CREDITO': 'Crédito',
+        'CHEQUE': 'Cheque',
         'CREDIARIO': 'Crediário'
     }
     formas_qs = Venda.objects.filter(
@@ -2887,8 +2888,111 @@ def registrar_venda(request):
                             disponivel = max(0.0, float(cliente.limite_credito) - float(cliente.saldo_devedor))
                             raise ValueError(f"O valor total (R$ {valor_total:.2f}) ultrapassa o limite disponível do cliente '{cliente.nome}' (R$ {disponivel:.2f}).")
 
-                    # Criação da Venda
-                    status_pagamento = 'PENDENTE' if forma_pagamento == 'CREDIARIO' else 'PAGO'
+                    # Processamento e Validação de Cheques
+                    cheques_para_criar = []
+                    if forma_pagamento == 'CHEQUE':
+                        cheques_json = request.POST.get('cheques_json')
+                        cheques_lista = []
+                        if cheques_json:
+                            try:
+                                cheques_lista = json.loads(cheques_json)
+                            except Exception:
+                                cheques_lista = []
+
+                        if not cheques_lista:
+                            chq_num = request.POST.get('cheque_numero', '').strip()
+                            chq_banco = request.POST.get('cheque_banco', '').strip()
+                            chq_titular = request.POST.get('cheque_titular', '').strip()
+                            if not chq_titular and cliente:
+                                chq_titular = cliente.nome
+
+                            if chq_num or chq_banco or chq_titular:
+                                cheques_lista.append({
+                                    'numero': chq_num,
+                                    'banco': chq_banco,
+                                    'agencia': request.POST.get('cheque_agencia', '').strip(),
+                                    'conta': request.POST.get('cheque_conta', '').strip(),
+                                    'titular': chq_titular,
+                                    'cpf_cnpj_titular': request.POST.get('cheque_cpf_cnpj', '').strip() or (cliente.cpf_cnpj if cliente else ''),
+                                    'telefone_titular': request.POST.get('cheque_telefone', '').strip() or (cliente.telefone if cliente else ''),
+                                    'valor': valor_total,
+                                    'tipo': request.POST.get('cheque_tipo', 'PRE_DATADO'),
+                                    'data_compensacao': request.POST.get('cheque_data_compensacao'),
+                                    'status': request.POST.get('cheque_status', 'PENDENTE'),
+                                    'observacoes': request.POST.get('cheque_observacoes', '').strip()
+                                })
+
+                        if not cheques_lista:
+                            raise ValueError("Para vendas pagas em Cheque, é necessário preencher os dados do(s) cheque(s).")
+
+                        soma_cheques = Decimal('0.00')
+                        hoje_date = timezone.now().date()
+                        for idx_c, c in enumerate(cheques_lista, 1):
+                            c_num = str(c.get('numero', '')).strip()
+                            c_banco = str(c.get('banco', '')).strip()
+                            c_titular = str(c.get('titular', '')).strip()
+                            if not c_titular and cliente:
+                                c_titular = cliente.nome
+
+                            if not c_num:
+                                raise ValueError(f"Informe o número do cheque #{idx_c}.")
+                            if not c_banco:
+                                raise ValueError(f"Informe o banco do cheque #{idx_c}.")
+                            if not c_titular:
+                                raise ValueError(f"Informe o titular/emitente do cheque #{idx_c}.")
+
+                            try:
+                                c_val = Decimal(str(c.get('valor', 0)).replace(',', '.'))
+                            except Exception:
+                                c_val = Decimal('0.00')
+
+                            if c_val <= Decimal('0.00'):
+                                raise ValueError(f"O valor do cheque #{idx_c} deve ser maior que zero.")
+
+                            soma_cheques += c_val
+
+                            c_tipo = c.get('tipo', 'PRE_DATADO')
+                            if c_tipo not in ['A_VISTA', 'PRE_DATADO']:
+                                c_tipo = 'PRE_DATADO'
+
+                            c_status = c.get('status', 'PENDENTE')
+                            if c_status not in ['PENDENTE', 'COMPENSADO', 'DEVOLVIDO', 'CANCELADO']:
+                                c_status = 'PENDENTE'
+
+                            dt_comp = hoje_date
+                            dt_comp_str = c.get('data_compensacao')
+                            if dt_comp_str:
+                                try:
+                                    dt_comp = datetime.strptime(str(dt_comp_str), '%Y-%m-%d').date()
+                                except ValueError:
+                                    dt_comp = hoje_date
+
+                            cheques_para_criar.append({
+                                'numero': c_num,
+                                'banco': c_banco,
+                                'agencia': str(c.get('agencia', '')).strip(),
+                                'conta': str(c.get('conta', '')).strip(),
+                                'titular': c_titular,
+                                'cpf_cnpj_titular': str(c.get('cpf_cnpj_titular', '')).strip() or (cliente.cpf_cnpj if cliente else ''),
+                                'telefone_titular': str(c.get('telefone_titular', '')).strip() or (cliente.telefone if cliente else ''),
+                                'valor': c_val,
+                                'tipo': c_tipo,
+                                'data_compensacao': dt_comp,
+                                'status': c_status,
+                                'observacoes': str(c.get('observacoes', '')).strip(),
+                            })
+
+                        if abs(soma_cheques - Decimal(str(valor_total))) > Decimal('0.05'):
+                            raise ValueError(f"A soma dos cheques (R$ {soma_cheques:.2f}) não confere com o total da venda (R$ {valor_total:.2f}).")
+
+                    # Definição do Status de Pagamento
+                    if forma_pagamento == 'CREDIARIO':
+                        status_pagamento = 'PENDENTE'
+                    elif forma_pagamento == 'CHEQUE':
+                        status_pagamento = 'PAGO' if all(ch['status'] == 'COMPENSADO' for ch in cheques_para_criar) else 'PENDENTE'
+                    else:
+                        status_pagamento = 'PAGO'
+
                     venda = Venda.objects.create(
                         empresa=empresa,
                         codigo_venda=codigo_venda,
@@ -2950,6 +3054,29 @@ def registrar_venda(request):
                                 status='PENDENTE'
                             )
 
+                    # Persistência dos Cheques
+                    if forma_pagamento == 'CHEQUE':
+                        for ch_data in cheques_para_criar:
+                            Cheque.objects.create(
+                                empresa=empresa,
+                                venda=venda,
+                                cliente=cliente,
+                                numero=ch_data['numero'],
+                                banco=ch_data['banco'],
+                                agencia=ch_data['agencia'],
+                                conta=ch_data['conta'],
+                                titular=ch_data['titular'],
+                                cpf_cnpj_titular=ch_data['cpf_cnpj_titular'],
+                                telefone_titular=ch_data['telefone_titular'],
+                                valor=ch_data['valor'],
+                                tipo=ch_data['tipo'],
+                                data_emissao=timezone.now().date(),
+                                data_compensacao=ch_data['data_compensacao'],
+                                status=ch_data['status'],
+                                data_baixa=timezone.now().date() if ch_data['status'] == 'COMPENSADO' else None,
+                                observacoes=ch_data['observacoes']
+                            )
+
                     messages.success(request, f"Venda {codigo_venda} registrada com sucesso! Total: R$ {valor_total:.2f}")
                     return redirect('detalhe_venda', pk=venda.pk)
 
@@ -2963,12 +3090,15 @@ def registrar_venda(request):
     clientes = Cliente.objects.filter(empresa=empresa, ativo=True).order_by('nome')
     hoje = timezone.now().date()
     primeiro_venc_padrao = (hoje + timedelta(days=30)).strftime('%Y-%m-%d')
+    data_cheque_padrao = (hoje + timedelta(days=30)).strftime('%Y-%m-%d')
 
     return render(request, 'estoque/form_venda.html', {
         'produtos': produtos,
         'clientes': clientes,
         'error_message': error_message,
         'primeiro_venc_padrao': primeiro_venc_padrao,
+        'data_cheque_padrao': data_cheque_padrao,
+        'hoje': hoje.strftime('%Y-%m-%d'),
     })
 
 
@@ -3028,7 +3158,7 @@ def detalhe_venda(request, pk):
         return redirect('cadastro_saas')
 
     venda = get_object_or_404(
-        Venda.objects.select_related('cliente', 'usuario', 'empresa').prefetch_related('itens__produto', 'itens__lote', 'parcelas'),
+        Venda.objects.select_related('cliente', 'usuario', 'empresa').prefetch_related('itens__produto', 'itens__lote', 'parcelas', 'cheques'),
         pk=pk,
         empresa=empresa
     )
@@ -3050,7 +3180,7 @@ def imprimir_cupom_venda(request, pk):
         return redirect('cadastro_saas')
 
     venda = get_object_or_404(
-        Venda.objects.select_related('cliente', 'usuario', 'empresa').prefetch_related('itens__produto', 'parcelas'),
+        Venda.objects.select_related('cliente', 'usuario', 'empresa').prefetch_related('itens__produto', 'parcelas', 'cheques'),
         pk=pk,
         empresa=empresa
     )
@@ -3081,9 +3211,14 @@ def cancelar_venda(request, pk):
             messages.warning(request, "Esta venda já está cancelada.")
             return redirect('detalhe_venda', pk=pk)
 
-        # Checa se alguma parcela já foi paga
+        # Checa se alguma parcela já foi paga no crediário
         if venda.parcelas.filter(valor_pago__gt=0).exists():
             messages.error(request, "Não é possível cancelar uma venda que já possui parcelas amortizadas ou pagas no crediário.")
+            return redirect('detalhe_venda', pk=pk)
+
+        # Checa se algum cheque já foi compensado
+        if venda.cheques.filter(status='COMPENSADO').exists():
+            messages.error(request, "Não é possível cancelar uma venda que já possui cheque(s) compensado(s) no banco.")
             return redirect('detalhe_venda', pk=pk)
 
         with transaction.atomic():
@@ -3102,8 +3237,9 @@ def cancelar_venda(request, pk):
                 if item.saida_estoque:
                     item.saida_estoque.delete()
 
-            # 2. Cancela parcelas do crediário
+            # 2. Cancela parcelas do crediário e cheques vinculados
             venda.parcelas.update(status='CANCELADO')
+            venda.cheques.update(status='CANCELADO')
 
             # 3. Marca venda como cancelada
             venda.status = 'CANCELADA'
@@ -3113,6 +3249,122 @@ def cancelar_venda(request, pk):
             messages.success(request, f"Venda {venda.codigo_venda} cancelada e mercadorias estornadas ao estoque com sucesso.")
 
     return redirect('detalhe_venda', pk=pk)
+
+
+@login_required
+@requer_modulo('modulo_vendas_pdv')
+def alterar_status_cheque(request, pk):
+    """
+    Permite alterar o status de um cheque (COMPENSADO, DEVOLVIDO, PENDENTE, CANCELADO)
+    e sincroniza automaticamente o status_pagamento da Venda correspondente.
+    """
+    empresa = get_empresa_usuario(request.user)
+    if not empresa:
+        return redirect('cadastro_saas')
+
+    cheque = get_object_or_404(Cheque, pk=pk, empresa=empresa)
+
+    if request.method == 'POST':
+        novo_status = request.POST.get('novo_status')
+        if novo_status in ['PENDENTE', 'COMPENSADO', 'DEVOLVIDO', 'CANCELADO']:
+            cheque.status = novo_status
+            if novo_status == 'COMPENSADO':
+                data_baixa_str = request.POST.get('data_baixa')
+                if data_baixa_str:
+                    try:
+                        cheque.data_baixa = datetime.strptime(data_baixa_str, '%Y-%m-%d').date()
+                    except ValueError:
+                        cheque.data_baixa = timezone.now().date()
+                else:
+                    cheque.data_baixa = timezone.now().date()
+            else:
+                cheque.data_baixa = None
+
+            cheque.save()
+
+            # Sincroniza status_pagamento da venda vinculada
+            venda = cheque.venda
+            if venda and venda.status != 'CANCELADA':
+                todos_cheques = venda.cheques.exclude(status='CANCELADO')
+                if todos_cheques.exists() and all(c.status == 'COMPENSADO' for c in todos_cheques):
+                    venda.status_pagamento = 'PAGO'
+                    venda.save(update_fields=['status_pagamento'])
+                else:
+                    venda.status_pagamento = 'PENDENTE'
+                    venda.save(update_fields=['status_pagamento'])
+
+            messages.success(request, f"Cheque Nº {cheque.numero} atualizado para '{cheque.get_status_display()}'.")
+
+    origem = request.POST.get('next') or request.META.get('HTTP_REFERER')
+    if origem:
+        return redirect(origem)
+    return redirect('detalhe_venda', pk=cheque.venda.pk)
+
+
+@login_required
+@requer_modulo('modulo_vendas_pdv')
+def lista_cheques(request):
+    """
+    Painel de controle financeiro de cheques recebidos nas vendas.
+    Permite filtrar por status, tipo, datas, buscar e alterar status com agilidade.
+    """
+    empresa = get_empresa_usuario(request.user)
+    if not empresa:
+        return redirect('cadastro_saas')
+
+    cheques = Cheque.objects.filter(empresa=empresa).select_related('venda', 'cliente')
+
+    q = request.GET.get('q', '').strip()
+    if q:
+        cheques = cheques.filter(
+            Q(numero__icontains=q) |
+            Q(titular__icontains=q) |
+            Q(cpf_cnpj_titular__icontains=q) |
+            Q(banco__icontains=q) |
+            Q(venda__codigo_venda__icontains=q)
+        )
+
+    status_filtro = request.GET.get('status')
+    if status_filtro:
+        cheques = cheques.filter(status=status_filtro)
+
+    tipo_filtro = request.GET.get('tipo')
+    if tipo_filtro:
+        cheques = cheques.filter(tipo=tipo_filtro)
+
+    data_inicio = request.GET.get('data_inicio')
+    data_fim = request.GET.get('data_fim')
+    if data_inicio:
+        cheques = cheques.filter(data_compensacao__gte=data_inicio)
+    if data_fim:
+        cheques = cheques.filter(data_compensacao__lte=data_fim)
+
+    # Indicadores e métricas de cheques
+    todos_cheques_empresa = Cheque.objects.filter(empresa=empresa)
+    total_a_compensar = todos_cheques_empresa.filter(status='PENDENTE').aggregate(total=Sum('valor'))['total'] or Decimal('0.00')
+    total_compensado = todos_cheques_empresa.filter(status='COMPENSADO').aggregate(total=Sum('valor'))['total'] or Decimal('0.00')
+    total_devolvido = todos_cheques_empresa.filter(status='DEVOLVIDO').aggregate(total=Sum('valor'))['total'] or Decimal('0.00')
+    qtd_a_compensar = todos_cheques_empresa.filter(status='PENDENTE').count()
+    qtd_total = todos_cheques_empresa.count()
+
+    paginator = Paginator(cheques, 15)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    return render(request, 'estoque/lista_cheques.html', {
+        'page_obj': page_obj,
+        'q': q,
+        'status_filtro': status_filtro,
+        'tipo_filtro': tipo_filtro,
+        'data_inicio': data_inicio,
+        'data_fim': data_fim,
+        'total_a_compensar': total_a_compensar,
+        'total_compensado': total_compensado,
+        'total_devolvido': total_devolvido,
+        'qtd_a_compensar': qtd_a_compensar,
+        'qtd_total': qtd_total,
+        'hoje': timezone.now().date(),
+    })
 
 
 # -----------------------------------------------------------------------------

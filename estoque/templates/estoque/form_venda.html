@@ -270,6 +270,7 @@
                                     <option value="PIX">PIX</option>
                                     <option value="DEBITO">Cartão de Débito</option>
                                     <option value="CREDITO">Cartão de Crédito</option>
+                                    <option value="CHEQUE" class="text-primary fw-bold">Cheque</option>
                                     <option value="CREDIARIO" class="text-primary fw-bold">Crediário / A Prazo (Fiado)</option>
                                 </select>
                             </div>
@@ -366,6 +367,69 @@
                             </div>
                         </div>
 
+                        <!-- PAINEL DINÂMICO 3: CHEQUE -->
+                        <div id="painelCheque" class="card bg-info-subtle border-info border-opacity-50 p-3 mb-3 d-none">
+                            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2 pb-2 border-bottom">
+                                <h6 class="fw-bold text-dark d-flex align-items-center gap-2 mb-0">
+                                    <i class="bi bi-card-heading text-primary fs-5"></i> Dados do Pagamento em Cheque
+                                </h6>
+                                <button type="button" class="btn btn-sm btn-outline-primary" id="btnCopiarClienteCheque" title="Preencher emitente com os dados do cliente selecionado">
+                                    <i class="bi bi-person-check me-1"></i> Copiar Dados do Cliente
+                                </button>
+                            </div>
+
+                            <div class="row g-2 mb-3">
+                                <div class="col-12 col-md-4">
+                                    <label class="form-label small fw-semibold">Qtd. de Cheques (Folhas)</label>
+                                    <select id="selQtdCheques" class="form-select form-select-sm">
+                                        <option value="1">1 Cheque (Valor Total)</option>
+                                        <option value="2">2 Cheques (Parcelado)</option>
+                                        <option value="3">3 Cheques (Parcelado)</option>
+                                        <option value="4">4 Cheques (Parcelado)</option>
+                                        <option value="5">5 Cheques (Parcelado)</option>
+                                        <option value="6">6 Cheques (Parcelado)</option>
+                                    </select>
+                                </div>
+                                <div class="col-12 col-md-4">
+                                    <label class="form-label small fw-semibold">Modalidade Padrão</label>
+                                    <select id="selTipoChequeGeral" class="form-select form-select-sm">
+                                        <option value="PRE_DATADO">Pré-datado (Bom para...)</option>
+                                        <option value="A_VISTA">À Vista</option>
+                                    </select>
+                                </div>
+                                <div class="col-12 col-md-4">
+                                    <label class="form-label small fw-semibold">Situação Inicial</label>
+                                    <select id="selStatusChequeGeral" class="form-select form-select-sm">
+                                        <option value="PENDENTE">Em Carteira (A Compensar)</option>
+                                        <option value="COMPENSADO">Compensado / Já Depositado</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <datalist id="listaBancosCheque">
+                                <option value="001 - Banco do Brasil">
+                                <option value="237 - Bradesco">
+                                <option value="341 - Itaú Unibanco">
+                                <option value="104 - Caixa Econômica">
+                                <option value="033 - Santander">
+                                <option value="756 - Sicoob">
+                                <option value="748 - Sicredi">
+                                <option value="041 - Banrisul">
+                                <option value="260 - Nubank">
+                                <option value="077 - Banco Inter">
+                                <option value="212 - Banco Original">
+                                <option value="422 - Banco Safra">
+                                <option value="070 - BRB Banco de Brasília">
+                            </datalist>
+
+                            <!-- Folhas dinâmicas de cheque -->
+                            <div id="containerFolhasCheque" class="d-flex flex-column gap-3">
+                                <!-- Gerado dinamicamente via JavaScript -->
+                            </div>
+
+                            <input type="hidden" name="cheques_json" id="inputChequesJson" value="">
+                        </div>
+
                         <!-- CAMPO DE OBSERVAÇÕES / ANOTAÇÕES DA VENDA -->
                         <div class="mb-3">
                             <label class="form-label fw-semibold d-flex align-items-center gap-1 mb-1">
@@ -453,6 +517,15 @@ document.addEventListener('DOMContentLoaded', function () {
     const painelCrediario = document.getElementById('painelCrediario');
     const selNumParcelas = document.getElementById('selNumParcelas');
     const txtResumoParcelas = document.getElementById('txtResumoParcelas');
+
+    const painelCheque = document.getElementById('painelCheque');
+    const selQtdCheques = document.getElementById('selQtdCheques');
+    const selTipoChequeGeral = document.getElementById('selTipoChequeGeral');
+    const selStatusChequeGeral = document.getElementById('selStatusChequeGeral');
+    const containerFolhasCheque = document.getElementById('containerFolhasCheque');
+    const inputChequesJson = document.getElementById('inputChequesJson');
+    const btnCopiarClienteCheque = document.getElementById('btnCopiarClienteCheque');
+    const formVenda = document.getElementById('formVenda');
 
     let carrinho = [];
 
@@ -685,6 +758,11 @@ document.addEventListener('DOMContentLoaded', function () {
             txtResumoParcelas.textContent = `${nParc}x de R$ ${vParc} (Total: R$ ${total.toFixed(2).replace('.', ',')})`;
         }
 
+        // Atualização dos cheques se forma for CHEQUE
+        if (selFormaPagamento.value === 'CHEQUE') {
+            atualizarValoresCheques(total);
+        }
+
         itensJsonInput.value = JSON.stringify(carrinho);
     }
 
@@ -695,24 +773,323 @@ document.addEventListener('DOMContentLoaded', function () {
     inputValorRecebido.addEventListener('input', recalcularTotais);
     selNumParcelas.addEventListener('change', recalcularTotais);
 
+    // =========================================================================
+    // LÓGICA DE CHEQUES (GERAÇÃO DINÂMICA DE FOLHAS E SERIALIZAÇÃO)
+    // =========================================================================
+
+    function atualizarValoresCheques(total) {
+        if (!containerFolhasCheque) return;
+        const folhas = containerFolhasCheque.querySelectorAll('.card-folha-cheque');
+        const qtd = folhas.length;
+        if (qtd === 0) return;
+
+        // Se for 1 folha, recebe o valor total direto
+        if (qtd === 1) {
+            const inputVal = folhas[0].querySelector('.input-chq-valor');
+            if (inputVal) inputVal.value = total.toFixed(2);
+        } else {
+            // Se o usuário já editou manualmente e a soma for diferente, só recalcula se todos forem iguais
+            const valorBase = (total / qtd).toFixed(2);
+            const diferenca = (total - (parseFloat(valorBase) * qtd)).toFixed(2);
+            folhas.forEach((f, idx) => {
+                const inputVal = f.querySelector('.input-chq-valor');
+                if (inputVal) {
+                    if (idx === 0) {
+                        inputVal.value = (parseFloat(valorBase) + parseFloat(diferenca)).toFixed(2);
+                    } else {
+                        inputVal.value = valorBase;
+                    }
+                }
+            });
+        }
+        serializarChequesJson();
+    }
+
+    function renderizarFolhasCheque() {
+        if (!containerFolhasCheque) return;
+        const total = Math.max(0, (carrinho.reduce((acc, it) => acc + it.subtotal, 0)
+            - parseFloat(inputDesconto.value.replace(',', '.') || 0)
+            + parseFloat(inputValorAdicional.value.replace(',', '.') || 0)));
+
+        const qtd = parseInt(selQtdCheques.value, 10) || 1;
+        const tipoGeral = selTipoChequeGeral.value;
+        const statusGeral = selStatusChequeGeral.value;
+
+        // Pega dados do cliente se selecionado
+        const optCli = selCliente.options[selCliente.selectedIndex];
+        let nomeCli = '';
+        let docCli = '';
+        let telCli = '';
+        if (optCli && optCli.value) {
+            nomeCli = optCli.dataset.nome || optCli.textContent.trim().split(' - ')[0];
+            docCli = optCli.dataset.cpf || '';
+            telCli = optCli.dataset.telefone || '';
+        }
+
+        const valorPorCheque = (total / qtd).toFixed(2);
+        const diferencaCentavos = (total - (parseFloat(valorPorCheque) * qtd)).toFixed(2);
+
+        // Preserva valores digitados previamente se houver
+        const valoresExistentes = [];
+        containerFolhasCheque.querySelectorAll('.card-folha-cheque').forEach(el => {
+            valoresExistentes.push({
+                numero: el.querySelector('.input-chq-numero')?.value || '',
+                banco: el.querySelector('.input-chq-banco')?.value || '',
+                agencia: el.querySelector('.input-chq-agencia')?.value || '',
+                conta: el.querySelector('.input-chq-conta')?.value || '',
+                titular: el.querySelector('.input-chq-titular')?.value || '',
+                cpf_cnpj: el.querySelector('.input-chq-cpf')?.value || '',
+                telefone: el.querySelector('.input-chq-telefone')?.value || '',
+                data_compensacao: el.querySelector('.input-chq-vencimento')?.value || '',
+                valor: el.querySelector('.input-chq-valor')?.value || '',
+                tipo: el.querySelector('.input-chq-tipo')?.value || tipoGeral,
+                status: el.querySelector('.input-chq-status')?.value || statusGeral,
+                observacoes: el.querySelector('.input-chq-obs')?.value || ''
+            });
+        });
+
+        containerFolhasCheque.innerHTML = '';
+        const hoje = new Date();
+
+        for (let i = 0; i < qtd; i++) {
+            const numFolha = i + 1;
+            const existente = valoresExistentes[i] || {};
+
+            // Data sugerida
+            let dataSugerida = '';
+            if (existente.data_compensacao) {
+                dataSugerida = existente.data_compensacao;
+            } else if (tipoGeral === 'A_VISTA') {
+                dataSugerida = hoje.toISOString().split('T')[0];
+            } else {
+                const dt = new Date();
+                dt.setDate(dt.getDate() + ((i + 1) * 30));
+                dataSugerida = dt.toISOString().split('T')[0];
+            }
+
+            let valFolha = existente.valor;
+            if (!valFolha || parseFloat(valFolha) <= 0) {
+                if (i === 0) {
+                    valFolha = (parseFloat(valorPorCheque) + parseFloat(diferencaCentavos)).toFixed(2);
+                } else {
+                    valFolha = valorPorCheque;
+                }
+            }
+
+            const titularFolha = existente.titular || (i === 0 ? nomeCli : (valoresExistentes[0]?.titular || nomeCli));
+            const bancoFolha = existente.banco || (valoresExistentes[0]?.banco || '');
+            const agenciaFolha = existente.agencia || (valoresExistentes[0]?.agencia || '');
+            const contaFolha = existente.conta || (valoresExistentes[0]?.conta || '');
+            const docFolha = existente.cpf_cnpj || (valoresExistentes[0]?.cpf_cnpj || docCli);
+            const telFolha = existente.telefone || (valoresExistentes[0]?.telefone || telCli);
+
+            const div = document.createElement('div');
+            div.className = 'card border bg-white p-3 rounded-3 shadow-sm card-folha-cheque';
+            div.innerHTML = `
+                <div class="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom">
+                    <span class="fw-bold text-dark small d-flex align-items-center gap-1">
+                        <i class="bi bi-card-heading text-primary"></i> Cheque ${numFolha} de ${qtd}
+                    </span>
+                    <span class="badge bg-primary-subtle text-primary">Folha #${numFolha}</span>
+                </div>
+                <div class="row g-2">
+                    <div class="col-12 col-md-3">
+                        <label class="form-label small fw-semibold text-muted mb-1">Nº do Cheque <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control form-control-sm fw-bold input-chq-numero" placeholder="Ex: 000123" value="${existente.numero || ''}" required>
+                    </div>
+                    <div class="col-12 col-md-3">
+                        <label class="form-label small fw-semibold text-muted mb-1">Banco <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control form-control-sm input-chq-banco" list="listaBancosCheque" placeholder="Ex: 001 - Banco do Brasil" value="${bancoFolha}" required>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small fw-semibold text-muted mb-1">Agência</label>
+                        <input type="text" class="form-control form-control-sm input-chq-agencia" placeholder="Ex: 1234-5" value="${agenciaFolha}">
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small fw-semibold text-muted mb-1">Conta Corrente</label>
+                        <input type="text" class="form-control form-control-sm input-chq-conta" placeholder="Ex: 12345-6" value="${contaFolha}">
+                    </div>
+
+                    <div class="col-12 col-md-4">
+                        <label class="form-label small fw-semibold text-muted mb-1">Titular / Emitente <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control form-control-sm input-chq-titular" placeholder="Nome completo do titular" value="${titularFolha}" required>
+                    </div>
+                    <div class="col-6 col-md-4">
+                        <label class="form-label small fw-semibold text-muted mb-1">CPF / CNPJ do Titular</label>
+                        <input type="text" class="form-control form-control-sm input-chq-cpf" placeholder="000.000.000-00" value="${docFolha}">
+                    </div>
+                    <div class="col-6 col-md-4">
+                        <label class="form-label small fw-semibold text-muted mb-1">Telefone de Contato</label>
+                        <input type="text" class="form-control form-control-sm input-chq-telefone" placeholder="(00) 00000-0000" value="${telFolha}">
+                    </div>
+
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small fw-semibold text-muted mb-1">Bom Para (Vencimento) <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control form-control-sm input-chq-vencimento" value="${dataSugerida}" required>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small fw-semibold text-muted mb-1">Valor da Folha (R$) <span class="text-danger">*</span></label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text bg-light text-success fw-bold">R$</span>
+                            <input type="number" step="0.01" min="0.01" class="form-control form-control-sm fw-bold text-success input-chq-valor" value="${valFolha}" required>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small fw-semibold text-muted mb-1">Tipo</label>
+                        <select class="form-select form-select-sm input-chq-tipo">
+                            <option value="PRE_DATADO" ${ (existente.tipo || tipoGeral) === 'PRE_DATADO' ? 'selected' : '' }>Pré-datado</option>
+                            <option value="A_VISTA" ${ (existente.tipo || tipoGeral) === 'A_VISTA' ? 'selected' : '' }>À Vista</option>
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small fw-semibold text-muted mb-1">Situação Inicial</label>
+                        <select class="form-select form-select-sm input-chq-status">
+                            <option value="PENDENTE" ${ (existente.status || statusGeral) === 'PENDENTE' ? 'selected' : '' }>Em Carteira (A Compensar)</option>
+                            <option value="COMPENSADO" ${ (existente.status || statusGeral) === 'COMPENSADO' ? 'selected' : '' }>Compensado / Já Depositado</option>
+                        </select>
+                    </div>
+
+                    <div class="col-12">
+                        <input type="text" class="form-control form-control-sm input-chq-obs" placeholder="Observações específicas deste cheque (opcional)..." value="${existente.observacoes || ''}">
+                    </div>
+                </div>
+            `;
+            containerFolhasCheque.appendChild(div);
+        }
+
+        // Adiciona listeners para atualizar JSON
+        containerFolhasCheque.querySelectorAll('input, select').forEach(input => {
+            input.addEventListener('input', serializarChequesJson);
+            input.addEventListener('change', serializarChequesJson);
+        });
+
+        serializarChequesJson();
+    }
+
+    function serializarChequesJson() {
+        if (!containerFolhasCheque) return;
+        const cheques = [];
+        containerFolhasCheque.querySelectorAll('.card-folha-cheque').forEach(el => {
+            cheques.push({
+                numero: el.querySelector('.input-chq-numero')?.value.trim() || '',
+                banco: el.querySelector('.input-chq-banco')?.value.trim() || '',
+                agencia: el.querySelector('.input-chq-agencia')?.value.trim() || '',
+                conta: el.querySelector('.input-chq-conta')?.value.trim() || '',
+                titular: el.querySelector('.input-chq-titular')?.value.trim() || '',
+                cpf_cnpj_titular: el.querySelector('.input-chq-cpf')?.value.trim() || '',
+                telefone_titular: el.querySelector('.input-chq-telefone')?.value.trim() || '',
+                data_compensacao: el.querySelector('.input-chq-vencimento')?.value || '',
+                valor: parseFloat(el.querySelector('.input-chq-valor')?.value || 0),
+                tipo: el.querySelector('.input-chq-tipo')?.value || 'PRE_DATADO',
+                status: el.querySelector('.input-chq-status')?.value || 'PENDENTE',
+                observacoes: el.querySelector('.input-chq-obs')?.value.trim() || ''
+            });
+        });
+        if (inputChequesJson) {
+            inputChequesJson.value = JSON.stringify(cheques);
+        }
+    }
+
+    if (selQtdCheques) selQtdCheques.addEventListener('change', renderizarFolhasCheque);
+    if (selTipoChequeGeral) selTipoChequeGeral.addEventListener('change', renderizarFolhasCheque);
+    if (selStatusChequeGeral) selStatusChequeGeral.addEventListener('change', renderizarFolhasCheque);
+
+    if (btnCopiarClienteCheque) {
+        btnCopiarClienteCheque.addEventListener('click', function() {
+            const optCli = selCliente.options[selCliente.selectedIndex];
+            if (!optCli || !optCli.value) {
+                alert("Selecione um cliente no campo de busca de clientes para puxar seus dados.");
+                return;
+            }
+            const nomeCli = optCli.dataset.nome || optCli.textContent.trim().split(' - ')[0];
+            const docCli = optCli.dataset.cpf || '';
+            const telCli = optCli.dataset.telefone || '';
+
+            containerFolhasCheque.querySelectorAll('.card-folha-cheque').forEach(el => {
+                const inputTit = el.querySelector('.input-chq-titular');
+                const inputDoc = el.querySelector('.input-chq-cpf');
+                const inputTel = el.querySelector('.input-chq-telefone');
+                if (inputTit) inputTit.value = nomeCli;
+                if (inputDoc && docCli) inputDoc.value = docCli;
+                if (inputTel && telCli) inputTel.value = telCli;
+            });
+            serializarChequesJson();
+        });
+    }
+
     // Alternância da Forma de Pagamento
     selFormaPagamento.addEventListener('change', function () {
         if (this.value === 'DINHEIRO') {
             painelDinheiro.classList.remove('d-none');
             painelCrediario.classList.add('d-none');
+            painelCheque.classList.add('d-none');
         } else if (this.value === 'CREDIARIO') {
             painelCrediario.classList.remove('d-none');
             painelDinheiro.classList.add('d-none');
+            painelCheque.classList.add('d-none');
             if (!selCliente.value) {
                 alert("Para compras no crediário, você precisa selecionar um cliente cadastrado.");
                 selCliente.focus();
             }
+        } else if (this.value === 'CHEQUE') {
+            painelCheque.classList.remove('d-none');
+            painelDinheiro.classList.add('d-none');
+            painelCrediario.classList.add('d-none');
+            renderizarFolhasCheque();
         } else {
             painelDinheiro.classList.add('d-none');
             painelCrediario.classList.add('d-none');
+            painelCheque.classList.add('d-none');
         }
         recalcularTotais();
     });
+
+    // Validação no Envio do Formulário para Cheques
+    if (formVenda) {
+        formVenda.addEventListener('submit', function(e) {
+            if (selFormaPagamento.value === 'CHEQUE') {
+                serializarChequesJson();
+                const folhas = containerFolhasCheque.querySelectorAll('.card-folha-cheque');
+                if (folhas.length === 0) {
+                    alert("Por favor, informe os dados do cheque para finalizar a venda.");
+                    e.preventDefault();
+                    return;
+                }
+                for (let i = 0; i < folhas.length; i++) {
+                    const folha = folhas[i];
+                    const num = folha.querySelector('.input-chq-numero')?.value.trim();
+                    const banco = folha.querySelector('.input-chq-banco')?.value.trim();
+                    const tit = folha.querySelector('.input-chq-titular')?.value.trim();
+                    const val = parseFloat(folha.querySelector('.input-chq-valor')?.value || 0);
+
+                    if (!num) {
+                        alert(`Por favor, preencha o número do cheque #${i + 1}.`);
+                        folha.querySelector('.input-chq-numero')?.focus();
+                        e.preventDefault();
+                        return;
+                    }
+                    if (!banco) {
+                        alert(`Por favor, preencha o banco do cheque #${i + 1}.`);
+                        folha.querySelector('.input-chq-banco')?.focus();
+                        e.preventDefault();
+                        return;
+                    }
+                    if (!tit) {
+                        alert(`Por favor, preencha o titular/emitente do cheque #${i + 1}.`);
+                        folha.querySelector('.input-chq-titular')?.focus();
+                        e.preventDefault();
+                        return;
+                    }
+                    if (val <= 0) {
+                        alert(`O valor do cheque #${i + 1} deve ser maior que zero.`);
+                        folha.querySelector('.input-chq-valor')?.focus();
+                        e.preventDefault();
+                        return;
+                    }
+                }
+            }
+        });
+    }
 
     // Dispara mudança de cliente se já houver cliente na URL
     if (selCliente.value) {

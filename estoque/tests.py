@@ -10,7 +10,7 @@ from .models import (
     Empresa, Produto, SimulacaoPreco, UserProfile, Lote, Cliente,
     Venda, ItemVenda, ContaReceber, PagamentoCrediario, SaidaEstoque,
     PagamentoAssinatura, HistoricoPreco, AliquotaImposto, Categoria,
-    Emprestimo, HistoricoEmprestimo, ConfiguracaoEmpresa
+    Emprestimo, HistoricoEmprestimo, ConfiguracaoEmpresa, Cheque
 )
 from django.core.files.uploadedfile import SimpleUploadedFile
 
@@ -2839,6 +2839,337 @@ class VendasPDVTestCase(TestCase):
         self.assertEqual(parcelas.count(), 2)
         self.assertEqual(parcelas[0].valor_parcela, Decimal('100.00'))
         self.assertEqual(parcelas[1].valor_parcela, Decimal('100.00'))
+
+
+class TesteDashboard180DiasECheques(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='lojista_cheque', password='password123')
+        self.empresa = Empresa.objects.create(
+            nome='Empresa Cheques Ltda',
+            cnpj='11.222.333/0001-44',
+            status_assinatura='ATIVA',
+            assinatura_fim=timezone.now() + timedelta(days=60)
+        )
+        self.profile = UserProfile.objects.create(user=self.user, empresa=self.empresa, e_dono=True)
+        self.config, _ = ConfiguracaoEmpresa.objects.get_or_create(
+            empresa=self.empresa,
+            defaults={
+                'modulo_vendas_pdv': True,
+                'modulo_controle_lotes': True,
+                'modulo_clientes_crediario': True
+            }
+        )
+        self.config.modulo_vendas_pdv = True
+        self.config.modulo_controle_lotes = True
+        self.config.modulo_clientes_crediario = True
+        self.config.save()
+        self.cliente = Cliente.objects.create(
+            empresa=self.empresa,
+            nome='Maria Souza',
+            cpf_cnpj='123.456.789-00',
+            telefone='(11) 98888-7777',
+            ativo=True
+        )
+        self.produto = Produto.objects.create(
+            empresa=self.empresa,
+            nome='Vitamina C 1000mg',
+            preco_venda=Decimal('50.00')
+        )
+        self.lote = Lote.objects.create(
+            produto=self.produto,
+            numero_lote='LOT-180',
+            quantidade_inicial=100,
+            quantidade_atual=100,
+            preco_compra=Decimal('20.00'),
+            data_fabricacao=timezone.now().date() - timedelta(days=30),
+            data_validade=timezone.now().date() + timedelta(days=120),  # Vence em 120 dias
+            status='ATIVO'
+        )
+
+    def test_dashboard_produtos_para_vencer_180_dias(self):
+        """Valida que o dashboard inclui produtos vencendo em até 180 dias"""
+        self.client.force_login(self.user)
+
+        # Lote que vence em 150 dias (deve ser contabilizado no filtro de 180 dias)
+        lote_150 = Lote.objects.create(
+            produto=self.produto,
+            numero_lote='LOT-150',
+            quantidade_inicial=50,
+            quantidade_atual=50,
+            preco_compra=Decimal('20.00'),
+            data_fabricacao=timezone.now().date(),
+            data_validade=timezone.now().date() + timedelta(days=150),
+            status='ATIVO'
+        )
+
+        # Lote que vence em 220 dias (NÃO deve ser contabilizado no filtro de 180 dias)
+        lote_220 = Lote.objects.create(
+            produto=self.produto,
+            numero_lote='LOT-220',
+            quantidade_inicial=50,
+            quantidade_atual=50,
+            preco_compra=Decimal('20.00'),
+            data_fabricacao=timezone.now().date(),
+            data_validade=timezone.now().date() + timedelta(days=220),
+            status='ATIVO'
+        )
+
+        response = self.client.get(reverse('dashboard'), HTTP_HOST='localhost')
+        self.assertEqual(response.status_code, 200)
+
+        # Deve contabilizar lote de 120 dias e 150 dias = 2 lotes
+        self.assertEqual(response.context['qtd_lotes_vencendo'], 2)
+        self.assertContains(response, 'Vencendo em 180 dias')
+
+    def test_venda_cheque_individual_sucesso(self):
+        """Valida fluxo de venda via cheque com 1 folha preenchida diretamente"""
+        self.client.force_login(self.user)
+
+        itens_payload = [
+            {
+                'produto_id': self.produto.id,
+                'lote_id': self.lote.id,
+                'quantidade': 2,
+                'preco_unitario': 50.00
+            }
+        ]
+
+        post_data = {
+            'itens_json': json.dumps(itens_payload),
+            'forma_pagamento': 'CHEQUE',
+            'cliente_id': self.cliente.id,
+            'desconto': '0.00',
+            'cheque_numero': '000543',
+            'cheque_banco': '001 - Banco do Brasil',
+            'cheque_agencia': '1234-5',
+            'cheque_conta': '56789-0',
+            'cheque_titular': 'Maria Souza',
+            'cheque_cpf_cnpj': '123.456.789-00',
+            'cheque_telefone': '(11) 98888-7777',
+            'cheque_tipo': 'PRE_DATADO',
+            'cheque_data_compensacao': (timezone.now().date() + timedelta(days=30)).strftime('%Y-%m-%d'),
+            'cheque_status': 'PENDENTE',
+            'observacoes': 'Cheque para 30 dias'
+        }
+
+        response = self.client.post(reverse('registrar_venda'), data=post_data, HTTP_HOST='localhost')
+        self.assertEqual(response.status_code, 302)
+
+        venda = Venda.objects.filter(empresa=self.empresa).first()
+        self.assertIsNotNone(venda)
+        self.assertEqual(venda.valor_total, Decimal('100.00'))
+        self.assertEqual(venda.forma_pagamento, 'CHEQUE')
+        self.assertEqual(venda.status_pagamento, 'PENDENTE')
+
+        # Cheque criado e associado
+        self.assertEqual(venda.cheques.count(), 1)
+        cheque = venda.cheques.first()
+        self.assertEqual(cheque.numero, '000543')
+        self.assertEqual(cheque.banco, '001 - Banco do Brasil')
+        self.assertEqual(cheque.titular, 'Maria Souza')
+        self.assertEqual(cheque.valor, Decimal('100.00'))
+        self.assertEqual(cheque.status, 'PENDENTE')
+
+        # Detalhe da venda exibe dados do cheque
+        resp_detalhe = self.client.get(reverse('detalhe_venda', args=[venda.pk]), HTTP_HOST='localhost')
+        self.assertEqual(resp_detalhe.status_code, 200)
+        self.assertContains(resp_detalhe, '000543')
+        self.assertContains(resp_detalhe, '001 - Banco do Brasil')
+        self.assertContains(resp_detalhe, 'A Compensar')
+
+        # Cupom térmico exibe dados do cheque
+        resp_cupom = self.client.get(reverse('imprimir_cupom_venda', args=[venda.pk]), HTTP_HOST='localhost')
+        self.assertEqual(resp_cupom.status_code, 200)
+        self.assertContains(resp_cupom, 'CHEQUE')
+        self.assertContains(resp_cupom, '000543')
+
+    def test_venda_multiplos_cheques_json(self):
+        """Valida venda parcelada em múltiplas folhas de cheque via JSON"""
+        self.client.force_login(self.user)
+
+        itens_payload = [
+            {
+                'produto_id': self.produto.id,
+                'lote_id': self.lote.id,
+                'quantidade': 4,
+                'preco_unitario': 50.00
+            }
+        ]
+
+        # Total 200.00 parcelado em 2 cheques de 100.00
+        hoje = timezone.now().date()
+        cheques_payload = [
+            {
+                'numero': 'CHQ-001',
+                'banco': '341 - Itaú',
+                'agencia': '0101',
+                'conta': '12345',
+                'titular': 'Maria Souza',
+                'cpf_cnpj_titular': '123.456.789-00',
+                'telefone_titular': '(11) 98888-7777',
+                'valor': 100.00,
+                'tipo': 'PRE_DATADO',
+                'data_compensacao': (hoje + timedelta(days=30)).strftime('%Y-%m-%d'),
+                'status': 'PENDENTE'
+            },
+            {
+                'numero': 'CHQ-002',
+                'banco': '341 - Itaú',
+                'agencia': '0101',
+                'conta': '12345',
+                'titular': 'Maria Souza',
+                'cpf_cnpj_titular': '123.456.789-00',
+                'telefone_titular': '(11) 98888-7777',
+                'valor': 100.00,
+                'tipo': 'PRE_DATADO',
+                'data_compensacao': (hoje + timedelta(days=60)).strftime('%Y-%m-%d'),
+                'status': 'PENDENTE'
+            }
+        ]
+
+        post_data = {
+            'itens_json': json.dumps(itens_payload),
+            'forma_pagamento': 'CHEQUE',
+            'cliente_id': self.cliente.id,
+            'cheques_json': json.dumps(cheques_payload)
+        }
+
+        response = self.client.post(reverse('registrar_venda'), data=post_data, HTTP_HOST='localhost')
+        self.assertEqual(response.status_code, 302)
+
+        venda = Venda.objects.filter(empresa=self.empresa).first()
+        self.assertEqual(venda.cheques.count(), 2)
+        ch1 = venda.cheques.filter(numero='CHQ-001').first()
+        ch2 = venda.cheques.filter(numero='CHQ-002').first()
+        self.assertEqual(ch1.valor, Decimal('100.00'))
+        self.assertEqual(ch2.valor, Decimal('100.00'))
+
+    def test_alterar_status_cheque_e_sincronizacao_venda(self):
+        """Valida que compensar todos os cheques de uma venda atualiza a venda para PAGO"""
+        self.client.force_login(self.user)
+
+        venda = Venda.objects.create(
+            empresa=self.empresa,
+            codigo_venda='VD-TEST-CHQ',
+            cliente=self.cliente,
+            usuario=self.user,
+            valor_subtotal=Decimal('100.00'),
+            valor_total=Decimal('100.00'),
+            forma_pagamento='CHEQUE',
+            status='CONCLUIDA',
+            status_pagamento='PENDENTE'
+        )
+        cheque = Cheque.objects.create(
+            empresa=self.empresa,
+            venda=venda,
+            cliente=self.cliente,
+            numero='999001',
+            banco='033 - Santander',
+            titular='Maria Souza',
+            valor=Decimal('100.00'),
+            tipo='PRE_DATADO',
+            data_compensacao=timezone.now().date(),
+            status='PENDENTE'
+        )
+
+        # Altera para COMPENSADO
+        resp = self.client.post(
+            reverse('alterar_status_cheque', args=[cheque.pk]),
+            data={'novo_status': 'COMPENSADO'},
+            HTTP_HOST='localhost'
+        )
+        self.assertEqual(resp.status_code, 302)
+
+        cheque.refresh_from_db()
+        self.assertEqual(cheque.status, 'COMPENSADO')
+        self.assertIsNotNone(cheque.data_baixa)
+
+        venda.refresh_from_db()
+        self.assertEqual(venda.status_pagamento, 'PAGO')
+
+        # Altera para DEVOLVIDO
+        self.client.post(
+            reverse('alterar_status_cheque', args=[cheque.pk]),
+            data={'novo_status': 'DEVOLVIDO'},
+            HTTP_HOST='localhost'
+        )
+        cheque.refresh_from_db()
+        self.assertEqual(cheque.status, 'DEVOLVIDO')
+
+        venda.refresh_from_db()
+        self.assertEqual(venda.status_pagamento, 'PENDENTE')
+
+    def test_cancelamento_venda_cheques(self):
+        """Valida que o cancelamento de uma venda cancela os cheques vinculados"""
+        self.client.force_login(self.user)
+
+        venda = Venda.objects.create(
+            empresa=self.empresa,
+            codigo_venda='VD-CANCEL-CHQ',
+            cliente=self.cliente,
+            usuario=self.user,
+            valor_subtotal=Decimal('80.00'),
+            valor_total=Decimal('80.00'),
+            forma_pagamento='CHEQUE',
+            status='CONCLUIDA',
+            status_pagamento='PENDENTE'
+        )
+        cheque = Cheque.objects.create(
+            empresa=self.empresa,
+            venda=venda,
+            cliente=self.cliente,
+            numero='888001',
+            banco='104 - Caixa',
+            titular='Maria Souza',
+            valor=Decimal('80.00'),
+            tipo='PRE_DATADO',
+            data_compensacao=timezone.now().date() + timedelta(days=15),
+            status='PENDENTE'
+        )
+
+        resp = self.client.post(reverse('cancelar_venda', args=[venda.pk]), HTTP_HOST='localhost')
+        self.assertEqual(resp.status_code, 302)
+
+        venda.refresh_from_db()
+        cheque.refresh_from_db()
+        self.assertEqual(venda.status, 'CANCELADA')
+        self.assertEqual(cheque.status, 'CANCELADO')
+
+    def test_painel_controle_cheques_view(self):
+        """Valida renderização e filtros do painel de controle de cheques"""
+        self.client.force_login(self.user)
+
+        venda = Venda.objects.create(
+            empresa=self.empresa,
+            codigo_venda='VD-LIST-CHQ',
+            cliente=self.cliente,
+            usuario=self.user,
+            valor_subtotal=Decimal('150.00'),
+            valor_total=Decimal('150.00'),
+            forma_pagamento='CHEQUE',
+            status='CONCLUIDA',
+            status_pagamento='PENDENTE'
+        )
+        Cheque.objects.create(
+            empresa=self.empresa,
+            venda=venda,
+            cliente=self.cliente,
+            numero='777001',
+            banco='237 - Bradesco',
+            titular='Maria Souza',
+            valor=Decimal('150.00'),
+            tipo='PRE_DATADO',
+            data_compensacao=timezone.now().date() + timedelta(days=20),
+            status='PENDENTE'
+        )
+
+        resp = self.client.get(reverse('lista_cheques'), HTTP_HOST='localhost')
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'Controle de Cheques')
+        self.assertContains(resp, '777001')
+        self.assertContains(resp, '237 - Bradesco')
+        self.assertEqual(resp.context['total_a_compensar'], Decimal('150.00'))
+
 
 
 

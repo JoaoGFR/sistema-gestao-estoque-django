@@ -152,7 +152,7 @@
                 <hr class="my-2 opacity-25">
                 <div class="d-flex justify-content-between align-items-center text-muted" style="font-size: 0.8rem;">
                     {% if not modulos or modulos.modulo_controle_lotes %}
-                    <span>Vencendo em 90 dias: <strong class="text-danger">{{ qtd_lotes_vencendo }}</strong></span>
+                    <span>Vencendo em 180 dias: <strong class="text-danger">{{ qtd_lotes_vencendo }}</strong></span>
                     {% endif %}
                     {% if not modulos or modulos.modulo_emprestimos %}
                     <span>Empréstimos: <strong>{{ emprestimos_pendentes }}</strong></span>
@@ -331,7 +331,7 @@
                         {% else %}
                             <div class="text-center py-4 text-muted small">
                                 <i class="bi bi-shield-check fs-2 text-success d-block mb-1"></i>
-                                Nenhum lote com vencimento nos próximos 90 dias.
+                                Nenhum lote com vencimento nos próximos 180 dias.
                             </div>
                         {% endif %}
                     </div>

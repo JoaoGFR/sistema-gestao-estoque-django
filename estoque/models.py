@@ -509,6 +509,7 @@ class Venda(models.Model):
         ('PIX', 'PIX'),
         ('DEBITO', 'Cartão de Débito'),
         ('CREDITO', 'Cartão de Crédito'),
+        ('CHEQUE', 'Cheque'),
         ('CREDIARIO', 'Crediário / A Prazo'),
     ]
 
@@ -624,6 +625,7 @@ class PagamentoCrediario(models.Model):
         ('PIX', 'PIX'),
         ('DEBITO', 'Cartão de Débito'),
         ('CREDITO', 'Cartão de Crédito'),
+        ('CHEQUE', 'Cheque'),
         ('OUTRO', 'Outro'),
     ]
 
@@ -721,4 +723,64 @@ class HistoricoPreco(models.Model):
 
     def __str__(self):
         return f"{self.produto.nome}: R$ {self.preco_anterior} -> R$ {self.preco_novo}"
+
+
+# 15. CHEQUES
+class Cheque(models.Model):
+    STATUS_CHOICES = [
+        ('PENDENTE', 'Em Carteira (A Compensar)'),
+        ('COMPENSADO', 'Compensado'),
+        ('DEVOLVIDO', 'Devolvido'),
+        ('CANCELADO', 'Cancelado'),
+    ]
+    TIPO_CHOICES = [
+        ('A_VISTA', 'À Vista'),
+        ('PRE_DATADO', 'Pré-datado'),
+    ]
+
+    empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE, related_name='cheques')
+    venda = models.ForeignKey(Venda, on_delete=models.CASCADE, related_name='cheques', verbose_name="Venda de Origem")
+    cliente = models.ForeignKey(Cliente, on_delete=models.SET_NULL, null=True, blank=True, related_name='cheques', verbose_name="Cliente")
+
+    # Dados Bancários
+    numero = models.CharField(max_length=50, verbose_name="Número do Cheque")
+    banco = models.CharField(max_length=100, verbose_name="Banco (Nome ou Código)")
+    agencia = models.CharField(max_length=20, blank=True, null=True, verbose_name="Agência")
+    conta = models.CharField(max_length=30, blank=True, null=True, verbose_name="Conta Corrente")
+
+    # Emitente / Titular
+    titular = models.CharField(max_length=150, verbose_name="Nome do Titular / Emitente")
+    cpf_cnpj_titular = models.CharField(max_length=25, blank=True, null=True, verbose_name="CPF/CNPJ do Titular")
+    telefone_titular = models.CharField(max_length=30, blank=True, null=True, verbose_name="Telefone de Contato")
+
+    # Valores e Prazos
+    valor = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Valor do Cheque (R$)")
+    tipo = models.CharField(max_length=20, choices=TIPO_CHOICES, default='PRE_DATADO', verbose_name="Tipo de Cheque")
+    data_emissao = models.DateField(default=timezone.now, verbose_name="Data de Emissão")
+    data_compensacao = models.DateField(verbose_name="Bom para / Data de Compensação")
+
+    # Situação e Controle
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDENTE', verbose_name="Status do Cheque")
+    data_baixa = models.DateField(null=True, blank=True, verbose_name="Data da Baixa / Compensação")
+    observacoes = models.TextField(blank=True, null=True, verbose_name="Observações")
+    data_cadastro = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ['data_compensacao', '-data_cadastro']
+        verbose_name = "Cheque"
+        verbose_name_plural = "Cheques"
+
+    @property
+    def esta_vencido(self):
+        hoje = timezone.now().date()
+        return self.status == 'PENDENTE' and self.data_compensacao < hoje
+
+    @property
+    def dias_para_compensar(self):
+        hoje = timezone.now().date()
+        return (self.data_compensacao - hoje).days
+
+    def __str__(self):
+        return f"Cheque Nº {self.numero} - {self.banco} (R$ {self.valor})"
+
 

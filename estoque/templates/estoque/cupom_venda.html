@@ -316,7 +316,6 @@
             <strong>{{ venda.get_forma_pagamento_display|upper }}</strong>
         </div>
 
-        <!-- 7. CRONOGRAMA DE PARCELAS DO CREDIÁRIO (SE HOUVER) -->
         {% if venda.parcelas.exists %}
         <div class="linha-tracejada"></div>
         <div class="text-center fw-bold" style="font-size: 11px; margin-bottom: 3px;">
@@ -329,6 +328,24 @@
             <strong class="{% if p.status == 'PAGO' %}text-muted{% endif %}">
                 R$ {{ p.valor_parcela|floatformat:2 }} {% if p.status == 'PAGO' %}(Pago){% endif %}
             </strong>
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        <!-- DETALHES DO CHEQUE (SE HOUVER) -->
+        {% if venda.cheques.exists %}
+        <div class="linha-tracejada"></div>
+        <div class="text-center fw-bold" style="font-size: 11px; margin-bottom: 3px;">
+            DADOS DO(S) CHEQUE(S)
+        </div>
+        <div class="linha-tracejada"></div>
+        {% for chq in venda.cheques.all %}
+        <div class="parcela-item" style="font-size: 10px;">
+            <span>Chq {{ chq.numero }} ({{ chq.banco }}):</span>
+            <strong>R$ {{ chq.valor|floatformat:2 }}</strong>
+        </div>
+        <div style="font-size: 9px; color: #444; margin-bottom: 3px;">
+            Bom para: {{ chq.data_compensacao|date:"d/m/Y" }} | Titular: {{ chq.titular }}
         </div>
         {% endfor %}
         {% endif %}

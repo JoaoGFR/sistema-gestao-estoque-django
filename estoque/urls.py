@@ -94,6 +94,8 @@ urlpatterns = [
     path('vendas/<int:pk>/', views.detalhe_venda, name='detalhe_venda'),
     path('vendas/<int:pk>/cupom/', views.imprimir_cupom_venda, name='imprimir_cupom_venda'),
     path('vendas/<int:pk>/cancelar/', views.cancelar_venda, name='cancelar_venda'),
+    path('vendas/cheques/', views.lista_cheques, name='lista_cheques'),
+    path('vendas/cheques/<int:pk>/status/', views.alterar_status_cheque, name='alterar_status_cheque'),
 
     # --- CREDIÁRIO / CONTAS A RECEBER ---
     path('crediario/', views.painel_crediario, name='painel_crediario'),
