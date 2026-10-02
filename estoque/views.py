@@ -1,6 +1,7 @@
 import logging
 import re
 from django.shortcuts import render, redirect, get_object_or_404
+from django.urls import reverse
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import login, logout
 from django.contrib.auth.models import User 
@@ -23,7 +24,7 @@ from .models import (
     Produto, Emprestimo, HistoricoEmprestimo, SaidaEstoque, Empresa, UserProfile, Lote, Categoria,
     Localizacao, AliquotaImposto, SimulacaoPreco, Cliente, Venda, ItemVenda,
     ContaReceber, PagamentoCrediario, PagamentoAssinatura, HistoricoPreco,
-    ConfiguracaoEmpresa, Cheque
+    ConfiguracaoEmpresa, Cheque, PagamentoVenda
 )
 from .mercadopago_service import (
     criar_preferencia_assinatura, consultar_pagamento_mp,
@@ -254,7 +255,8 @@ def dashboard(request):
         'DEBITO': 'Débito',
         'CREDITO': 'Crédito',
         'CHEQUE': 'Cheque',
-        'CREDIARIO': 'Crediário'
+        'CREDIARIO': 'Crediário',
+        'MULTIPLO': 'Combinado',
     }
     formas_qs = Venda.objects.filter(
         empresa=empresa,
@@ -2882,15 +2884,97 @@ def registrar_venda(request):
 
                     valor_total = max(0.0, round(subtotal_geral - desconto + valor_adicional, 2))
 
-                    # Validação de Limite de Crediário
-                    if forma_pagamento == 'CREDIARIO' and cliente:
+                    # Processamento de Pagamento Múltiplo / Combinado
+                    pagamentos_multiplos_para_criar = []
+                    tem_crediario_multiplo = False
+                    valor_crediario_multiplo = Decimal('0.00')
+                    num_parcelas_multiplo = num_parcelas
+                    primeiro_venc_multiplo = primeiro_vencimento_str
+                    intervalo_dias_multiplo = intervalo_dias
+                    valor_cheque_multiplo = Decimal('0.00')
+                    tem_cheque_multiplo = False
+
+                    if forma_pagamento == 'MULTIPLO':
+                        pagamentos_multiplos_json = request.POST.get('pagamentos_multiplos_json')
+                        lista_multiplos = []
+                        if pagamentos_multiplos_json:
+                            try:
+                                lista_multiplos = json.loads(pagamentos_multiplos_json)
+                            except Exception:
+                                lista_multiplos = []
+                        if not lista_multiplos or not isinstance(lista_multiplos, list):
+                            raise ValueError("Para vendas com pagamento combinado, informe ao menos uma forma de pagamento.")
+
+                        soma_multiplos = Decimal('0.00')
+                        for idx_m, m in enumerate(lista_multiplos, 1):
+                            f_m = str(m.get('forma', '')).upper().strip()
+                            if f_m not in ['DINHEIRO', 'PIX', 'DEBITO', 'CREDITO', 'CHEQUE', 'CREDIARIO', 'OUTRO']:
+                                raise ValueError(f"Forma de pagamento #{idx_m} inválida: '{f_m}'.")
+
+                            try:
+                                v_m = Decimal(str(m.get('valor', 0)).replace(',', '.'))
+                            except Exception:
+                                v_m = Decimal('0.00')
+
+                            if v_m <= Decimal('0.00'):
+                                raise ValueError(f"O valor do pagamento #{idx_m} ({f_m}) deve ser maior que zero.")
+
+                            soma_multiplos += v_m
+
+                            if f_m == 'CREDIARIO':
+                                tem_crediario_multiplo = True
+                                valor_crediario_multiplo += v_m
+                                if 'num_parcelas' in m and m['num_parcelas']:
+                                    try:
+                                        num_parcelas_multiplo = int(m['num_parcelas'])
+                                    except ValueError:
+                                        pass
+                                if 'primeiro_vencimento' in m and m['primeiro_vencimento']:
+                                    primeiro_venc_multiplo = str(m['primeiro_vencimento'])
+                                if 'intervalo_dias' in m and m['intervalo_dias']:
+                                    try:
+                                        intervalo_dias_multiplo = int(m['intervalo_dias'])
+                                    except ValueError:
+                                        pass
+
+                            if f_m == 'CHEQUE':
+                                tem_cheque_multiplo = True
+                                valor_cheque_multiplo += v_m
+
+                            pagamentos_multiplos_para_criar.append({
+                                'forma': f_m,
+                                'valor': v_m,
+                                'observacoes': str(m.get('observacoes', '')).strip()
+                            })
+
+                        if abs(soma_multiplos - Decimal(str(valor_total))) > Decimal('0.05'):
+                            raise ValueError(f"A soma dos meios de pagamento combinados (R$ {soma_multiplos:.2f}) não confere com o total da venda (R$ {valor_total:.2f}).")
+
+                        if tem_crediario_multiplo:
+                            if not cliente:
+                                raise ValueError("Para incluir Crediário / A Prazo no pagamento combinado, é obrigatório selecionar um cliente cadastrado.")
+                            if not cliente.ativo:
+                                raise ValueError(f"O cliente '{cliente.nome}' está inativo no sistema.")
+                            if cliente.limite_credito > 0 and (float(cliente.saldo_devedor) + float(valor_crediario_multiplo)) > float(cliente.limite_credito):
+                                disponivel = max(0.0, float(cliente.limite_credito) - float(cliente.saldo_devedor))
+                                raise ValueError(f"A parcela no crediário (R$ {valor_crediario_multiplo:.2f}) ultrapassa o limite disponível do cliente '{cliente.nome}' (R$ {disponivel:.2f}).")
+
+                    elif forma_pagamento == 'CREDIARIO':
+                        # Validação de Limite de Crediário Padrão
+                        if not cliente:
+                            raise ValueError("Para realizar vendas no Crediário / A Prazo, é obrigatório selecionar um cliente cadastrado.")
+                        if cliente and not cliente.ativo:
+                            raise ValueError(f"O cliente '{cliente.nome}' está inativo no sistema.")
                         if cliente.limite_credito > 0 and (float(cliente.saldo_devedor) + valor_total) > float(cliente.limite_credito):
                             disponivel = max(0.0, float(cliente.limite_credito) - float(cliente.saldo_devedor))
                             raise ValueError(f"O valor total (R$ {valor_total:.2f}) ultrapassa o limite disponível do cliente '{cliente.nome}' (R$ {disponivel:.2f}).")
 
                     # Processamento e Validação de Cheques
                     cheques_para_criar = []
-                    if forma_pagamento == 'CHEQUE':
+                    precisa_cheque = forma_pagamento == 'CHEQUE' or (forma_pagamento == 'MULTIPLO' and tem_cheque_multiplo)
+                    valor_esperado_cheque = valor_cheque_multiplo if forma_pagamento == 'MULTIPLO' else Decimal(str(valor_total))
+
+                    if precisa_cheque:
                         cheques_json = request.POST.get('cheques_json')
                         cheques_lista = []
                         if cheques_json:
@@ -2915,7 +2999,7 @@ def registrar_venda(request):
                                     'titular': chq_titular,
                                     'cpf_cnpj_titular': request.POST.get('cheque_cpf_cnpj', '').strip() or (cliente.cpf_cnpj if cliente else ''),
                                     'telefone_titular': request.POST.get('cheque_telefone', '').strip() or (cliente.telefone if cliente else ''),
-                                    'valor': valor_total,
+                                    'valor': valor_esperado_cheque,
                                     'tipo': request.POST.get('cheque_tipo', 'PRE_DATADO'),
                                     'data_compensacao': request.POST.get('cheque_data_compensacao'),
                                     'status': request.POST.get('cheque_status', 'PENDENTE'),
@@ -2923,7 +3007,7 @@ def registrar_venda(request):
                                 })
 
                         if not cheques_lista:
-                            raise ValueError("Para vendas pagas em Cheque, é necessário preencher os dados do(s) cheque(s).")
+                            raise ValueError("Para vendas com pagamento em Cheque, é necessário preencher os dados do(s) cheque(s).")
 
                         soma_cheques = Decimal('0.00')
                         hoje_date = timezone.now().date()
@@ -2982,14 +3066,27 @@ def registrar_venda(request):
                                 'observacoes': str(c.get('observacoes', '')).strip(),
                             })
 
-                        if abs(soma_cheques - Decimal(str(valor_total))) > Decimal('0.05'):
-                            raise ValueError(f"A soma dos cheques (R$ {soma_cheques:.2f}) não confere com o total da venda (R$ {valor_total:.2f}).")
+                        if abs(soma_cheques - valor_esperado_cheque) > Decimal('0.05'):
+                            raise ValueError(f"A soma dos cheques (R$ {soma_cheques:.2f}) não confere com o valor em cheque (R$ {valor_esperado_cheque:.2f}).")
 
                     # Definição do Status de Pagamento
                     if forma_pagamento == 'CREDIARIO':
                         status_pagamento = 'PENDENTE'
                     elif forma_pagamento == 'CHEQUE':
                         status_pagamento = 'PAGO' if all(ch['status'] == 'COMPENSADO' for ch in cheques_para_criar) else 'PENDENTE'
+                    elif forma_pagamento == 'MULTIPLO':
+                        tem_a_prazo = tem_crediario_multiplo or any(ch['status'] != 'COMPENSADO' for ch in cheques_para_criar)
+                        tem_imediato = any(
+                            p['forma'] in ['DINHEIRO', 'PIX', 'DEBITO', 'CREDITO', 'OUTRO'] or
+                            (p['forma'] == 'CHEQUE' and all(ch['status'] == 'COMPENSADO' for ch in cheques_para_criar))
+                            for p in pagamentos_multiplos_para_criar
+                        )
+                        if tem_a_prazo and tem_imediato:
+                            status_pagamento = 'PARCIAL'
+                        elif tem_a_prazo and not tem_imediato:
+                            status_pagamento = 'PENDENTE'
+                        else:
+                            status_pagamento = 'PAGO'
                     else:
                         status_pagamento = 'PAGO'
 
@@ -3022,22 +3119,50 @@ def registrar_venda(request):
                             saida_estoque=item_data['saida_estoque']
                         )
 
+                    # Persistência dos Pagamentos Registrados
+                    if forma_pagamento == 'MULTIPLO':
+                        for pg_data in pagamentos_multiplos_para_criar:
+                            PagamentoVenda.objects.create(
+                                empresa=empresa,
+                                venda=venda,
+                                tipo='ENTRADA',
+                                forma_pagamento=pg_data['forma'],
+                                valor=pg_data['valor'],
+                                data_pagamento=venda.data_venda,
+                                usuario=request.user,
+                                observacoes=pg_data['observacoes']
+                            )
+                    else:
+                        PagamentoVenda.objects.create(
+                            empresa=empresa,
+                            venda=venda,
+                            tipo='ENTRADA',
+                            forma_pagamento=forma_pagamento,
+                            valor=valor_total,
+                            data_pagamento=venda.data_venda,
+                            usuario=request.user
+                        )
+
                     # Geração de Parcelas do Crediário
-                    if forma_pagamento == 'CREDIARIO':
-                        num_parcelas = max(1, min(num_parcelas, 36))
-                        valor_parcela_base = round(valor_total / num_parcelas, 2)
-                        diferenca = round(valor_total - (valor_parcela_base * num_parcelas), 2)
+                    if forma_pagamento == 'CREDIARIO' or (forma_pagamento == 'MULTIPLO' and tem_crediario_multiplo):
+                        valor_para_parcelar = valor_crediario_multiplo if forma_pagamento == 'MULTIPLO' else Decimal(str(valor_total))
+                        n_parc = max(1, min(num_parcelas_multiplo if forma_pagamento == 'MULTIPLO' else num_parcelas, 36))
+                        dt_str = primeiro_venc_multiplo if forma_pagamento == 'MULTIPLO' else primeiro_vencimento_str
+                        intervalo = intervalo_dias_multiplo if forma_pagamento == 'MULTIPLO' else intervalo_dias
 
-                        if primeiro_vencimento_str:
+                        valor_parcela_base = round(float(valor_para_parcelar) / n_parc, 2)
+                        diferenca = round(float(valor_para_parcelar) - (valor_parcela_base * n_parc), 2)
+
+                        if dt_str:
                             try:
-                                dt_base = datetime.strptime(primeiro_vencimento_str, '%Y-%m-%d').date()
+                                dt_base = datetime.strptime(dt_str, '%Y-%m-%d').date()
                             except ValueError:
-                                dt_base = timezone.now().date() + timedelta(days=intervalo_dias)
+                                dt_base = timezone.now().date() + timedelta(days=intervalo)
                         else:
-                            dt_base = timezone.now().date() + timedelta(days=intervalo_dias)
+                            dt_base = timezone.now().date() + timedelta(days=intervalo)
 
-                        for i in range(num_parcelas):
-                            venc = dt_base + timedelta(days=i * intervalo_dias)
+                        for i in range(n_parc):
+                            venc = dt_base + timedelta(days=i * intervalo)
                             valor_p = valor_parcela_base
                             if i == 0:
                                 valor_p = round(valor_p + diferenca, 2)
@@ -3047,7 +3172,7 @@ def registrar_venda(request):
                                 cliente=cliente,
                                 venda=venda,
                                 numero_parcela=i + 1,
-                                total_parcelas=num_parcelas,
+                                total_parcelas=n_parc,
                                 valor_parcela=valor_p,
                                 valor_pago=0.00,
                                 data_vencimento=venc,
@@ -3055,7 +3180,7 @@ def registrar_venda(request):
                             )
 
                     # Persistência dos Cheques
-                    if forma_pagamento == 'CHEQUE':
+                    if precisa_cheque:
                         for ch_data in cheques_para_criar:
                             Cheque.objects.create(
                                 empresa=empresa,
@@ -3158,13 +3283,19 @@ def detalhe_venda(request, pk):
         return redirect('cadastro_saas')
 
     venda = get_object_or_404(
-        Venda.objects.select_related('cliente', 'usuario', 'empresa').prefetch_related('itens__produto', 'itens__lote', 'parcelas', 'cheques'),
+        Venda.objects.select_related('cliente', 'usuario', 'empresa').prefetch_related(
+            'itens__produto', 'itens__lote', 'parcelas', 'cheques', 'pagamentos__usuario'
+        ),
         pk=pk,
         empresa=empresa
     )
 
+    hoje = timezone.now().date()
+
     return render(request, 'estoque/detalhe_venda.html', {
         'venda': venda,
+        'hoje': hoje.strftime('%Y-%m-%d'),
+        'comprovante_pg': request.GET.get('comprovante_pg'),
     })
 
 
@@ -3180,12 +3311,213 @@ def imprimir_cupom_venda(request, pk):
         return redirect('cadastro_saas')
 
     venda = get_object_or_404(
-        Venda.objects.select_related('cliente', 'usuario', 'empresa').prefetch_related('itens__produto', 'parcelas', 'cheques'),
+        Venda.objects.select_related('cliente', 'usuario', 'empresa').prefetch_related('itens__produto', 'parcelas', 'cheques', 'pagamentos'),
         pk=pk,
         empresa=empresa
     )
 
     return render(request, 'estoque/cupom_venda.html', {
+        'venda': venda,
+        'empresa': empresa,
+    })
+
+
+@login_required
+@requer_modulo('modulo_vendas_pdv')
+def registrar_adiantamento_venda(request, pk):
+    """
+    Registra um adiantamento de pagamento ou amortização financeira dentro de uma venda feita.
+    Abate o saldo restante da venda, atualiza cronograma de parcelas e sincroniza o crediário.
+    """
+    empresa = get_empresa_usuario(request.user)
+    if not empresa:
+        return redirect('cadastro_saas')
+
+    venda = get_object_or_404(Venda, pk=pk, empresa=empresa)
+
+    if venda.status == 'CANCELADA':
+        messages.error(request, "Não é possível registrar adiantamentos para uma venda cancelada.")
+        return redirect('detalhe_venda', pk=pk)
+
+    saldo_devedor = venda.saldo_restante
+    if saldo_devedor <= Decimal('0.00'):
+        messages.warning(request, "Esta venda já está totalmente quitada.")
+        return redirect('detalhe_venda', pk=pk)
+
+    if request.method == 'POST':
+        modo_pagamento = (request.POST.get('modo_pagamento') or request.POST.get('modo_adiantamento') or 'SIMPLES').upper().strip()
+        observacoes = request.POST.get('observacoes', '').strip()
+        data_pagamento_str = request.POST.get('data_pagamento')
+        dt_pagamento = timezone.now()
+        if data_pagamento_str:
+            try:
+                dt_obj = datetime.strptime(data_pagamento_str, '%Y-%m-%d').date()
+                dt_pagamento = timezone.make_aware(datetime.combine(dt_obj, timezone.now().time()))
+            except Exception:
+                dt_pagamento = timezone.now()
+
+        pagamentos_para_registrar = []
+
+        if modo_pagamento == 'MULTIPLO':
+            pagamentos_json = request.POST.get('pagamentos_adiantamento_json') or request.POST.get('pagamentos_multiplos_json') or ''
+            try:
+                lista_pg = json.loads(pagamentos_json) if pagamentos_json else []
+                if not lista_pg or not isinstance(lista_pg, list):
+                    raise ValueError("Nenhum meio de pagamento informado para o adiantamento combinado.")
+
+                soma_multiplo = Decimal('0.00')
+                for item in lista_pg:
+                    f = str(item.get('forma', 'DINHEIRO')).upper().strip()
+                    if f not in ['DINHEIRO', 'PIX', 'DEBITO', 'CREDITO', 'CHEQUE', 'OUTRO']:
+                        raise ValueError(f"Forma de pagamento '{f}' inválida para adiantamento.")
+
+                    try:
+                        v = Decimal(str(item.get('valor', 0)).replace(',', '.'))
+                    except Exception:
+                        v = Decimal('0.00')
+
+                    obs_item = item.get('observacoes', '').strip() or observacoes
+                    if v > Decimal('0.00'):
+                        soma_multiplo += v
+                        pagamentos_para_registrar.append({
+                            'forma': f,
+                            'valor': v,
+                            'observacoes': obs_item
+                        })
+
+                if soma_multiplo <= Decimal('0.00'):
+                    raise ValueError("O valor total do adiantamento deve ser maior que zero.")
+
+                if soma_multiplo > saldo_devedor + Decimal('0.05'):
+                    raise ValueError(f"O valor total do adiantamento (R$ {soma_multiplo:.2f}) excede o saldo restante da venda (R$ {saldo_devedor:.2f}).")
+
+            except Exception as e:
+                messages.error(request, f"Erro ao processar adiantamento: {e}")
+                return redirect('detalhe_venda', pk=pk)
+
+        else:
+            # Modo Simples (Forma Única)
+            valor_str = request.POST.get('valor', '0').replace(',', '.')
+            forma = request.POST.get('forma_pagamento', 'DINHEIRO').upper().strip()
+            if forma not in ['DINHEIRO', 'PIX', 'DEBITO', 'CREDITO', 'CHEQUE', 'OUTRO']:
+                forma = 'DINHEIRO'
+
+            try:
+                valor_adic = Decimal(valor_str)
+                if valor_adic <= Decimal('0.00'):
+                    raise ValueError("O valor do adiantamento deve ser maior que zero.")
+                if valor_adic > saldo_devedor + Decimal('0.05'):
+                    raise ValueError(f"O valor informado (R$ {valor_adic:.2f}) excede o saldo restante da venda (R$ {saldo_devedor:.2f}).")
+
+                pagamentos_para_registrar.append({
+                    'forma': forma,
+                    'valor': valor_adic,
+                    'observacoes': observacoes
+                })
+            except Exception as e:
+                messages.error(request, f"Valor inválido para adiantamento: {e}")
+                return redirect('detalhe_venda', pk=pk)
+
+        # Transação Atômica para registro e amortização
+        with transaction.atomic():
+            total_adiantado = Decimal('0.00')
+            ultimo_pg_id = None
+
+            for pg in pagamentos_para_registrar:
+                forma_pg = pg['forma']
+                val_pg = pg['valor']
+                obs_pg = pg['observacoes']
+                total_adiantado += val_pg
+
+                novo_pg = PagamentoVenda.objects.create(
+                    empresa=empresa,
+                    venda=venda,
+                    tipo='ADIANTAMENTO',
+                    forma_pagamento=forma_pg,
+                    valor=val_pg,
+                    data_pagamento=dt_pagamento,
+                    usuario=request.user,
+                    observacoes=obs_pg
+                )
+                ultimo_pg_id = novo_pg.pk
+
+            # Se a venda possui parcelas (Crediário), amortiza as pendentes em ordem
+            parcelas_pendentes = venda.parcelas.filter(status__in=['PENDENTE', 'ATRASADO']).order_by('data_vencimento', 'numero_parcela')
+            if parcelas_pendentes.exists():
+                restante_amortizar = total_adiantado
+                for p in parcelas_pendentes:
+                    if restante_amortizar <= Decimal('0.00'):
+                        break
+                    saldo_parcela = Decimal(str(p.valor_parcela)) - Decimal(str(p.valor_pago))
+                    if saldo_parcela <= Decimal('0.00'):
+                        continue
+
+                    abater = min(restante_amortizar, saldo_parcela)
+                    p.valor_pago = Decimal(str(p.valor_pago)) + abater
+                    if p.valor_pago >= Decimal(str(p.valor_parcela)) - Decimal('0.01'):
+                        p.status = 'PAGO'
+                        p.data_pagamento = dt_pagamento
+                    p.save()
+
+                    # Registra PagamentoCrediario para manter relatórios de crediário 100% conciliados
+                    forma_rec = pagamentos_para_registrar[0]['forma'] if len(pagamentos_para_registrar) == 1 else 'OUTRO'
+                    if forma_rec not in [f[0] for f in PagamentoCrediario.FORMAS_RECEBIMENTO]:
+                        forma_rec = 'OUTRO'
+
+                    PagamentoCrediario.objects.create(
+                        empresa=empresa,
+                        conta=p,
+                        valor_recebido=abater,
+                        forma_pagamento=forma_rec,
+                        data_recebimento=dt_pagamento,
+                        usuario=request.user,
+                        observacoes=f"Adiantamento recebido na Venda {venda.codigo_venda}"
+                    )
+                    restante_amortizar -= abater
+
+                # Atualiza status da venda
+                todas_parcelas = venda.parcelas.all()
+                if todas_parcelas.exists() and all(parc.status == 'PAGO' for parc in todas_parcelas):
+                    venda.status_pagamento = 'PAGO'
+                else:
+                    venda.status_pagamento = 'PARCIAL'
+            else:
+                # Venda sem parcelas formais de crediário
+                if venda.total_pago >= Decimal(str(venda.valor_total)) - Decimal('0.01'):
+                    venda.status_pagamento = 'PAGO'
+                else:
+                    venda.status_pagamento = 'PARCIAL'
+
+            venda.save()
+
+            messages.success(request, f"Adiantamento de R$ {total_adiantado:.2f} registrado com sucesso!")
+            if ultimo_pg_id:
+                return redirect(f"{reverse('detalhe_venda', kwargs={'pk': pk})}?comprovante_pg={ultimo_pg_id}")
+            return redirect('detalhe_venda', pk=pk)
+
+    return redirect('detalhe_venda', pk=pk)
+
+
+@login_required
+@requer_modulo('modulo_vendas_pdv')
+def imprimir_cupom_adiantamento(request, pk):
+    """
+    Renderiza o comprovante térmico não fiscal (80mm) de um adiantamento de pagamento avulso
+    ou amortização de venda.
+    """
+    empresa = get_empresa_usuario(request.user)
+    if not empresa:
+        return redirect('cadastro_saas')
+
+    pagamento = get_object_or_404(
+        PagamentoVenda.objects.select_related('venda__cliente', 'venda__empresa', 'usuario'),
+        pk=pk,
+        empresa=empresa
+    )
+    venda = pagamento.venda
+
+    return render(request, 'estoque/cupom_adiantamento.html', {
+        'pagamento': pagamento,
         'venda': venda,
         'empresa': empresa,
     })
@@ -3211,9 +3543,9 @@ def cancelar_venda(request, pk):
             messages.warning(request, "Esta venda já está cancelada.")
             return redirect('detalhe_venda', pk=pk)
 
-        # Checa se alguma parcela já foi paga no crediário
-        if venda.parcelas.filter(valor_pago__gt=0).exists():
-            messages.error(request, "Não é possível cancelar uma venda que já possui parcelas amortizadas ou pagas no crediário.")
+        # Checa se alguma parcela já foi paga no crediário ou se há adiantamentos registrados
+        if venda.parcelas.filter(valor_pago__gt=0).exists() or venda.pagamentos.filter(tipo__in=['ADIANTAMENTO', 'PARCELA']).exists():
+            messages.error(request, "Não é possível cancelar uma venda que já possui parcelas amortizadas, pagas ou adiantamentos registrados.")
             return redirect('detalhe_venda', pk=pk)
 
         # Checa se algum cheque já foi compensado
@@ -3490,6 +3822,17 @@ def baixar_parcela(request, pk):
                     data_recebimento=timezone.now(),
                     usuario=request.user,
                     observacoes=observacoes
+                )
+
+                PagamentoVenda.objects.create(
+                    empresa=empresa,
+                    venda=conta.venda,
+                    tipo='PARCELA',
+                    forma_pagamento=forma_pagamento if forma_pagamento in [f[0] for f in PagamentoVenda.FORMAS_PAGAMENTO] else 'OUTRO',
+                    valor=valor_recebido,
+                    data_pagamento=timezone.now(),
+                    usuario=request.user,
+                    observacoes=f"Baixa da parcela {conta.numero_parcela}/{conta.total_parcelas}" + (f": {observacoes}" if observacoes else "")
                 )
 
                 conta.valor_pago = round(float(conta.valor_pago) + float(valor_recebido), 2)

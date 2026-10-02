@@ -2,7 +2,7 @@ from django.contrib import admin
 from .models import (
     Produto, Emprestimo, HistoricoEmprestimo, SaidaEstoque, Empresa, UserProfile,
     AliquotaImposto, SimulacaoPreco, HistoricoPreco, PagamentoAssinatura, ConfiguracaoEmpresa,
-    Venda, ItemVenda, Cliente, ContaReceber, Cheque
+    Venda, ItemVenda, Cliente, ContaReceber, Cheque, PagamentoVenda
 )
 
 # Configuração para editar o UserProfile dentro da tela de Usuário
@@ -71,12 +71,23 @@ class ChequeInline(admin.TabularInline):
     extra = 0
     fields = ('numero', 'banco', 'titular', 'valor', 'tipo', 'data_compensacao', 'status')
 
+class PagamentoVendaInline(admin.TabularInline):
+    model = PagamentoVenda
+    extra = 0
+    fields = ('tipo', 'forma_pagamento', 'valor', 'data_pagamento', 'usuario', 'observacoes')
+
 @admin.register(Venda)
 class VendaAdmin(admin.ModelAdmin):
     list_display = ('codigo_venda', 'empresa', 'cliente', 'usuario', 'valor_subtotal', 'desconto', 'valor_adicional', 'valor_total', 'forma_pagamento', 'status', 'status_pagamento', 'data_venda')
     list_filter = ('forma_pagamento', 'status', 'status_pagamento', 'data_venda', 'empresa')
     search_fields = ('codigo_venda', 'cliente__nome', 'usuario__username', 'observacoes', 'descricao_adicional')
-    inlines = [ItemVendaInline, ChequeInline]
+    inlines = [ItemVendaInline, PagamentoVendaInline, ChequeInline]
+
+@admin.register(PagamentoVenda)
+class PagamentoVendaAdmin(admin.ModelAdmin):
+    list_display = ('venda', 'tipo', 'forma_pagamento', 'valor', 'data_pagamento', 'usuario', 'empresa')
+    list_filter = ('tipo', 'forma_pagamento', 'data_pagamento', 'empresa')
+    search_fields = ('venda__codigo_venda', 'observacoes', 'usuario__username')
 
 @admin.register(Cheque)
 class ChequeAdmin(admin.ModelAdmin):

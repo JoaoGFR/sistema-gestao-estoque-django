@@ -11,6 +11,11 @@
             <i class="bi bi-arrow-left"></i> Voltar às Vendas
         </a>
         <div class="d-flex gap-2">
+            {% if venda.pode_receber_adiantamento %}
+                <button type="button" class="btn btn-success shadow-sm d-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#modalAdiantamento">
+                    <i class="bi bi-cash-coin fs-6"></i> Registrar Adiantamento
+                </button>
+            {% endif %}
             <button type="button" class="btn btn-dark shadow-sm" onclick="imprimirCupomTermico()">
                 <i class="bi bi-printer-fill me-1"></i> Imprimir Cupom Térmico (80mm)
             </button>
@@ -74,18 +79,24 @@
                         </div>
                         <div class="small mb-1">
                             <span class="text-muted">Forma de Pagamento:</span> 
-                            <strong class="text-primary">{{ venda.get_forma_pagamento_display }}</strong>
+                            {% if venda.forma_pagamento == 'MULTIPLO' %}
+                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
+                                    <i class="bi bi-layers-fill me-1"></i> {{ venda.resumo_meios_pagamento }}
+                                </span>
+                            {% else %}
+                                <strong class="text-primary">{{ venda.get_forma_pagamento_display }}</strong>
+                            {% endif %}
                         </div>
                         <div class="small">
                             <span class="text-muted">Status do Pagamento:</span>
                             {% if venda.status_pagamento == 'PAGO' %}
-                                <span class="badge bg-success">Pago</span>
+                                <span class="badge bg-success"><i class="bi bi-check-circle-fill me-1"></i>Totalmente Quitado</span>
                             {% elif venda.forma_pagamento == 'CHEQUE' and venda.status_pagamento == 'PENDENTE' %}
                                 <span class="badge bg-warning text-dark"><i class="bi bi-clock-history me-1"></i>Em Carteira (A Compensar)</span>
                             {% elif venda.status_pagamento == 'PENDENTE' %}
-                                <span class="badge bg-warning text-dark">Em Aberto (Crediário)</span>
+                                <span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split me-1"></i>Em Aberto</span>
                             {% elif venda.status_pagamento == 'PARCIAL' %}
-                                <span class="badge bg-info text-dark">Parcialmente Pago</span>
+                                <span class="badge bg-info text-dark"><i class="bi bi-pie-chart-fill me-1"></i>Parcialmente Pago ({{ venda.percentual_pago }}%)</span>
                             {% else %}
                                 <span class="badge bg-secondary">Cancelado</span>
                             {% endif %}
@@ -149,12 +160,116 @@
                         </div>
                         {% endif %}
                         <hr class="my-2">
-                        <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
                             <span class="fs-5 fw-bold text-dark">Total da Venda:</span>
                             <span class="fs-4 fw-bold text-primary">R$ {{ venda.valor_total|floatformat:2 }}</span>
                         </div>
+                        <div class="d-flex justify-content-between align-items-center pt-2 border-top">
+                            <span class="small text-muted">Total Pago até agora:</span>
+                            <span class="fw-bold text-success">R$ {{ venda.total_pago|floatformat:2 }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="small text-muted">Saldo Devedor Restante:</span>
+                            <span class="fw-bold {% if venda.saldo_restante > 0 %}text-danger{% else %}text-muted{% endif %}">
+                                R$ {{ venda.saldo_restante|floatformat:2 }}
+                            </span>
+                        </div>
+                        <div class="progress mt-2" style="height: 8px;">
+                            <div class="progress-bar {% if venda.saldo_restante == 0 %}bg-success{% else %}bg-primary{% endif %}" role="progressbar" style="width: {{ venda.percentual_pago }}%;" title="{{ venda.percentual_pago }}% pago"></div>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mt-1">
+                            <small class="text-muted" style="font-size: 0.72rem;">Progresso de Quitação</small>
+                            <small class="fw-bold {% if venda.saldo_restante == 0 %}text-success{% else %}text-primary{% endif %}" style="font-size: 0.72rem;">{{ venda.percentual_pago }}% Pago</small>
+                        </div>
+                        {% if venda.pode_receber_adiantamento %}
+                        <div class="mt-3">
+                            <button type="button" class="btn btn-success btn-sm w-100 fw-bold shadow-sm d-flex align-items-center justify-content-center gap-2" data-bs-toggle="modal" data-bs-target="#modalAdiantamento">
+                                <i class="bi bi-cash-coin fs-6"></i> Registrar Adiantamento
+                            </button>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
+            </div>
+
+            <!-- Seção de Histórico de Pagamentos & Adiantamentos -->
+            <div class="border-top pt-4 mb-4">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                    <div>
+                        <h5 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                            <i class="bi bi-cash-stack text-success"></i> Pagamentos & Adiantamentos Registrados
+                        </h5>
+                        <small class="text-muted">Extrato de entradas, adiantamentos e baixas vinculadas a esta venda</small>
+                    </div>
+                    {% if venda.pode_receber_adiantamento %}
+                    <button type="button" class="btn btn-sm btn-outline-success fw-semibold shadow-sm d-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#modalAdiantamento">
+                        <i class="bi bi-plus-circle"></i> Novo Adiantamento
+                    </button>
+                    {% endif %}
+                </div>
+
+                {% if venda.pagamentos.exists %}
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Data/Hora</th>
+                                <th>Tipo</th>
+                                <th>Forma de Pagamento</th>
+                                <th>Operador</th>
+                                <th class="text-end">Valor Recebido</th>
+                                <th>Observações</th>
+                                <th class="text-center d-print-none" style="width: 130px;">Comprovante</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for pg in venda.pagamentos.all %}
+                            <tr>
+                                <td class="small">{{ pg.data_pagamento|date:"d/m/Y H:i" }}</td>
+                                <td>
+                                    {% if pg.tipo == 'ADIANTAMENTO' %}
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                            <i class="bi bi-arrow-up-right-circle me-1"></i>Adiantamento
+                                        </span>
+                                    {% elif pg.tipo == 'ENTRADA' %}
+                                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
+                                            <i class="bi bi-box-arrow-in-right me-1"></i>Inicial / Entrada
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle">
+                                            <i class="bi bi-check2-circle me-1"></i>Baixa Parcela
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-light text-dark border">
+                                        {% if pg.forma_pagamento == 'DINHEIRO' %}<i class="bi bi-cash me-1 text-success"></i>
+                                        {% elif pg.forma_pagamento == 'PIX' %}<i class="bi bi-qr-code me-1 text-info"></i>
+                                        {% elif pg.forma_pagamento == 'DEBITO' or pg.forma_pagamento == 'CREDITO' %}<i class="bi bi-credit-card me-1 text-primary"></i>
+                                        {% elif pg.forma_pagamento == 'CHEQUE' %}<i class="bi bi-card-heading me-1 text-warning"></i>
+                                        {% elif pg.forma_pagamento == 'CREDIARIO' %}<i class="bi bi-calendar3 me-1 text-secondary"></i>
+                                        {% endif %}
+                                        {{ pg.get_forma_pagamento_display }}
+                                    </span>
+                                </td>
+                                <td class="small text-muted">{{ pg.usuario.get_full_name|default:pg.usuario.username|default:"-" }}</td>
+                                <td class="text-end fw-bold text-success fs-6">R$ {{ pg.valor|floatformat:2 }}</td>
+                                <td class="small text-muted">{{ pg.observacoes|default:"-" }}</td>
+                                <td class="text-center d-print-none">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" onclick="imprimirCupomAdiantamento({{ pg.id }})" title="Imprimir Comprovante Térmico deste Pagamento">
+                                        <i class="bi bi-printer me-1"></i> Recibo
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-light border py-3 px-3 text-center text-muted small mb-0">
+                    <i class="bi bi-info-circle me-1"></i> Nenhum registro detalhado de pagamento anterior registrado nesta venda.
+                </div>
+                {% endif %}
             </div>
 
             <!-- Seção de Parcelas do Crediário (Se Houver) -->
@@ -615,6 +730,131 @@
 }
 </style>
 
+<!-- MODAL REGISTRAR ADIANTAMENTO DE PAGAMENTO -->
+<div class="modal fade" id="modalAdiantamento" tabindex="-1" aria-labelledby="modalAdiantamentoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-success text-white py-3">
+                <h5 class="modal-title fw-bold d-flex align-items-center gap-2" id="modalAdiantamentoLabel">
+                    <i class="bi bi-cash-coin fs-4"></i> Registrar Adiantamento de Pagamento
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <form method="POST" action="{% url 'registrar_adiantamento_venda' venda.pk %}" id="formAdiantamento">
+                {% csrf_token %}
+                <input type="hidden" name="modo_pagamento" id="ad_modo_pagamento" value="SIMPLES">
+                <input type="hidden" name="pagamentos_adiantamento_json" id="ad_pagamentos_json" value="">
+
+                <div class="modal-body p-4">
+
+                    <!-- Resumo do Saldo -->
+                    <div class="alert alert-light border p-3 rounded-3 mb-4 shadow-sm">
+                        <div class="row g-2 text-center text-sm-start align-items-center">
+                            <div class="col-12 col-sm-4 border-end-sm">
+                                <span class="text-muted small d-block">Total da Venda</span>
+                                <strong class="fs-5 text-dark">R$ {{ venda.valor_total|floatformat:2 }}</strong>
+                            </div>
+                            <div class="col-12 col-sm-4 border-end-sm">
+                                <span class="text-muted small d-block">Total Já Pago</span>
+                                <strong class="fs-5 text-success">R$ {{ venda.total_pago|floatformat:2 }}</strong>
+                            </div>
+                            <div class="col-12 col-sm-4">
+                                <span class="text-muted small d-block">Saldo a Pagar</span>
+                                <strong class="fs-4 text-danger" id="ad_txtSaldoRestante" data-saldo="{{ venda.saldo_restante|stringformat:'.2f' }}">
+                                    R$ {{ venda.saldo_restante|floatformat:2 }}
+                                </strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Seletor de Modo: Forma Única vs Combinar Meios -->
+                    <div class="d-flex justify-content-center mb-4">
+                        <div class="btn-group p-1 bg-light border rounded-pill shadow-sm" role="group">
+                            <button type="button" class="btn btn-sm rounded-pill px-3 active fw-semibold" id="btnModoSimples" onclick="alternarModoAdiantamento('SIMPLES')">
+                                <i class="bi bi-check-circle-fill me-1 text-success"></i> Forma Única
+                            </button>
+                            <button type="button" class="btn btn-sm rounded-pill px-3 text-secondary fw-semibold" id="btnModoMultiplo" onclick="alternarModoAdiantamento('MULTIPLO')">
+                                <i class="bi bi-layers-half me-1 text-primary"></i> Combinar Meios de Pagamento
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- MODO 1: FORMA ÚNICA -->
+                    <div id="painelAdiantamentoSimples">
+                        <div class="row g-3 mb-3">
+                            <div class="col-12 col-md-6">
+                                <label class="form-label fw-semibold">Valor do Adiantamento (R$) <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light text-success fw-bold">R$</span>
+                                    <input type="number" name="valor" id="inputAdValor" class="form-control form-control-lg fw-bold text-success" step="0.01" min="0.01" max="{{ venda.saldo_restante|stringformat:'.2f' }}" placeholder="0,00" value="{{ venda.saldo_restante|stringformat:'.2f' }}">
+                                </div>
+                                <div class="d-flex flex-wrap gap-1 mt-2">
+                                    <button type="button" class="btn btn-sm btn-outline-success btn-atalho-ad" data-val="{{ venda.saldo_restante|stringformat:'.2f' }}">
+                                        Quitar Saldo (R$ {{ venda.saldo_restante|floatformat:2 }})
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary btn-atalho-ad" data-val="50.00">+ R$ 50</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary btn-atalho-ad" data-val="100.00">+ R$ 100</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary btn-atalho-ad" data-val="200.00">+ R$ 200</button>
+                                </div>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label fw-semibold">Forma de Pagamento <span class="text-danger">*</span></label>
+                                <select name="forma_pagamento" id="selAdForma" class="form-select form-select-lg fw-semibold">
+                                    <option value="DINHEIRO">💵 Dinheiro</option>
+                                    <option value="PIX" selected>💠 PIX</option>
+                                    <option value="DEBITO">💳 Cartão de Débito</option>
+                                    <option value="CREDITO">💳 Cartão de Crédito</option>
+                                    <option value="CHEQUE">📜 Cheque</option>
+                                    <option value="OUTRO">Outro / Transferência</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- MODO 2: COMBINAR MEIOS NO ADIANTAMENTO -->
+                    <div id="painelAdiantamentoMultiplo" class="d-none">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="fw-semibold text-dark small">Meios de Pagamento a Combinar:</span>
+                            <span class="badge bg-secondary-subtle text-secondary small" id="adBadgeStatusMultiplo">Total Informado: R$ 0,00</span>
+                        </div>
+                        <div id="containerLinhasAdiantamento" class="d-flex flex-column gap-2 mb-3">
+                            <!-- Linhas inseridas dinamicamente via JS -->
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-primary mb-3" onclick="adicionarLinhaAdiantamento()">
+                            <i class="bi bi-plus-lg me-1"></i> Adicionar Outro Meio
+                        </button>
+                    </div>
+
+                    <!-- DATA E OBSERVAÇÕES -->
+                    <div class="row g-3">
+                        <div class="col-12 col-md-5">
+                            <label class="form-label small fw-semibold text-muted">Data do Recebimento</label>
+                            <input type="date" name="data_pagamento" id="inputAdData" class="form-control" value="{{ hoje }}">
+                        </div>
+                        <div class="col-12 col-md-7">
+                            <label class="form-label small fw-semibold text-muted">Observações / Anotações</label>
+                            <input type="text" name="observacoes" class="form-control" placeholder="Ex: Adiantamento entregue no balcão pelo cliente">
+                        </div>
+                    </div>
+
+                    {% if venda.parcelas.exists %}
+                    <div class="alert alert-info small mt-3 mb-0 py-2 px-3">
+                        <i class="bi bi-info-circle-fill me-1"></i> O adiantamento amortizará automaticamente as parcelas pendentes do crediário em ordem cronológica de vencimento.
+                    </div>
+                    {% endif %}
+
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success px-4 fw-bold" id="btnConfirmarAdiantamento">
+                        <i class="bi bi-check-circle-fill me-1"></i> Confirmar Adiantamento
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
 function imprimirCupomTermico() {
     var url = "{% url 'imprimir_cupom_venda' venda.pk %}";
@@ -625,6 +865,199 @@ function imprimirCupomTermico() {
         window.print();
     }
 }
+
+function imprimirCupomAdiantamento(pgId) {
+    var url = "/vendas/pagamento/" + pgId + "/cupom/";
+    var popup = window.open(url, "CupomAdiantamento", "width=420,height=680,menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=yes");
+    if (popup) {
+        popup.focus();
+    }
+}
+
+// Lógica do Modal de Adiantamento
+function alternarModoAdiantamento(modo) {
+    const btnSimples = document.getElementById('btnModoSimples');
+    const btnMultiplo = document.getElementById('btnModoMultiplo');
+    const painelSimples = document.getElementById('painelAdiantamentoSimples');
+    const painelMultiplo = document.getElementById('painelAdiantamentoMultiplo');
+    const modoInput = document.getElementById('ad_modo_pagamento');
+
+    if (modo === 'MULTIPLO') {
+        modoInput.value = 'MULTIPLO';
+        btnMultiplo.classList.add('active', 'btn-primary');
+        btnMultiplo.classList.remove('text-secondary');
+        btnSimples.classList.remove('active', 'btn-primary');
+        btnSimples.classList.add('text-secondary');
+        painelSimples.classList.add('d-none');
+        painelMultiplo.classList.remove('d-none');
+        const container = document.getElementById('containerLinhasAdiantamento');
+        if (container.children.length === 0) {
+            adicionarLinhaAdiantamento('DINHEIRO', 0);
+            adicionarLinhaAdiantamento('PIX', 0);
+        }
+        recalcularMultiploAdiantamento();
+    } else {
+        modoInput.value = 'SIMPLES';
+        btnSimples.classList.add('active', 'btn-primary');
+        btnSimples.classList.remove('text-secondary');
+        btnMultiplo.classList.remove('active', 'btn-primary');
+        btnMultiplo.classList.add('text-secondary');
+        painelSimples.classList.remove('d-none');
+        painelMultiplo.classList.add('d-none');
+    }
+}
+
+function adicionarLinhaAdiantamento(formaPadrao, valorPadrao) {
+    const container = document.getElementById('containerLinhasAdiantamento');
+    const saldoRestante = parseFloat(document.getElementById('ad_txtSaldoRestante')?.dataset.saldo || 0);
+
+    const div = document.createElement('div');
+    div.className = 'card bg-light border p-2 rounded-2 linha-ad-multiplo';
+    div.innerHTML = `
+        <div class="row g-2 align-items-center">
+            <div class="col-5">
+                <select class="form-select form-select-sm sel-ad-forma">
+                    <option value="DINHEIRO" ${formaPadrao === 'DINHEIRO' ? 'selected' : ''}>💵 Dinheiro</option>
+                    <option value="PIX" ${formaPadrao === 'PIX' ? 'selected' : ''}>💠 PIX</option>
+                    <option value="DEBITO" ${formaPadrao === 'DEBITO' ? 'selected' : ''}>💳 Débito</option>
+                    <option value="CREDITO" ${formaPadrao === 'CREDITO' ? 'selected' : ''}>💳 Crédito</option>
+                    <option value="CHEQUE" ${formaPadrao === 'CHEQUE' ? 'selected' : ''}>📜 Cheque</option>
+                    <option value="OUTRO" ${formaPadrao === 'OUTRO' ? 'selected' : ''}>Outro</option>
+                </select>
+            </div>
+            <div class="col-5">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text">R$</span>
+                    <input type="number" class="form-control input-ad-valor" step="0.01" min="0" placeholder="0,00" value="${valorPadrao !== undefined ? valorPadrao : ''}">
+                </div>
+            </div>
+            <div class="col-2 text-end">
+                <button type="button" class="btn btn-sm btn-outline-danger py-1 px-2 btn-remove-linha-ad" title="Remover">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+        </div>
+    `;
+
+    div.querySelector('.btn-remove-linha-ad').addEventListener('click', function() {
+        if (container.children.length > 1) {
+            div.remove();
+            recalcularMultiploAdiantamento();
+        } else {
+            alert("Mantenha ao menos uma forma de pagamento.");
+        }
+    });
+
+    div.querySelector('.input-ad-valor').addEventListener('input', recalcularMultiploAdiantamento);
+    div.querySelector('.sel-ad-forma').addEventListener('change', recalcularMultiploAdiantamento);
+
+    container.appendChild(div);
+    recalcularMultiploAdiantamento();
+}
+
+function recalcularMultiploAdiantamento() {
+    const container = document.getElementById('containerLinhasAdiantamento');
+    const linhas = container.querySelectorAll('.linha-ad-multiplo');
+    const saldoRestante = parseFloat(document.getElementById('ad_txtSaldoRestante')?.dataset.saldo || 0);
+    const badge = document.getElementById('adBadgeStatusMultiplo');
+    const hiddenJson = document.getElementById('ad_pagamentos_json');
+
+    let soma = 0;
+    const lista = [];
+
+    linhas.forEach(linha => {
+        const forma = linha.querySelector('.sel-ad-forma')?.value || 'DINHEIRO';
+        const val = parseFloat(linha.querySelector('.input-ad-valor')?.value || 0);
+        if (val > 0) {
+            soma += val;
+            lista.push({ forma: forma, valor: val });
+        }
+    });
+
+    hiddenJson.value = JSON.stringify(lista);
+
+    const diff = saldoRestante - soma;
+    if (Math.abs(diff) < 0.01) {
+        badge.className = 'badge bg-success small';
+        badge.innerHTML = `<i class="bi bi-check-circle me-1"></i>Total Perfeito: R$ ${soma.toFixed(2)}`;
+    } else if (soma > saldoRestante) {
+        badge.className = 'badge bg-danger small';
+        badge.innerHTML = `<i class="bi bi-exclamation-triangle me-1"></i>Excede em R$ ${(soma - saldoRestante).toFixed(2)}`;
+    } else {
+        badge.className = 'badge bg-warning text-dark small';
+        badge.innerHTML = `Soma: R$ ${soma.toFixed(2)} | Resta: R$ ${diff.toFixed(2)}`;
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    // Atalhos de valor rápido
+    document.querySelectorAll('.btn-atalho-ad').forEach(btn => {
+        btn.addEventListener('click', function () {
+            const val = parseFloat(this.dataset.val || 0);
+            const input = document.getElementById('inputAdValor');
+            const saldoMax = parseFloat(document.getElementById('ad_txtSaldoRestante')?.dataset.saldo || 0);
+            if (this.dataset.val.includes('.')) {
+                // valor fixo ou quitar
+                input.value = Math.min(val, saldoMax).toFixed(2);
+            } else {
+                // acréscimo
+                const atual = parseFloat(input.value || 0);
+                input.value = Math.min(atual + val, saldoMax).toFixed(2);
+            }
+        });
+    });
+
+    // Submissão do Formulário de Adiantamento
+    const formAd = document.getElementById('formAdiantamento');
+    if (formAd) {
+        formAd.addEventListener('submit', function (e) {
+            const modo = document.getElementById('ad_modo_pagamento').value;
+            const saldo = parseFloat(document.getElementById('ad_txtSaldoRestante')?.dataset.saldo || 0);
+
+            if (modo === 'SIMPLES') {
+                const val = parseFloat(document.getElementById('inputAdValor').value || 0);
+                if (val <= 0) {
+                    alert("Informe um valor maior que zero para o adiantamento.");
+                    e.preventDefault();
+                    return;
+                }
+                if (val > saldo + 0.05) {
+                    alert(`O valor (R$ ${val.toFixed(2)}) ultrapassa o saldo devedor da venda (R$ ${saldo.toFixed(2)}).`);
+                    e.preventDefault();
+                    return;
+                }
+            } else {
+                recalcularMultiploAdiantamento();
+                const lista = JSON.parse(document.getElementById('ad_pagamentos_json').value || '[]');
+                if (lista.length === 0) {
+                    alert("Informe ao menos um valor válido nas formas combinadas.");
+                    e.preventDefault();
+                    return;
+                }
+                const soma = lista.reduce((acc, item) => acc + item.valor, 0);
+                if (soma <= 0) {
+                    alert("O valor total deve ser maior que zero.");
+                    e.preventDefault();
+                    return;
+                }
+                if (soma > saldo + 0.05) {
+                    alert(`A soma combinada (R$ ${soma.toFixed(2)}) ultrapassa o saldo devedor (R$ ${saldo.toFixed(2)}).`);
+                    e.preventDefault();
+                    return;
+                }
+            }
+        });
+    }
+
+    // Auto-disparo do comprovante térmico se veio de um adiantamento bem sucedido
+    const urlParams = new URLSearchParams(window.location.search);
+    const comprovantePg = urlParams.get('comprovante_pg');
+    if (comprovantePg) {
+        setTimeout(function () {
+            imprimirCupomAdiantamento(comprovantePg);
+        }, 400);
+    }
+});
 </script>
 
 {% endblock %}

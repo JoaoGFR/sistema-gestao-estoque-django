@@ -61,6 +61,7 @@
                         <option value="CREDITO" {% if forma_pagamento == 'CREDITO' %}selected{% endif %}>Crédito</option>
                         <option value="CHEQUE" {% if forma_pagamento == 'CHEQUE' %}selected{% endif %}>Cheque</option>
                         <option value="CREDIARIO" {% if forma_pagamento == 'CREDIARIO' %}selected{% endif %}>Crediário</option>
+                        <option value="MULTIPLO" {% if forma_pagamento == 'MULTIPLO' %}selected{% endif %}>Combinado</option>
                     </select>
                 </div>
                 <div class="col-6 col-md-2">
@@ -134,7 +135,13 @@
                             <span class="small text-muted">{{ venda.usuario.get_full_name|default:venda.usuario.username }}</span>
                         </td>
                         <td>
-                            <span class="badge bg-light text-dark border">{{ venda.get_forma_pagamento_display }}</span>
+                            {% if venda.forma_pagamento == 'MULTIPLO' %}
+                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle" title="{{ venda.resumo_meios_pagamento }}">
+                                    <i class="bi bi-layers-fill me-1"></i>Combinado
+                                </span>
+                            {% else %}
+                                <span class="badge bg-light text-dark border">{{ venda.get_forma_pagamento_display }}</span>
+                            {% endif %}
                         </td>
                         <td class="text-end fw-bold text-dark">
                             R$ {{ venda.valor_total|floatformat:2 }}

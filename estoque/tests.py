@@ -10,7 +10,8 @@ from .models import (
     Empresa, Produto, SimulacaoPreco, UserProfile, Lote, Cliente,
     Venda, ItemVenda, ContaReceber, PagamentoCrediario, SaidaEstoque,
     PagamentoAssinatura, HistoricoPreco, AliquotaImposto, Categoria,
-    Emprestimo, HistoricoEmprestimo, ConfiguracaoEmpresa, Cheque
+    Emprestimo, HistoricoEmprestimo, ConfiguracaoEmpresa, Cheque,
+    PagamentoVenda
 )
 from django.core.files.uploadedfile import SimpleUploadedFile
 
@@ -3171,5 +3172,428 @@ class TesteDashboard180DiasECheques(TestCase):
         self.assertEqual(resp.context['total_a_compensar'], Decimal('150.00'))
 
 
+class VendaCombinarPagamentosTestCase(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='operador_pdv', password='password123')
+        self.empresa = Empresa.objects.create(
+            nome='Farmácia Central',
+            cnpj='55.666.777/0001-88',
+            status_assinatura='ATIVA',
+            assinatura_fim=timezone.now() + timedelta(days=60)
+        )
+        self.profile = UserProfile.objects.create(user=self.user, empresa=self.empresa, e_dono=True)
+        self.config, _ = ConfiguracaoEmpresa.objects.get_or_create(
+            empresa=self.empresa,
+            defaults={
+                'modulo_vendas_pdv': True,
+                'modulo_controle_lotes': True,
+                'modulo_clientes_crediario': True
+            }
+        )
+        self.config.modulo_vendas_pdv = True
+        self.config.modulo_controle_lotes = True
+        self.config.modulo_clientes_crediario = True
+        self.config.save()
+
+        self.cliente = Cliente.objects.create(
+            empresa=self.empresa,
+            nome='Carlos Alberto',
+            cpf_cnpj='222.333.444-55',
+            limite_credito=Decimal('500.00'),
+            ativo=True
+        )
+        self.produto = Produto.objects.create(
+            empresa=self.empresa,
+            nome='Kit Primeiros Socorros',
+            preco_venda=Decimal('100.00')
+        )
+        self.lote = Lote.objects.create(
+            produto=self.produto,
+            numero_lote='LT-K100',
+            quantidade_inicial=50,
+            quantidade_atual=50,
+            preco_compra=Decimal('40.00'),
+            data_fabricacao=timezone.now().date() - timedelta(days=10),
+            data_validade=timezone.now().date() + timedelta(days=365)
+        )
+
+    def test_venda_combinada_dinheiro_pix_sucesso(self):
+        """Valida venda combinada (Dinheiro + PIX) totalizando 200.00 sem crediário (status PAGO)"""
+        self.client.force_login(self.user)
+
+        itens_payload = [
+            {
+                'produto_id': self.produto.id,
+                'lote_id': self.lote.id,
+                'quantidade': 2,
+                'preco_unitario': 100.00
+            }
+        ]
+
+        pagamentos_payload = [
+            {'forma': 'DINHEIRO', 'valor': 50.00, 'observacoes': 'Entrada'},
+            {'forma': 'PIX', 'valor': 150.00, 'observacoes': 'Chave CNPJ'}
+        ]
+
+        post_data = {
+            'itens_json': json.dumps(itens_payload),
+            'forma_pagamento': 'MULTIPLO',
+            'desconto': '0.00',
+            'pagamentos_multiplos_json': json.dumps(pagamentos_payload)
+        }
+
+        resp = self.client.post(reverse('registrar_venda'), post_data, HTTP_HOST='localhost')
+        self.assertEqual(resp.status_code, 302)
+
+        venda = Venda.objects.filter(empresa=self.empresa).latest('id')
+        self.assertEqual(venda.valor_total, Decimal('200.00'))
+        self.assertEqual(venda.forma_pagamento, 'MULTIPLO')
+        self.assertEqual(venda.status_pagamento, 'PAGO')
+        self.assertEqual(venda.total_pago, Decimal('200.00'))
+        self.assertEqual(venda.saldo_restante, Decimal('0.00'))
+
+        # Confere registros no PagamentoVenda
+        pgs = list(venda.pagamentos.order_by('id'))
+        self.assertEqual(len(pgs), 2)
+        self.assertEqual(pgs[0].forma_pagamento, 'DINHEIRO')
+        self.assertEqual(pgs[0].valor, Decimal('50.00'))
+        self.assertEqual(pgs[1].forma_pagamento, 'PIX')
+        self.assertEqual(pgs[1].valor, Decimal('150.00'))
+
+    def test_venda_combinada_dinheiro_crediario_parcelado(self):
+        """Valida venda combinada: R$ 50 entrada dinheiro + R$ 150 parcelado em 2x no crediário"""
+        self.client.force_login(self.user)
+
+        itens_payload = [
+            {
+                'produto_id': self.produto.id,
+                'lote_id': self.lote.id,
+                'quantidade': 2,
+                'preco_unitario': 100.00
+            }
+        ]
+
+        hoje = timezone.now().date()
+        venc_1 = (hoje + timedelta(days=30)).strftime('%Y-%m-%d')
+        pagamentos_payload = [
+            {'forma': 'DINHEIRO', 'valor': 50.00, 'observacoes': 'Entrada em espécie'},
+            {
+                'forma': 'CREDIARIO',
+                'valor': 150.00,
+                'num_parcelas': 2,
+                'primeiro_vencimento': venc_1,
+                'intervalo_dias': 30,
+                'observacoes': 'Restante em 2 parcelas'
+            }
+        ]
+
+        post_data = {
+            'itens_json': json.dumps(itens_payload),
+            'forma_pagamento': 'MULTIPLO',
+            'cliente_id': self.cliente.id,
+            'desconto': '0.00',
+            'pagamentos_multiplos_json': json.dumps(pagamentos_payload)
+        }
+
+        resp = self.client.post(reverse('registrar_venda'), post_data, HTTP_HOST='localhost')
+        self.assertEqual(resp.status_code, 302)
+
+        venda = Venda.objects.filter(empresa=self.empresa).latest('id')
+        self.assertEqual(venda.valor_total, Decimal('200.00'))
+        self.assertEqual(venda.forma_pagamento, 'MULTIPLO')
+        self.assertEqual(venda.status_pagamento, 'PARCIAL')
+        self.assertEqual(venda.total_pago, Decimal('50.00'))
+        self.assertEqual(venda.saldo_restante, Decimal('150.00'))
+
+        # Confere parcelas do crediário geradas para a venda
+        parcelas = list(venda.parcelas.order_by('numero_parcela'))
+        self.assertEqual(len(parcelas), 2)
+        self.assertEqual(parcelas[0].valor_parcela, Decimal('75.00'))
+        self.assertEqual(parcelas[1].valor_parcela, Decimal('75.00'))
+        self.assertEqual(parcelas[0].status, 'PENDENTE')
+
+        # Saldo devedor do cliente deve ser R$ 150.00
+        self.cliente.refresh_from_db()
+        self.assertEqual(self.cliente.saldo_devedor, Decimal('150.00'))
+
+    def test_venda_combinada_erro_soma_invalida(self):
+        """Valida que soma diferente do total da venda gera erro e não cria a venda"""
+        self.client.force_login(self.user)
+
+        itens_payload = [
+            {'produto_id': self.produto.id, 'lote_id': self.lote.id, 'quantidade': 1, 'preco_unitario': 100.00}
+        ]
+        pagamentos_payload = [
+            {'forma': 'DINHEIRO', 'valor': 40.00},
+            {'forma': 'PIX', 'valor': 40.00}  # Total 80 vs 100 esperado
+        ]
+
+        post_data = {
+            'itens_json': json.dumps(itens_payload),
+            'forma_pagamento': 'MULTIPLO',
+            'desconto': '0.00',
+            'pagamentos_multiplos_json': json.dumps(pagamentos_payload)
+        }
+
+        resp = self.client.post(reverse('registrar_venda'), post_data, HTTP_HOST='localhost')
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'não confere com o total da venda')
+        self.assertFalse(Venda.objects.filter(empresa=self.empresa).exists())
+
+    def test_venda_combinada_crediario_sem_cliente_bloqueado(self):
+        """Valida que não é permitido usar crediário em pagamento combinado sem cliente selecionado"""
+        self.client.force_login(self.user)
+
+        itens_payload = [
+            {'produto_id': self.produto.id, 'lote_id': self.lote.id, 'quantidade': 1, 'preco_unitario': 100.00}
+        ]
+        pagamentos_payload = [
+            {'forma': 'DINHEIRO', 'valor': 20.00},
+            {'forma': 'CREDIARIO', 'valor': 80.00, 'num_parcelas': 1}
+        ]
+
+        post_data = {
+            'itens_json': json.dumps(itens_payload),
+            'forma_pagamento': 'MULTIPLO',
+            'desconto': '0.00',
+            # Sem cliente_id
+            'pagamentos_multiplos_json': json.dumps(pagamentos_payload)
+        }
+
+        resp = self.client.post(reverse('registrar_venda'), post_data, HTTP_HOST='localhost')
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'obrigatório selecionar um cliente')
+        self.assertFalse(Venda.objects.filter(empresa=self.empresa).exists())
 
 
+class VendaAdiantamentoPagamentoTestCase(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='operador_caixa', password='password123')
+        self.empresa = Empresa.objects.create(
+            nome='Drogaria Aliança',
+            cnpj='88.999.000/0001-11',
+            status_assinatura='ATIVA',
+            assinatura_fim=timezone.now() + timedelta(days=60)
+        )
+        self.profile = UserProfile.objects.create(user=self.user, empresa=self.empresa, e_dono=True)
+        self.config, _ = ConfiguracaoEmpresa.objects.get_or_create(
+            empresa=self.empresa,
+            defaults={
+                'modulo_vendas_pdv': True,
+                'modulo_controle_lotes': True,
+                'modulo_clientes_crediario': True
+            }
+        )
+        self.config.modulo_vendas_pdv = True
+        self.config.modulo_controle_lotes = True
+        self.config.modulo_clientes_crediario = True
+        self.config.save()
+
+        self.cliente = Cliente.objects.create(
+            empresa=self.empresa,
+            nome='Fernanda Lima',
+            cpf_cnpj='333.444.555-66',
+            limite_credito=Decimal('1000.00'),
+            ativo=True
+        )
+
+        # Cria uma venda a prazo de R$ 300 com 3 parcelas de R$ 100
+        self.venda = Venda.objects.create(
+            empresa=self.empresa,
+            codigo_venda='VD-ADIANT-01',
+            cliente=self.cliente,
+            usuario=self.user,
+            valor_subtotal=Decimal('300.00'),
+            valor_total=Decimal('300.00'),
+            forma_pagamento='CREDIARIO',
+            status='CONCLUIDA',
+            status_pagamento='PENDENTE'
+        )
+
+        hoje = timezone.now().date()
+        self.p1 = ContaReceber.objects.create(
+            empresa=self.empresa,
+            venda=self.venda,
+            cliente=self.cliente,
+            numero_parcela=1,
+            total_parcelas=3,
+            valor_parcela=Decimal('100.00'),
+            valor_pago=Decimal('0.00'),
+            data_vencimento=hoje + timedelta(days=30),
+            status='PENDENTE'
+        )
+        self.p2 = ContaReceber.objects.create(
+            empresa=self.empresa,
+            venda=self.venda,
+            cliente=self.cliente,
+            numero_parcela=2,
+            total_parcelas=3,
+            valor_parcela=Decimal('100.00'),
+            valor_pago=Decimal('0.00'),
+            data_vencimento=hoje + timedelta(days=60),
+            status='PENDENTE'
+        )
+        self.p3 = ContaReceber.objects.create(
+            empresa=self.empresa,
+            venda=self.venda,
+            cliente=self.cliente,
+            numero_parcela=3,
+            total_parcelas=3,
+            valor_parcela=Decimal('100.00'),
+            valor_pago=Decimal('0.00'),
+            data_vencimento=hoje + timedelta(days=90),
+            status='PENDENTE'
+        )
+
+    def test_registrar_adiantamento_parcial_simples(self):
+        """Registra adiantamento de R$ 50 em dinheiro amortizando metade da 1ª parcela"""
+        self.client.force_login(self.user)
+
+        data = {
+            'modo_adiantamento': 'SIMPLES',
+            'valor': '50,00',
+            'forma_pagamento': 'DINHEIRO',
+            'observacoes': 'Adiantamento balcão'
+        }
+
+        resp = self.client.post(reverse('registrar_adiantamento_venda', args=[self.venda.pk]), data, HTTP_HOST='localhost')
+        self.assertEqual(resp.status_code, 302)
+
+        self.p1.refresh_from_db()
+        self.assertEqual(self.p1.valor_pago, Decimal('50.00'))
+        self.assertEqual(self.p1.status, 'PENDENTE')
+
+        self.venda.refresh_from_db()
+        self.assertEqual(self.venda.total_pago, Decimal('50.00'))
+        self.assertEqual(self.venda.saldo_restante, Decimal('250.00'))
+        self.assertEqual(self.venda.status_pagamento, 'PARCIAL')
+
+        # Verifica criação do PagamentoVenda
+        pg = PagamentoVenda.objects.filter(venda=self.venda, tipo='ADIANTAMENTO').latest('id')
+        self.assertEqual(pg.valor, Decimal('50.00'))
+        self.assertEqual(pg.forma_pagamento, 'DINHEIRO')
+
+        # Verifica comprovante de adiantamento
+        resp_cupom = self.client.get(reverse('imprimir_cupom_adiantamento', args=[pg.pk]), HTTP_HOST='localhost')
+        self.assertEqual(resp_cupom.status_code, 200)
+        self.assertContains(resp_cupom, 'COMPROVANTE DE ADIANTAMENTO')
+        self.assertContains(resp_cupom, '50,00')
+
+    def test_registrar_adiantamento_amortiza_multiplas_parcelas_e_quita(self):
+        """Registra adiantamento que cobre a parcela 1 e amortiza a parcela 2"""
+        self.client.force_login(self.user)
+
+        # Adiantamento de R$ 150 (quita p1 de 100 e amortiza 50 de p2)
+        data = {
+            'modo_adiantamento': 'SIMPLES',
+            'valor': '150.00',
+            'forma_pagamento': 'PIX',
+            'observacoes': 'Adiantamento via PIX'
+        }
+
+        resp = self.client.post(reverse('registrar_adiantamento_venda', args=[self.venda.pk]), data, HTTP_HOST='localhost')
+        self.assertEqual(resp.status_code, 302)
+
+        self.p1.refresh_from_db()
+        self.p2.refresh_from_db()
+        self.p3.refresh_from_db()
+
+        self.assertEqual(self.p1.valor_pago, Decimal('100.00'))
+        self.assertEqual(self.p1.status, 'PAGO')
+        self.assertEqual(self.p2.valor_pago, Decimal('50.00'))
+        self.assertEqual(self.p2.status, 'PENDENTE')
+        self.assertEqual(self.p3.valor_pago, Decimal('0.00'))
+
+        self.venda.refresh_from_db()
+        self.assertEqual(self.venda.total_pago, Decimal('150.00'))
+        self.assertEqual(self.venda.saldo_restante, Decimal('150.00'))
+        self.assertEqual(self.venda.status_pagamento, 'PARCIAL')
+
+        # Quita o restante de R$ 150
+        data2 = {
+            'modo_adiantamento': 'SIMPLES',
+            'valor': '150.00',
+            'forma_pagamento': 'DEBITO',
+            'observacoes': 'Quitação final'
+        }
+        self.client.post(reverse('registrar_adiantamento_venda', args=[self.venda.pk]), data2, HTTP_HOST='localhost')
+
+        self.p2.refresh_from_db()
+        self.p3.refresh_from_db()
+        self.assertEqual(self.p2.status, 'PAGO')
+        self.assertEqual(self.p3.status, 'PAGO')
+
+        self.venda.refresh_from_db()
+        self.assertEqual(self.venda.status_pagamento, 'PAGO')
+        self.assertEqual(self.venda.saldo_restante, Decimal('0.00'))
+        self.assertEqual(self.venda.pode_receber_adiantamento, False)
+
+    def test_bloqueio_adiantamento_acima_do_saldo(self):
+        """Impede registro de adiantamento com valor superior ao saldo restante da venda"""
+        self.client.force_login(self.user)
+
+        data = {
+            'modo_adiantamento': 'SIMPLES',
+            'valor': '350.00',  # Saldo restante é 300.00
+            'forma_pagamento': 'DINHEIRO'
+        }
+
+        resp = self.client.post(reverse('registrar_adiantamento_venda', args=[self.venda.pk]), data, HTTP_HOST='localhost')
+        self.assertEqual(resp.status_code, 302)
+
+        self.assertEqual(PagamentoVenda.objects.filter(venda=self.venda, tipo='ADIANTAMENTO').count(), 0)
+        self.venda.refresh_from_db()
+        self.assertEqual(self.venda.total_pago, Decimal('0.00'))
+
+    def test_bloqueio_cancelamento_venda_com_adiantamento(self):
+        """Impede cancelamento de venda que já possui adiantamento registrado"""
+        self.client.force_login(self.user)
+
+        # Registra adiantamento
+        PagamentoVenda.objects.create(
+            empresa=self.empresa,
+            venda=self.venda,
+            tipo='ADIANTAMENTO',
+            forma_pagamento='PIX',
+            valor=Decimal('50.00'),
+            usuario=self.user
+        )
+
+        resp = self.client.post(reverse('cancelar_venda', args=[self.venda.pk]), HTTP_HOST='localhost')
+        self.assertEqual(resp.status_code, 302)
+
+        self.venda.refresh_from_db()
+        self.assertEqual(self.venda.status, 'CONCLUIDA')  # Não foi cancelada!
+
+    def test_registrar_adiantamento_multiplo(self):
+        """Valida registro de adiantamento com múltiplos meios combinados (ex: R$ 50 Dinheiro + R$ 50 PIX)"""
+        self.client.force_login(self.user)
+
+        pgs_adiantamento = [
+            {'forma': 'DINHEIRO', 'valor': 50.00, 'observacoes': 'Parte em espécie'},
+            {'forma': 'PIX', 'valor': 50.00, 'observacoes': 'Parte em PIX'}
+        ]
+
+        data = {
+            'modo_adiantamento': 'MULTIPLO',
+            'pagamentos_multiplos_json': json.dumps(pgs_adiantamento)
+        }
+
+        resp = self.client.post(reverse('registrar_adiantamento_venda', args=[self.venda.pk]), data, HTTP_HOST='localhost')
+        self.assertEqual(resp.status_code, 302)
+
+        self.p1.refresh_from_db()
+        self.assertEqual(self.p1.valor_pago, Decimal('100.00'))
+        self.assertEqual(self.p1.status, 'PAGO')
+
+        self.venda.refresh_from_db()
+        self.assertEqual(self.venda.total_pago, Decimal('100.00'))
+        self.assertEqual(self.venda.saldo_restante, Decimal('200.00'))
+        self.assertEqual(self.venda.status_pagamento, 'PARCIAL')
+
+        pgs_criados = list(PagamentoVenda.objects.filter(venda=self.venda, tipo='ADIANTAMENTO').order_by('id'))
+        self.assertEqual(len(pgs_criados), 2)
+        self.assertEqual(pgs_criados[0].forma_pagamento, 'DINHEIRO')
+        self.assertEqual(pgs_criados[0].valor, Decimal('50.00'))
+        self.assertEqual(pgs_criados[1].forma_pagamento, 'PIX')
+        self.assertEqual(pgs_criados[1].valor, Decimal('50.00'))

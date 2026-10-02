@@ -272,6 +272,7 @@
                                     <option value="CREDITO">Cartão de Crédito</option>
                                     <option value="CHEQUE" class="text-primary fw-bold">Cheque</option>
                                     <option value="CREDIARIO" class="text-primary fw-bold">Crediário / A Prazo (Fiado)</option>
+                                    <option value="MULTIPLO" class="text-success fw-bold">⭐ Combinar Meios de Pagamento (Múltiplas Formas / Entrada)</option>
                                 </select>
                             </div>
 
@@ -430,6 +431,53 @@
                             <input type="hidden" name="cheques_json" id="inputChequesJson" value="">
                         </div>
 
+                        <!-- PAINEL DINÂMICO 4: COMBINAR MEIOS DE PAGAMENTO (MULTIPLO) -->
+                        <div id="painelMultiplo" class="card bg-success-subtle border-success border-opacity-50 p-3 mb-3 d-none">
+                            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2 pb-2 border-bottom border-success border-opacity-25">
+                                <h6 class="fw-bold text-success-emphasis d-flex align-items-center gap-2 mb-0">
+                                    <i class="bi bi-wallet2 text-success fs-5"></i> Divisão / Combinação de Pagamentos
+                                </h6>
+                                <span class="badge bg-success bg-opacity-75 text-white fs-6" id="badgeMultiploStatus">
+                                    Total: <span id="lblTotalMultiploEsperado">R$ 0,00</span>
+                                </span>
+                            </div>
+
+                            <p class="small text-muted mb-3">
+                                Combine diferentes formas de pagamento para esta venda (ex: Entrada em Dinheiro + Cartão, PIX + Crediário). A soma das parcelas deve totalizar exatamente o valor da venda.
+                            </p>
+
+                            <!-- Linhas Dinâmicas de Formas de Pagamento -->
+                            <div id="containerLinhasMultiplo" class="d-flex flex-column gap-2 mb-3">
+                                <!-- Gerado dinamicamente via JavaScript -->
+                            </div>
+
+                            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                                <button type="button" class="btn btn-sm btn-success" id="btnAdicionarFormaMultiplo">
+                                    <i class="bi bi-plus-circle me-1"></i> Adicionar Forma de Pagamento
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" id="btnAutoCompletarRestante" title="Preencher a diferença restante na última linha ou em nova forma">
+                                    <i class="bi bi-magic me-1"></i> Completar Saldo Restante
+                                </button>
+                            </div>
+
+                            <!-- Resumo da Distribuição -->
+                            <div class="p-2 rounded bg-white border border-success-subtle shadow-sm">
+                                <div class="d-flex justify-content-between align-items-center small mb-1">
+                                    <span class="text-muted">Total Alocado nas Formas:</span>
+                                    <span class="fw-bold text-dark" id="lblTotalMultiploAlocado">R$ 0,00</span>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center small">
+                                    <span class="text-muted">Diferença / A Alocar:</span>
+                                    <span class="fw-bold text-success" id="lblTotalMultiploRestante">R$ 0,00 (Exato ✓)</span>
+                                </div>
+                                <div id="alertaStatusMultiplo" class="alert alert-warning py-1 px-2 small mt-2 mb-0 d-none">
+                                    <i class="bi bi-exclamation-triangle-fill me-1"></i> <span id="txtAlertaMultiplo">A soma dos pagamentos não confere com o total da venda.</span>
+                                </div>
+                            </div>
+
+                            <input type="hidden" name="pagamentos_multiplos_json" id="inputPagamentosMultiplosJson" value="">
+                        </div>
+
                         <!-- CAMPO DE OBSERVAÇÕES / ANOTAÇÕES DA VENDA -->
                         <div class="mb-3">
                             <label class="form-label fw-semibold d-flex align-items-center gap-1 mb-1">
@@ -526,6 +574,19 @@ document.addEventListener('DOMContentLoaded', function () {
     const inputChequesJson = document.getElementById('inputChequesJson');
     const btnCopiarClienteCheque = document.getElementById('btnCopiarClienteCheque');
     const formVenda = document.getElementById('formVenda');
+
+    // Elementos de Pagamento Combinado / Múltiplo
+    const painelMultiplo = document.getElementById('painelMultiplo');
+    const containerLinhasMultiplo = document.getElementById('containerLinhasMultiplo');
+    const btnAdicionarFormaMultiplo = document.getElementById('btnAdicionarFormaMultiplo');
+    const btnAutoCompletarRestante = document.getElementById('btnAutoCompletarRestante');
+    const inputPagamentosMultiplosJson = document.getElementById('inputPagamentosMultiplosJson');
+    const lblTotalMultiploEsperado = document.getElementById('lblTotalMultiploEsperado');
+    const lblTotalMultiploAlocado = document.getElementById('lblTotalMultiploAlocado');
+    const lblTotalMultiploRestante = document.getElementById('lblTotalMultiploRestante');
+    const badgeMultiploStatus = document.getElementById('badgeMultiploStatus');
+    const alertaStatusMultiplo = document.getElementById('alertaStatusMultiplo');
+    const txtAlertaMultiplo = document.getElementById('txtAlertaMultiplo');
 
     let carrinho = [];
 
@@ -761,6 +822,11 @@ document.addEventListener('DOMContentLoaded', function () {
         // Atualização dos cheques se forma for CHEQUE
         if (selFormaPagamento.value === 'CHEQUE') {
             atualizarValoresCheques(total);
+        }
+
+        // Atualização do painel múltiplo se forma for MULTIPLO
+        if (selFormaPagamento.value === 'MULTIPLO') {
+            recalcularPainelMultiplo(total);
         }
 
         itensJsonInput.value = JSON.stringify(carrinho);
@@ -1017,16 +1083,311 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // =========================================================================
+    // LÓGICA DE COMBINAR MEIOS DE PAGAMENTO (PAGAMENTO MÚLTIPLO / DIVISÃO)
+    // =========================================================================
+
+    function obterTotalVendaCalculado() {
+        const subtotal = carrinho.reduce((acc, it) => acc + it.subtotal, 0);
+        const desc = parseFloat(inputDesconto.value.replace(',', '.') || 0);
+        const adicional = parseFloat(inputValorAdicional.value.replace(',', '.') || 0);
+        return Math.max(0, subtotal - desc + adicional);
+    }
+
+    function inicializarPainelMultiplo() {
+        if (!containerLinhasMultiplo) return;
+        if (containerLinhasMultiplo.querySelectorAll('.linha-multiplo').length === 0) {
+            const total = obterTotalVendaCalculado();
+            if (total > 0) {
+                const metade = Math.round((total / 2) * 100) / 100;
+                const restante = Math.round((total - metade) * 100) / 100;
+                criarLinhaMultiplo('DINHEIRO', metade, 'Entrada');
+                criarLinhaMultiplo('CREDITO', restante, 'Cartão');
+            } else {
+                criarLinhaMultiplo('DINHEIRO', 0, '');
+                criarLinhaMultiplo('PIX', 0, '');
+            }
+        }
+        recalcularPainelMultiplo();
+    }
+
+    function criarLinhaMultiplo(formaPadrao = 'DINHEIRO', valorPadrao = 0, obsPadrao = '') {
+        if (!containerLinhasMultiplo) return;
+
+        // Data padrão para 1º vencimento: 30 dias a partir de hoje
+        const d = new Date();
+        d.setDate(d.getDate() + 30);
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        const dataPadrao = `${yyyy}-${mm}-${dd}`;
+
+        const card = document.createElement('div');
+        card.className = 'card p-2 bg-white border border-light-subtle shadow-sm linha-multiplo';
+        card.innerHTML = `
+            <div class="row g-2 align-items-center">
+                <div class="col-12 col-md-4">
+                    <label class="form-label small fw-semibold text-muted mb-1">Forma de Pagamento</label>
+                    <select class="form-select form-select-sm sel-multi-forma fw-semibold">
+                        <option value="DINHEIRO" ${formaPadrao === 'DINHEIRO' ? 'selected' : ''}>💵 Dinheiro (Espécie)</option>
+                        <option value="PIX" ${formaPadrao === 'PIX' ? 'selected' : ''}>⚡ PIX</option>
+                        <option value="DEBITO" ${formaPadrao === 'DEBITO' ? 'selected' : ''}>💳 Cartão de Débito</option>
+                        <option value="CREDITO" ${formaPadrao === 'CREDITO' ? 'selected' : ''}>💳 Cartão de Crédito</option>
+                        <option value="CREDIARIO" ${formaPadrao === 'CREDIARIO' ? 'selected' : ''}>📋 Crediário / A Prazo (Fiado)</option>
+                        <option value="CHEQUE" ${formaPadrao === 'CHEQUE' ? 'selected' : ''}>🏦 Cheque</option>
+                        <option value="OUTRO" ${formaPadrao === 'OUTRO' ? 'selected' : ''}>🔖 Outro</option>
+                    </select>
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label small fw-semibold text-muted mb-1">Valor (R$)</label>
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-light text-dark fw-bold">R$</span>
+                        <input type="number" step="0.01" min="0.01" class="form-control form-control-sm fw-bold input-multi-valor" value="${valorPadrao > 0 ? valorPadrao.toFixed(2) : ''}" placeholder="0,00">
+                    </div>
+                </div>
+                <div class="col-5 col-md-4">
+                    <label class="form-label small fw-semibold text-muted mb-1">Obs. / Detalhes</label>
+                    <input type="text" class="form-control form-control-sm input-multi-obs" placeholder="Ex: Entrada, 30 dias..." value="${obsPadrao}">
+                </div>
+                <div class="col-1 col-md-1 text-end pt-3">
+                    <button type="button" class="btn btn-sm btn-outline-danger p-1 btn-remover-linha-multi" title="Remover esta forma">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            </div>
+            <!-- Subpainel condicional para Crediário -->
+            <div class="sub-crediario-multiplo mt-2 pt-2 border-top border-light-subtle ${formaPadrao === 'CREDIARIO' ? '' : 'd-none'}">
+                <div class="row g-2 align-items-center">
+                    <div class="col-12 col-md-4">
+                        <label class="form-label small fw-semibold text-primary mb-1">Nº de Parcelas</label>
+                        <select class="form-select form-select-sm sel-multi-num-parcelas">
+                            <option value="1">1x Parcela</option>
+                            <option value="2">2x Parcelas</option>
+                            <option value="3">3x Parcelas</option>
+                            <option value="4">4x Parcelas</option>
+                            <option value="5">5x Parcelas</option>
+                            <option value="6">6x Parcelas</option>
+                            <option value="10">10x Parcelas</option>
+                            <option value="12">12x Parcelas</option>
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label small fw-semibold text-primary mb-1">1º Vencimento</label>
+                        <input type="date" class="form-control form-control-sm input-multi-primeiro-venc" value="${dataPadrao}">
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label small fw-semibold text-primary mb-1">Intervalo</label>
+                        <select class="form-select form-select-sm sel-multi-intervalo">
+                            <option value="30">A cada 30 dias</option>
+                            <option value="15">A cada 15 dias (Quinzenal)</option>
+                            <option value="7">A cada 7 dias (Semanal)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="mt-1 text-primary small fw-semibold txt-multi-resumo-parcelas">
+                    <!-- Resumo das parcelas -->
+                </div>
+            </div>
+        `;
+
+        containerLinhasMultiplo.appendChild(card);
+
+        const selForma = card.querySelector('.sel-multi-forma');
+        const inputVal = card.querySelector('.input-multi-valor');
+        const subCrediario = card.querySelector('.sub-crediario-multiplo');
+        const selNumParc = card.querySelector('.sel-multi-num-parcelas');
+        const btnRemover = card.querySelector('.btn-remover-linha-multi');
+
+        selForma.addEventListener('change', function() {
+            if (this.value === 'CREDIARIO') {
+                subCrediario.classList.remove('d-none');
+                if (!selCliente.value) {
+                    alert("Aviso: Para compras no crediário, é obrigatório selecionar um cliente cadastrado.");
+                    selCliente.focus();
+                }
+            } else {
+                subCrediario.classList.add('d-none');
+            }
+            recalcularPainelMultiplo();
+        });
+
+        inputVal.addEventListener('input', function() {
+            recalcularPainelMultiplo();
+        });
+
+        selNumParc.addEventListener('change', function() {
+            recalcularPainelMultiplo();
+        });
+
+        btnRemover.addEventListener('click', function() {
+            const totalLinhas = containerLinhasMultiplo.querySelectorAll('.linha-multiplo').length;
+            if (totalLinhas <= 1) {
+                alert("É necessário manter pelo menos uma forma de pagamento no pagamento combinado.");
+                return;
+            }
+            card.remove();
+            recalcularPainelMultiplo();
+        });
+    }
+
+    function recalcularPainelMultiplo(totalOpcional) {
+        if (!containerLinhasMultiplo) return;
+
+        const totalVenda = totalOpcional !== undefined ? totalOpcional : obterTotalVendaCalculado();
+        if (lblTotalMultiploEsperado) {
+            lblTotalMultiploEsperado.textContent = `R$ ${totalVenda.toFixed(2).replace('.', ',')}`;
+        }
+
+        const linhas = containerLinhasMultiplo.querySelectorAll('.linha-multiplo');
+        let totalAlocado = 0;
+
+        linhas.forEach(l => {
+            const inputVal = l.querySelector('.input-multi-valor');
+            const selForma = l.querySelector('.sel-multi-forma');
+            const subCrediario = l.querySelector('.sub-crediario-multiplo');
+            const txtResumo = l.querySelector('.txt-multi-resumo-parcelas');
+            const selNumParc = l.querySelector('.sel-multi-num-parcelas');
+
+            const val = parseFloat(inputVal?.value.replace(',', '.') || 0);
+            if (!isNaN(val) && val > 0) {
+                totalAlocado += val;
+            }
+
+            if (selForma && selForma.value === 'CREDIARIO' && subCrediario && txtResumo && selNumParc) {
+                const n = parseInt(selNumParc.value, 10) || 1;
+                const vParc = (val / n).toFixed(2).replace('.', ',');
+                txtResumo.textContent = `Previsão: ${n}x de R$ ${vParc} no crediário`;
+            }
+        });
+
+        totalAlocado = Math.round(totalAlocado * 100) / 100;
+        const diff = Math.round((totalVenda - totalAlocado) * 100) / 100;
+
+        if (lblTotalMultiploAlocado) {
+            lblTotalMultiploAlocado.textContent = `R$ ${totalAlocado.toFixed(2).replace('.', ',')}`;
+        }
+
+        if (lblTotalMultiploRestante && badgeMultiploStatus && alertaStatusMultiplo && txtAlertaMultiplo) {
+            if (Math.abs(diff) < 0.01) {
+                lblTotalMultiploRestante.textContent = 'R$ 0,00 (Exato ✓)';
+                lblTotalMultiploRestante.className = 'fw-bold text-success';
+                alertaStatusMultiplo.classList.add('d-none');
+                badgeMultiploStatus.className = 'badge bg-success bg-opacity-75 text-white fs-6';
+                badgeMultiploStatus.innerHTML = `Total: R$ ${totalVenda.toFixed(2).replace('.', ',')} <i class="bi bi-check-circle ms-1"></i>`;
+            } else if (diff > 0) {
+                lblTotalMultiploRestante.textContent = `Faltam R$ ${diff.toFixed(2).replace('.', ',')}`;
+                lblTotalMultiploRestante.className = 'fw-bold text-danger';
+                alertaStatusMultiplo.classList.remove('d-none');
+                alertaStatusMultiplo.className = 'alert alert-warning py-1 px-2 small mt-2 mb-0';
+                txtAlertaMultiplo.textContent = `Falta distribuir R$ ${diff.toFixed(2).replace('.', ',')} para cobrir o total da venda.`;
+                badgeMultiploStatus.className = 'badge bg-warning text-dark fs-6';
+                badgeMultiploStatus.innerHTML = `Falta: R$ ${diff.toFixed(2).replace('.', ',')}`;
+            } else {
+                const excesso = Math.abs(diff);
+                lblTotalMultiploRestante.textContent = `Excedeu R$ ${excesso.toFixed(2).replace('.', ',')}`;
+                lblTotalMultiploRestante.className = 'fw-bold text-danger';
+                alertaStatusMultiplo.classList.remove('d-none');
+                alertaStatusMultiplo.className = 'alert alert-danger py-1 px-2 small mt-2 mb-0';
+                txtAlertaMultiplo.textContent = `A soma ultrapassou o total da venda em R$ ${excesso.toFixed(2).replace('.', ',')}.`;
+                badgeMultiploStatus.className = 'badge bg-danger text-white fs-6';
+                badgeMultiploStatus.innerHTML = `Excesso: R$ ${excesso.toFixed(2).replace('.', ',')}`;
+            }
+        }
+
+        serializarMultiploJson();
+    }
+
+    function serializarMultiploJson() {
+        if (!containerLinhasMultiplo || !inputPagamentosMultiplosJson) return;
+
+        const linhas = containerLinhasMultiplo.querySelectorAll('.linha-multiplo');
+        const lista = [];
+
+        linhas.forEach(l => {
+            const forma = l.querySelector('.sel-multi-forma')?.value || 'DINHEIRO';
+            const val = parseFloat(l.querySelector('.input-multi-valor')?.value.replace(',', '.') || 0);
+            const obs = l.querySelector('.input-multi-obs')?.value.trim() || '';
+
+            const item = {
+                forma: forma,
+                valor: val,
+                observacoes: obs
+            };
+
+            if (forma === 'CREDIARIO') {
+                item.num_parcelas = parseInt(l.querySelector('.sel-multi-num-parcelas')?.value || 1, 10);
+                item.primeiro_vencimento = l.querySelector('.input-multi-primeiro-venc')?.value || '';
+                item.intervalo_dias = parseInt(l.querySelector('.sel-multi-intervalo')?.value || 30, 10);
+            }
+
+            lista.push(item);
+        });
+
+        inputPagamentosMultiplosJson.value = JSON.stringify(lista);
+    }
+
+    if (btnAdicionarFormaMultiplo) {
+        btnAdicionarFormaMultiplo.addEventListener('click', function() {
+            const total = obterTotalVendaCalculado();
+            let alocado = 0;
+            containerLinhasMultiplo.querySelectorAll('.linha-multiplo').forEach(l => {
+                const v = parseFloat(l.querySelector('.input-multi-valor')?.value.replace(',', '.') || 0);
+                if (!isNaN(v)) alocado += v;
+            });
+            const diff = Math.max(0, Math.round((total - alocado) * 100) / 100);
+            criarLinhaMultiplo('PIX', diff, '');
+            recalcularPainelMultiplo();
+        });
+    }
+
+    if (btnAutoCompletarRestante) {
+        btnAutoCompletarRestante.addEventListener('click', function() {
+            const total = obterTotalVendaCalculado();
+            let alocado = 0;
+            const linhas = containerLinhasMultiplo.querySelectorAll('.linha-multiplo');
+            let linhaVazia = null;
+
+            linhas.forEach(l => {
+                const inputVal = l.querySelector('.input-multi-valor');
+                const v = parseFloat(inputVal?.value.replace(',', '.') || 0);
+                if (v > 0) {
+                    alocado += v;
+                } else if (!linhaVazia) {
+                    linhaVazia = inputVal;
+                }
+            });
+
+            const diff = Math.round((total - alocado) * 100) / 100;
+            if (Math.abs(diff) < 0.01) {
+                alert("Os pagamentos já cobrem 100% do total da venda.");
+                return;
+            }
+
+            if (diff > 0) {
+                if (linhaVazia) {
+                    linhaVazia.value = diff.toFixed(2);
+                } else {
+                    criarLinhaMultiplo('CREDITO', diff, 'Restante');
+                }
+                recalcularPainelMultiplo();
+            } else {
+                alert(`A soma atual dos pagamentos excede o total da venda em R$ ${Math.abs(diff).toFixed(2).replace('.', ',')}. Por favor, ajuste os valores manualmente.`);
+            }
+        });
+    }
+
     // Alternância da Forma de Pagamento
     selFormaPagamento.addEventListener('change', function () {
         if (this.value === 'DINHEIRO') {
             painelDinheiro.classList.remove('d-none');
             painelCrediario.classList.add('d-none');
             painelCheque.classList.add('d-none');
+            if (painelMultiplo) painelMultiplo.classList.add('d-none');
         } else if (this.value === 'CREDIARIO') {
             painelCrediario.classList.remove('d-none');
             painelDinheiro.classList.add('d-none');
             painelCheque.classList.add('d-none');
+            if (painelMultiplo) painelMultiplo.classList.add('d-none');
             if (!selCliente.value) {
                 alert("Para compras no crediário, você precisa selecionar um cliente cadastrado.");
                 selCliente.focus();
@@ -1035,16 +1396,26 @@ document.addEventListener('DOMContentLoaded', function () {
             painelCheque.classList.remove('d-none');
             painelDinheiro.classList.add('d-none');
             painelCrediario.classList.add('d-none');
+            if (painelMultiplo) painelMultiplo.classList.add('d-none');
             renderizarFolhasCheque();
+        } else if (this.value === 'MULTIPLO') {
+            painelDinheiro.classList.add('d-none');
+            painelCrediario.classList.add('d-none');
+            painelCheque.classList.add('d-none');
+            if (painelMultiplo) {
+                painelMultiplo.classList.remove('d-none');
+                inicializarPainelMultiplo();
+            }
         } else {
             painelDinheiro.classList.add('d-none');
             painelCrediario.classList.add('d-none');
             painelCheque.classList.add('d-none');
+            if (painelMultiplo) painelMultiplo.classList.add('d-none');
         }
         recalcularTotais();
     });
 
-    // Validação no Envio do Formulário para Cheques
+    // Validação no Envio do Formulário
     if (formVenda) {
         formVenda.addEventListener('submit', function(e) {
             if (selFormaPagamento.value === 'CHEQUE') {
@@ -1083,6 +1454,66 @@ document.addEventListener('DOMContentLoaded', function () {
                     if (val <= 0) {
                         alert(`O valor do cheque #${i + 1} deve ser maior que zero.`);
                         folha.querySelector('.input-chq-valor')?.focus();
+                        e.preventDefault();
+                        return;
+                    }
+                }
+            }
+
+            if (selFormaPagamento.value === 'MULTIPLO') {
+                serializarMultiploJson();
+                const linhas = containerLinhasMultiplo.querySelectorAll('.linha-multiplo');
+                if (linhas.length === 0) {
+                    alert("Adicione pelo menos uma forma de pagamento no pagamento combinado.");
+                    e.preventDefault();
+                    return;
+                }
+
+                const totalVendaCalc = obterTotalVendaCalculado();
+                let somaMultiplo = 0;
+                let temCrediario = false;
+                let valorCrediario = 0;
+
+                for (let i = 0; i < linhas.length; i++) {
+                    const l = linhas[i];
+                    const forma = l.querySelector('.sel-multi-forma')?.value;
+                    const val = parseFloat(l.querySelector('.input-multi-valor')?.value.replace(',', '.') || 0);
+
+                    if (val <= 0 || isNaN(val)) {
+                        alert(`Por favor, informe um valor válido maior que zero para a forma de pagamento #${i + 1}.`);
+                        l.querySelector('.input-multi-valor')?.focus();
+                        e.preventDefault();
+                        return;
+                    }
+
+                    somaMultiplo += val;
+
+                    if (forma === 'CREDIARIO') {
+                        temCrediario = true;
+                        valorCrediario += val;
+                    }
+                }
+
+                somaMultiplo = Math.round(somaMultiplo * 100) / 100;
+                if (Math.abs(somaMultiplo - totalVendaCalc) > 0.05) {
+                    alert(`A soma dos pagamentos combinados (R$ ${somaMultiplo.toFixed(2).replace('.', ',')}) não corresponde ao valor total da venda (R$ ${totalVendaCalc.toFixed(2).replace('.', ',')}). Ajuste os valores antes de finalizar.`);
+                    e.preventDefault();
+                    return;
+                }
+
+                if (temCrediario) {
+                    if (!selCliente.value) {
+                        alert("Para incluir Crediário / A Prazo no pagamento combinado, é obrigatório selecionar um cliente cadastrado.");
+                        selCliente.focus();
+                        e.preventDefault();
+                        return;
+                    }
+                    const optCli = selCliente.options[selCliente.selectedIndex];
+                    const limite = parseFloat(optCli?.dataset.limite || 0);
+                    const saldoDevedor = parseFloat(optCli?.dataset.saldo || 0);
+                    if (limite > 0 && (saldoDevedor + valorCrediario) > limite) {
+                        const disponivel = Math.max(0, limite - saldoDevedor);
+                        alert(`A parcela de crediário (R$ ${valorCrediario.toFixed(2).replace('.', ',')}) ultrapassa o limite disponível do cliente (R$ ${disponivel.toFixed(2).replace('.', ',')}).`);
                         e.preventDefault();
                         return;
                     }

@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comprovante de Adiantamento - {{ venda.codigo_venda }}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: 'Courier New', Courier, monospace, sans-serif;
+            font-size: 12px;
+            line-height: 1.3;
+            color: #000;
+            background-color: #f1f3f5;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        /* Barra de Ações Superior (Não impressa) */
+        .toolbar-acoes {
+            position: sticky;
+            top: 0;
+            z-index: 999;
+            background: #212529;
+            color: #fff;
+            padding: 10px 16px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        .btn-acao {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            font-size: 13px;
+            font-weight: 600;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.15s ease;
+        }
+        .btn-imprimir {
+            background-color: #198754;
+            color: #fff;
+        }
+        .btn-imprimir:hover {
+            background-color: #157347;
+        }
+        .btn-fechar {
+            background-color: #495057;
+            color: #fff;
+        }
+        .btn-fechar:hover {
+            background-color: #343a40;
+        }
+
+        /* Recipiente do Cupom Térmico (Padrão 80mm) */
+        .cupom-termico {
+            width: 80mm;
+            max-width: 80mm;
+            margin: 20px auto;
+            padding: 5mm 4mm;
+            background: #fff;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.12);
+            border-radius: 2px;
+        }
+
+        .text-center { text-align: center; }
+        .text-end { text-align: right; }
+        .text-start { text-align: left; }
+        .fw-bold { font-weight: bold; }
+        .text-uppercase { text-transform: uppercase; }
+
+        .linha-tracejada {
+            border-top: 1px dashed #000;
+            margin: 5px 0;
+        }
+        .linha-dupla {
+            border-top: 2px solid #000;
+            margin: 6px 0;
+        }
+
+        .empresa-nome {
+            font-size: 15px;
+            font-weight: bold;
+            line-height: 1.2;
+            margin-bottom: 2px;
+        }
+        .empresa-sub {
+            font-size: 11px;
+            color: #222;
+        }
+
+        .titulo-comprovante {
+            font-size: 12px;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            padding: 2px 0;
+        }
+
+        .linha-financeira {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            padding: 2px 0;
+        }
+        .total-destaque {
+            font-size: 14px;
+            font-weight: bold;
+            padding: 4px 0;
+        }
+
+        .parcela-item {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            padding: 1px 0;
+        }
+
+        .assinatura-box {
+            margin-top: 16px;
+            padding-top: 20px;
+            border-top: 1px solid #000;
+            text-align: center;
+            font-size: 10px;
+        }
+
+        .rodape {
+            margin-top: 10px;
+            font-size: 10px;
+            color: #333;
+            text-align: center;
+        }
+
+        @media print {
+            @page {
+                size: 80mm auto;
+                margin: 0;
+            }
+            body {
+                background: #fff !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            .toolbar-acoes {
+                display: none !important;
+            }
+            .cupom-termico {
+                width: 100% !important;
+                max-width: 100% !important;
+                margin: 0 !important;
+                padding: 3mm 2.5mm !important;
+                box-shadow: none !important;
+                border-radius: 0 !important;
+            }
+        }
+    </style>
+</head>
+<body onload="autoImprimir()">
+
+    <div class="toolbar-acoes">
+        <button type="button" class="btn-acao btn-imprimir" onclick="window.print()">
+            <i class="bi bi-printer-fill"></i> Imprimir na Térmica
+        </button>
+        <button type="button" class="btn-acao btn-fechar" onclick="window.close()">
+            <i class="bi bi-x-lg"></i> Fechar Janela
+        </button>
+    </div>
+
+    <div class="cupom-termico">
+
+        <!-- DADOS DA EMPRESA -->
+        <div class="text-center">
+            <div class="empresa-nome">{{ empresa.nome|upper }}</div>
+            {% if empresa.cnpj %}
+                <div class="empresa-sub">CNPJ: {{ empresa.cnpj }}</div>
+            {% endif %}
+            <div class="linha-dupla"></div>
+            <div class="titulo-comprovante">COMPROVANTE DE ADIANTAMENTO</div>
+            <div style="font-size: 10px; color: #444;">AMORTIZAÇÃO DE VENDA</div>
+            <div class="linha-dupla"></div>
+        </div>
+
+        <!-- IDENTIFICAÇÃO DA VENDA E OPERADOR -->
+        <div style="font-size: 11px; margin-bottom: 2px;">
+            <div><strong>VENDA DE ORIGEM:</strong> {{ venda.codigo_venda }}</div>
+            <div><strong>DATA/HORA:</strong> {{ pagamento.data_pagamento|date:"d/m/Y H:i:s" }}</div>
+            <div><strong>OPERADOR:</strong> {{ pagamento.usuario.get_full_name|default:pagamento.usuario.username|upper }}</div>
+        </div>
+
+        <div class="linha-tracejada"></div>
+
+        <!-- IDENTIFICAÇÃO DO CLIENTE -->
+        <div style="font-size: 11px;">
+            {% if venda.cliente %}
+                <div><strong>CLIENTE:</strong> {{ venda.cliente.nome|upper }}</div>
+                {% if venda.cliente.cpf_cnpj %}<div><strong>DOC:</strong> {{ venda.cliente.cpf_cnpj }}</div>{% endif %}
+                {% if venda.cliente.telefone %}<div><strong>CONTATO:</strong> {{ venda.cliente.telefone }}</div>{% endif %}
+            {% else %}
+                <div><strong>CLIENTE:</strong> CONSUMIDOR FINAL</div>
+            {% endif %}
+        </div>
+
+        <div class="linha-tracejada"></div>
+
+        <!-- DETALHES DO ADIANTAMENTO -->
+        <div class="linha-financeira" style="font-size: 12px;">
+            <span>FORMA DE PAGAMENTO:</span>
+            <strong>{{ pagamento.get_forma_pagamento_display|upper }}</strong>
+        </div>
+
+        <div class="linha-tracejada"></div>
+
+        <div class="linha-financeira total-destaque">
+            <span>VALOR ADIANTADO:</span>
+            <span>R$ {{ pagamento.valor|floatformat:2 }}</span>
+        </div>
+
+        <div class="linha-tracejada"></div>
+
+        <!-- RESUMO FINANCEIRO DA VENDA -->
+        <div class="text-center fw-bold" style="font-size: 10px; margin-bottom: 2px;">
+            SITUAÇÃO FINANCEIRA DA VENDA
+        </div>
+        <div class="linha-financeira">
+            <span>TOTAL DA VENDA:</span>
+            <span>R$ {{ venda.valor_total|floatformat:2 }}</span>
+        </div>
+        <div class="linha-financeira">
+            <span>TOTAL PAGO ATÉ AGORA:</span>
+            <strong>R$ {{ venda.total_pago|floatformat:2 }}</strong>
+        </div>
+        <div class="linha-financeira">
+            <span>SALDO RESTANTE:</span>
+            <strong style="{% if venda.saldo_restante == 0 %}color: #000;{% endif %}">
+                {% if venda.saldo_restante == 0 %}
+                    R$ 0,00 (QUITADA)
+                {% else %}
+                    R$ {{ venda.saldo_restante|floatformat:2 }}
+                {% endif %}
+            </strong>
+        </div>
+
+        <!-- CRONOGRAMA DE PARCELAS ATUALIZADO (SE CREDIÁRIO) -->
+        {% if venda.parcelas.exists %}
+        <div class="linha-tracejada"></div>
+        <div class="text-center fw-bold" style="font-size: 10px; margin-bottom: 2px;">
+            PARCELAS DO CREDIÁRIO ATUALIZADAS
+        </div>
+        {% for p in venda.parcelas.all %}
+        <div class="parcela-item">
+            <span>Parc. {{ p.numero_parcela }}/{{ p.total_parcelas }} ({{ p.data_vencimento|date:"d/m/Y" }}):</span>
+            <strong>
+                {% if p.status == 'PAGO' %}
+                    R$ {{ p.valor_parcela|floatformat:2 }} (QUITADA)
+                {% else %}
+                    Pago: R$ {{ p.valor_pago|floatformat:2 }} / Saldo: R$ {{ p.saldo_restante|floatformat:2 }}
+                {% endif %}
+            </strong>
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        {% if pagamento.observacoes %}
+        <div class="linha-tracejada"></div>
+        <div style="font-size: 10px;">
+            <strong>OBS:</strong> {{ pagamento.observacoes }}
+        </div>
+        {% endif %}
+
+        <!-- ASSINATURAS -->
+        <div class="assinatura-box">
+            ASSINATURA DO CLIENTE
+        </div>
+
+        <div class="linha-dupla"></div>
+        <div class="rodape">
+            <div class="fw-bold">OBRIGADO PELA PREFERÊNCIA!</div>
+            <div style="font-size: 9px; margin-top: 4px; color: #555;">
+                JGTECH SISTEMA DE GESTÃO DE ESTOQUE
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        function autoImprimir() {
+            setTimeout(function() {
+                window.print();
+            }, 350);
+        }
+    </script>
+</body>
+</html>

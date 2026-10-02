@@ -511,6 +511,7 @@ class Venda(models.Model):
         ('CREDITO', 'Cartão de Crédito'),
         ('CHEQUE', 'Cheque'),
         ('CREDIARIO', 'Crediário / A Prazo'),
+        ('MULTIPLO', 'Múltiplo / Combinado'),
     ]
 
     STATUS_VENDA = [
@@ -550,6 +551,57 @@ class Venda(models.Model):
     def __str__(self):
         cliente_str = self.cliente.nome if self.cliente else "Consumidor Final"
         return f"{self.codigo_venda} - {cliente_str} (R$ {self.valor_total})"
+
+    @property
+    def total_pago(self):
+        if self.status == 'CANCELADA':
+            return Decimal('0.00')
+        # Se existem pagamentos registrados no novo modelo PagamentoVenda:
+        if self.pagamentos.exists():
+            pgtos = self.pagamentos.exclude(forma_pagamento='CREDIARIO')
+            total = sum((Decimal(str(p.valor)) for p in pgtos), Decimal('0.00'))
+            return min(Decimal(str(self.valor_total)), total)
+        # Fallback legado:
+        if self.forma_pagamento == 'CREDIARIO' or self.parcelas.exists():
+            return Decimal(str(sum((p.valor_pago for p in self.parcelas.all()), Decimal('0.00'))))
+        elif self.forma_pagamento == 'CHEQUE':
+            return Decimal(str(sum((c.valor for c in self.cheques.filter(status='COMPENSADO')), Decimal('0.00'))))
+        elif self.status_pagamento == 'PAGO':
+            return Decimal(str(self.valor_total))
+        return Decimal('0.00')
+
+    @property
+    def saldo_restante(self):
+        if self.status == 'CANCELADA':
+            return Decimal('0.00')
+        total = Decimal(str(self.valor_total))
+        pago = Decimal(str(self.total_pago))
+        return max(Decimal('0.00'), total - pago)
+
+    @property
+    def percentual_pago(self):
+        if self.status == 'CANCELADA':
+            return 0.0
+        if not self.valor_total or self.valor_total <= 0:
+            return 100.0
+        perc = (float(self.total_pago) / float(self.valor_total)) * 100.0
+        return min(100.0, round(perc, 1))
+
+    @property
+    def pode_receber_adiantamento(self):
+        return self.status != 'CANCELADA' and self.saldo_restante > Decimal('0.00')
+
+    @property
+    def resumo_meios_pagamento(self):
+        if self.forma_pagamento == 'MULTIPLO':
+            pgtos = self.pagamentos.all()
+            if pgtos.exists():
+                resumo_list = []
+                for p in pgtos:
+                    resumo_list.append(f"{p.get_forma_pagamento_display()} (R$ {p.valor:.2f})")
+                return ", ".join(resumo_list)
+            return "Múltiplo / Combinado"
+        return self.get_forma_pagamento_display()
 
 
 # 12.3 ITENS DA VENDA
@@ -644,6 +696,41 @@ class PagamentoCrediario(models.Model):
 
     def __str__(self):
         return f"Pagamento R$ {self.valor_recebido} ({self.conta.cliente.nome})"
+
+
+# 12.6 PAGAMENTOS DA VENDA (COMBINADOS, ENTRADAS E ADIANTAMENTOS)
+class PagamentoVenda(models.Model):
+    TIPO_CHOICES = [
+        ('ENTRADA', 'Pagamento Imediato / Entrada'),
+        ('ADIANTAMENTO', 'Adiantamento de Pagamento'),
+        ('PARCELA', 'Baixa de Parcela'),
+    ]
+    FORMAS_PAGAMENTO = [
+        ('DINHEIRO', 'Dinheiro'),
+        ('PIX', 'PIX'),
+        ('DEBITO', 'Cartão de Débito'),
+        ('CREDITO', 'Cartão de Crédito'),
+        ('CHEQUE', 'Cheque'),
+        ('CREDIARIO', 'Crediário / A Prazo'),
+        ('OUTRO', 'Outro'),
+    ]
+
+    empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE, related_name='pagamentos_venda')
+    venda = models.ForeignKey(Venda, on_delete=models.CASCADE, related_name='pagamentos', verbose_name="Venda de Origem")
+    tipo = models.CharField(max_length=20, choices=TIPO_CHOICES, default='ENTRADA', verbose_name="Tipo de Pagamento")
+    forma_pagamento = models.CharField(max_length=20, choices=FORMAS_PAGAMENTO, default='DINHEIRO', verbose_name="Forma de Pagamento")
+    valor = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Valor (R$)")
+    data_pagamento = models.DateTimeField(default=timezone.now, verbose_name="Data do Pagamento")
+    usuario = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, verbose_name="Operador")
+    observacoes = models.TextField(blank=True, null=True, verbose_name="Observações")
+
+    class Meta:
+        ordering = ['data_pagamento', 'id']
+        verbose_name = "Pagamento de Venda"
+        verbose_name_plural = "Pagamentos de Venda"
+
+    def __str__(self):
+        return f"{self.get_tipo_display()} - {self.get_forma_pagamento_display()} (R$ {self.valor}) - {self.venda.codigo_venda}"
 
 
 # 13. ASSINATURAS & PAGAMENTOS SAAS (MERCADO PAGO)

@@ -316,6 +316,31 @@
             <strong>{{ venda.get_forma_pagamento_display|upper }}</strong>
         </div>
 
+        {% if venda.forma_pagamento == 'MULTIPLO' and venda.pagamentos.exists %}
+        <div class="linha-tracejada"></div>
+        <div class="text-center fw-bold" style="font-size: 10px; margin-bottom: 2px;">
+            DETALHAMENTO DOS MEIOS COMBINADOS
+        </div>
+        {% for pg in venda.pagamentos.all %}
+        <div class="parcela-item" style="font-size: 11px;">
+            <span>- {{ pg.get_forma_pagamento_display|upper }}{% if pg.tipo == 'ADIANTAMENTO' %} (Adiantamento){% endif %}:</span>
+            <strong>R$ {{ pg.valor|floatformat:2 }}</strong>
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        {% if venda.saldo_restante > 0 %}
+        <div class="linha-tracejada"></div>
+        <div class="linha-financeira">
+            <span>TOTAL PAGO ATÉ AGORA:</span>
+            <strong>R$ {{ venda.total_pago|floatformat:2 }}</strong>
+        </div>
+        <div class="linha-financeira">
+            <span>SALDO RESTANTE A PAGAR:</span>
+            <strong>R$ {{ venda.saldo_restante|floatformat:2 }}</strong>
+        </div>
+        {% endif %}
+
         {% if venda.parcelas.exists %}
         <div class="linha-tracejada"></div>
         <div class="text-center fw-bold" style="font-size: 11px; margin-bottom: 3px;">
