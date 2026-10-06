@@ -698,6 +698,24 @@ document.addEventListener('DOMContentLoaded', function () {
             badgeCliVencido.classList.add('d-none');
         }
         clienteCreditoCard.classList.remove('d-none');
+
+        // Se houver cheques em MULTIPLO sem titular preenchido, atualiza automaticamente
+        if (containerLinhasMultiplo && opt && opt.value) {
+            const nomeCli = opt.dataset.nome || opt.textContent.trim().split(' - ')[0];
+            const docCli = opt.dataset.cpf || '';
+            const telCli = opt.dataset.telefone || '';
+            containerLinhasMultiplo.querySelectorAll('.linha-multiplo').forEach(l => {
+                if (l.querySelector('.sel-multi-forma')?.value === 'CHEQUE') {
+                    const inpTit = l.querySelector('.input-multi-chq-titular');
+                    const inpDoc = l.querySelector('.input-multi-chq-cpf');
+                    const inpTel = l.querySelector('.input-multi-chq-telefone');
+                    if (inpTit && !inpTit.value) inpTit.value = nomeCli;
+                    if (inpDoc && !inpDoc.value) inpDoc.value = docCli;
+                    if (inpTel && !inpTel.value) inpTel.value = telCli;
+                }
+            });
+            serializarChequesJson();
+        }
     });
 
     // 3. Adicionar Produto ao Carrinho
@@ -1033,27 +1051,58 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function serializarChequesJson() {
-        if (!containerFolhasCheque) return;
+        if (!inputChequesJson) return;
         const cheques = [];
-        containerFolhasCheque.querySelectorAll('.card-folha-cheque').forEach(el => {
-            cheques.push({
-                numero: el.querySelector('.input-chq-numero')?.value.trim() || '',
-                banco: el.querySelector('.input-chq-banco')?.value.trim() || '',
-                agencia: el.querySelector('.input-chq-agencia')?.value.trim() || '',
-                conta: el.querySelector('.input-chq-conta')?.value.trim() || '',
-                titular: el.querySelector('.input-chq-titular')?.value.trim() || '',
-                cpf_cnpj_titular: el.querySelector('.input-chq-cpf')?.value.trim() || '',
-                telefone_titular: el.querySelector('.input-chq-telefone')?.value.trim() || '',
-                data_compensacao: el.querySelector('.input-chq-vencimento')?.value || '',
-                valor: parseFloat(el.querySelector('.input-chq-valor')?.value || 0),
-                tipo: el.querySelector('.input-chq-tipo')?.value || 'PRE_DATADO',
-                status: el.querySelector('.input-chq-status')?.value || 'PENDENTE',
-                observacoes: el.querySelector('.input-chq-obs')?.value.trim() || ''
-            });
-        });
-        if (inputChequesJson) {
-            inputChequesJson.value = JSON.stringify(cheques);
+
+        if (selFormaPagamento && selFormaPagamento.value === 'CHEQUE') {
+            if (containerFolhasCheque) {
+                containerFolhasCheque.querySelectorAll('.card-folha-cheque').forEach(el => {
+                    cheques.push({
+                        numero: el.querySelector('.input-chq-numero')?.value.trim() || '',
+                        banco: el.querySelector('.input-chq-banco')?.value.trim() || '',
+                        agencia: el.querySelector('.input-chq-agencia')?.value.trim() || '',
+                        conta: el.querySelector('.input-chq-conta')?.value.trim() || '',
+                        titular: el.querySelector('.input-chq-titular')?.value.trim() || '',
+                        cpf_cnpj_titular: el.querySelector('.input-chq-cpf')?.value.trim() || '',
+                        telefone_titular: el.querySelector('.input-chq-telefone')?.value.trim() || '',
+                        data_compensacao: el.querySelector('.input-chq-vencimento')?.value || '',
+                        valor: parseFloat(el.querySelector('.input-chq-valor')?.value || 0),
+                        tipo: el.querySelector('.input-chq-tipo')?.value || 'PRE_DATADO',
+                        status: el.querySelector('.input-chq-status')?.value || 'PENDENTE',
+                        observacoes: el.querySelector('.input-chq-obs')?.value.trim() || ''
+                    });
+                });
+            }
+        } else if (selFormaPagamento && selFormaPagamento.value === 'MULTIPLO') {
+            if (containerLinhasMultiplo) {
+                containerLinhasMultiplo.querySelectorAll('.linha-multiplo').forEach(l => {
+                    const forma = l.querySelector('.sel-multi-forma')?.value;
+                    if (forma === 'CHEQUE') {
+                        const val = parseFloat(l.querySelector('.input-multi-valor')?.value.replace(',', '.') || 0);
+                        const obsLinha = l.querySelector('.input-multi-obs')?.value.trim() || '';
+                        const obsChq = l.querySelector('.input-multi-chq-obs')?.value.trim() || '';
+                        const obsFinal = obsChq || obsLinha;
+
+                        cheques.push({
+                            numero: l.querySelector('.input-multi-chq-numero')?.value.trim() || '',
+                            banco: l.querySelector('.input-multi-chq-banco')?.value.trim() || '',
+                            agencia: l.querySelector('.input-multi-chq-agencia')?.value.trim() || '',
+                            conta: l.querySelector('.input-multi-chq-conta')?.value.trim() || '',
+                            titular: l.querySelector('.input-multi-chq-titular')?.value.trim() || '',
+                            cpf_cnpj_titular: l.querySelector('.input-multi-chq-cpf')?.value.trim() || '',
+                            telefone_titular: l.querySelector('.input-multi-chq-telefone')?.value.trim() || '',
+                            data_compensacao: l.querySelector('.input-multi-chq-vencimento')?.value || '',
+                            valor: isNaN(val) ? 0 : val,
+                            tipo: l.querySelector('.input-multi-chq-tipo')?.value || 'PRE_DATADO',
+                            status: l.querySelector('.input-multi-chq-status')?.value || 'PENDENTE',
+                            observacoes: obsFinal
+                        });
+                    }
+                });
+            }
         }
+
+        inputChequesJson.value = cheques.length > 0 ? JSON.stringify(cheques) : '';
     }
 
     if (selQtdCheques) selQtdCheques.addEventListener('change', renderizarFolhasCheque);
@@ -1188,6 +1237,70 @@ document.addEventListener('DOMContentLoaded', function () {
                     <!-- Resumo das parcelas -->
                 </div>
             </div>
+            <!-- Subpainel condicional para Cheque -->
+            <div class="sub-cheque-multiplo mt-2 pt-2 border-top border-info border-opacity-50 ${formaPadrao === 'CHEQUE' ? '' : 'd-none'}">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2 pb-1 border-bottom border-info border-opacity-25 bg-info-subtle p-2 rounded">
+                    <span class="fw-bold text-dark small d-flex align-items-center gap-1">
+                        <i class="bi bi-card-heading text-primary fs-6"></i> Informações do Cheque
+                    </span>
+                    <button type="button" class="btn btn-sm btn-outline-primary py-0 px-2 btn-copiar-cliente-linha-cheque" title="Preencher emitente com os dados do cliente selecionado" style="font-size: 0.78rem;">
+                        <i class="bi bi-person-check me-1"></i> Copiar Dados do Cliente
+                    </button>
+                </div>
+                <div class="row g-2">
+                    <div class="col-12 col-md-3">
+                        <label class="form-label small fw-semibold text-muted mb-1">Nº do Cheque <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control form-control-sm fw-bold input-multi-chq-numero" placeholder="Ex: 000123">
+                    </div>
+                    <div class="col-12 col-md-3">
+                        <label class="form-label small fw-semibold text-muted mb-1">Banco <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control form-control-sm input-multi-chq-banco" list="listaBancosCheque" placeholder="Ex: 001 - Banco do Brasil">
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small fw-semibold text-muted mb-1">Agência</label>
+                        <input type="text" class="form-control form-control-sm input-multi-chq-agencia" placeholder="Ex: 1234-5">
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small fw-semibold text-muted mb-1">Conta Corrente</label>
+                        <input type="text" class="form-control form-control-sm input-multi-chq-conta" placeholder="Ex: 12345-6">
+                    </div>
+
+                    <div class="col-12 col-md-4">
+                        <label class="form-label small fw-semibold text-muted mb-1">Titular / Emitente <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control form-control-sm input-multi-chq-titular" placeholder="Nome completo do titular">
+                    </div>
+                    <div class="col-6 col-md-4">
+                        <label class="form-label small fw-semibold text-muted mb-1">CPF / CNPJ do Titular</label>
+                        <input type="text" class="form-control form-control-sm input-multi-chq-cpf" placeholder="000.000.000-00">
+                    </div>
+                    <div class="col-6 col-md-4">
+                        <label class="form-label small fw-semibold text-muted mb-1">Telefone de Contato</label>
+                        <input type="text" class="form-control form-control-sm input-multi-chq-telefone" placeholder="(00) 00000-0000">
+                    </div>
+
+                    <div class="col-6 col-md-4">
+                        <label class="form-label small fw-semibold text-muted mb-1">Bom Para (Vencimento) <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control form-control-sm input-multi-chq-vencimento" value="${dataPadrao}">
+                    </div>
+                    <div class="col-6 col-md-4">
+                        <label class="form-label small fw-semibold text-muted mb-1">Modalidade</label>
+                        <select class="form-select form-select-sm input-multi-chq-tipo">
+                            <option value="PRE_DATADO">Pré-datado</option>
+                            <option value="A_VISTA">À Vista</option>
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label small fw-semibold text-muted mb-1">Situação Inicial</label>
+                        <select class="form-select form-select-sm input-multi-chq-status">
+                            <option value="PENDENTE">Em Carteira (A Compensar)</option>
+                            <option value="COMPENSADO">Compensado / Já Depositado</option>
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <input type="text" class="form-control form-control-sm input-multi-chq-obs" placeholder="Observações específicas deste cheque (opcional)...">
+                    </div>
+                </div>
+            </div>
         `;
 
         containerLinhasMultiplo.appendChild(card);
@@ -1195,21 +1308,131 @@ document.addEventListener('DOMContentLoaded', function () {
         const selForma = card.querySelector('.sel-multi-forma');
         const inputVal = card.querySelector('.input-multi-valor');
         const subCrediario = card.querySelector('.sub-crediario-multiplo');
+        const subCheque = card.querySelector('.sub-cheque-multiplo');
         const selNumParc = card.querySelector('.sel-multi-num-parcelas');
         const btnRemover = card.querySelector('.btn-remover-linha-multi');
+        const btnCopiarCliLinha = card.querySelector('.btn-copiar-cliente-linha-cheque');
+        const inputChqTipo = card.querySelector('.input-multi-chq-tipo');
+        const inputChqVenc = card.querySelector('.input-multi-chq-vencimento');
+
+        function autoPreencherDadosCheque() {
+            const inputTit = card.querySelector('.input-multi-chq-titular');
+            const inputCpf = card.querySelector('.input-multi-chq-cpf');
+            const inputTel = card.querySelector('.input-multi-chq-telefone');
+            const inputBanco = card.querySelector('.input-multi-chq-banco');
+            const inputAg = card.querySelector('.input-multi-chq-agencia');
+            const inputCc = card.querySelector('.input-multi-chq-conta');
+            const inputVenc = card.querySelector('.input-multi-chq-vencimento');
+
+            // 1. Tenta herdar dados bancários e titular de outra linha de cheque anterior se houver
+            let dadosLinhaAnterior = null;
+            let dataLinhaAnterior = null;
+            const outrasLinhas = containerLinhasMultiplo.querySelectorAll('.linha-multiplo');
+            for (let l of outrasLinhas) {
+                if (l === card) break;
+                if (l.querySelector('.sel-multi-forma')?.value === 'CHEQUE') {
+                    dadosLinhaAnterior = {
+                        banco: l.querySelector('.input-multi-chq-banco')?.value || '',
+                        agencia: l.querySelector('.input-multi-chq-agencia')?.value || '',
+                        conta: l.querySelector('.input-multi-chq-conta')?.value || '',
+                        titular: l.querySelector('.input-multi-chq-titular')?.value || '',
+                        cpf: l.querySelector('.input-multi-chq-cpf')?.value || '',
+                        telefone: l.querySelector('.input-multi-chq-telefone')?.value || '',
+                        vencimento: l.querySelector('.input-multi-chq-vencimento')?.value || ''
+                    };
+                    dataLinhaAnterior = dadosLinhaAnterior.vencimento;
+                }
+            }
+
+            // Pega dados do cliente selecionado se disponível
+            const optCli = selCliente.options[selCliente.selectedIndex];
+            const nomeCli = optCli && optCli.value ? (optCli.dataset.nome || optCli.textContent.trim().split(' - ')[0]) : '';
+            const cpfCli = optCli && optCli.value ? (optCli.dataset.cpf || '') : '';
+            const telCli = optCli && optCli.value ? (optCli.dataset.telefone || '') : '';
+
+            if (dadosLinhaAnterior) {
+                if (inputBanco && !inputBanco.value) inputBanco.value = dadosLinhaAnterior.banco;
+                if (inputAg && !inputAg.value) inputAg.value = dadosLinhaAnterior.agencia;
+                if (inputCc && !inputCc.value) inputCc.value = dadosLinhaAnterior.conta;
+                if (inputTit && !inputTit.value) inputTit.value = dadosLinhaAnterior.titular || nomeCli;
+                if (inputCpf && !inputCpf.value) inputCpf.value = dadosLinhaAnterior.cpf || cpfCli;
+                if (inputTel && !inputTel.value) inputTel.value = dadosLinhaAnterior.telefone || telCli;
+                if (inputVenc && dataLinhaAnterior && (!inputVenc.value || inputVenc.value === dataPadrao)) {
+                    try {
+                        const dtAnt = new Date(dataLinhaAnterior + 'T00:00:00');
+                        dtAnt.setDate(dtAnt.getDate() + 30);
+                        inputVenc.value = dtAnt.toISOString().split('T')[0];
+                    } catch(e) {}
+                }
+            } else {
+                if (inputTit && !inputTit.value && nomeCli) inputTit.value = nomeCli;
+                if (inputCpf && !inputCpf.value && cpfCli) inputCpf.value = cpfCli;
+                if (inputTel && !inputTel.value && telCli) inputTel.value = telCli;
+            }
+            serializarChequesJson();
+        }
+
+        if (btnCopiarCliLinha) {
+            btnCopiarCliLinha.addEventListener('click', function() {
+                const optCli = selCliente.options[selCliente.selectedIndex];
+                if (!optCli || !optCli.value) {
+                    alert("Selecione um cliente no campo de busca de clientes para puxar seus dados.");
+                    return;
+                }
+                const nomeCli = optCli.dataset.nome || optCli.textContent.trim().split(' - ')[0];
+                const docCli = optCli.dataset.cpf || '';
+                const telCli = optCli.dataset.telefone || '';
+
+                const inputTit = card.querySelector('.input-multi-chq-titular');
+                const inputDoc = card.querySelector('.input-multi-chq-cpf');
+                const inputTel = card.querySelector('.input-multi-chq-telefone');
+                if (inputTit) inputTit.value = nomeCli;
+                if (inputDoc) inputDoc.value = docCli;
+                if (inputTel) inputTel.value = telCli;
+                serializarChequesJson();
+            });
+        }
+
+        if (inputChqTipo && inputChqVenc) {
+            inputChqTipo.addEventListener('change', function() {
+                if (this.value === 'A_VISTA') {
+                    inputChqVenc.value = new Date().toISOString().split('T')[0];
+                } else {
+                    const dt = new Date();
+                    dt.setDate(dt.getDate() + 30);
+                    inputChqVenc.value = dt.toISOString().split('T')[0];
+                }
+                serializarChequesJson();
+            });
+        }
+
+        subCheque.querySelectorAll('input, select').forEach(inp => {
+            inp.addEventListener('input', serializarChequesJson);
+            inp.addEventListener('change', serializarChequesJson);
+        });
 
         selForma.addEventListener('change', function() {
             if (this.value === 'CREDIARIO') {
                 subCrediario.classList.remove('d-none');
+                subCheque.classList.add('d-none');
                 if (!selCliente.value) {
                     alert("Aviso: Para compras no crediário, é obrigatório selecionar um cliente cadastrado.");
                     selCliente.focus();
                 }
+            } else if (this.value === 'CHEQUE') {
+                subCheque.classList.remove('d-none');
+                subCrediario.classList.add('d-none');
+                autoPreencherDadosCheque();
             } else {
                 subCrediario.classList.add('d-none');
+                subCheque.classList.add('d-none');
             }
             recalcularPainelMultiplo();
         });
+
+        if (formaPadrao === 'CHEQUE') {
+            autoPreencherDadosCheque();
+        }
 
         inputVal.addEventListener('input', function() {
             recalcularPainelMultiplo();
@@ -1295,6 +1518,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         serializarMultiploJson();
+        serializarChequesJson();
     }
 
     function serializarMultiploJson() {
@@ -1462,6 +1686,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (selFormaPagamento.value === 'MULTIPLO') {
                 serializarMultiploJson();
+                serializarChequesJson();
                 const linhas = containerLinhasMultiplo.querySelectorAll('.linha-multiplo');
                 if (linhas.length === 0) {
                     alert("Adicione pelo menos uma forma de pagamento no pagamento combinado.");
@@ -1491,6 +1716,38 @@ document.addEventListener('DOMContentLoaded', function () {
                     if (forma === 'CREDIARIO') {
                         temCrediario = true;
                         valorCrediario += val;
+                    }
+
+                    if (forma === 'CHEQUE') {
+                        const num = l.querySelector('.input-multi-chq-numero')?.value.trim();
+                        const banco = l.querySelector('.input-multi-chq-banco')?.value.trim();
+                        const tit = l.querySelector('.input-multi-chq-titular')?.value.trim();
+                        const venc = l.querySelector('.input-multi-chq-vencimento')?.value;
+
+                        if (!num) {
+                            alert(`Por favor, informe o número do cheque na forma de pagamento #${i + 1}.`);
+                            l.querySelector('.input-multi-chq-numero')?.focus();
+                            e.preventDefault();
+                            return;
+                        }
+                        if (!banco) {
+                            alert(`Por favor, informe o banco do cheque na forma de pagamento #${i + 1}.`);
+                            l.querySelector('.input-multi-chq-banco')?.focus();
+                            e.preventDefault();
+                            return;
+                        }
+                        if (!tit) {
+                            alert(`Por favor, informe o titular/emitente do cheque na forma de pagamento #${i + 1}.`);
+                            l.querySelector('.input-multi-chq-titular')?.focus();
+                            e.preventDefault();
+                            return;
+                        }
+                        if (!venc) {
+                            alert(`Por favor, informe a data de vencimento (Bom para) do cheque na forma de pagamento #${i + 1}.`);
+                            l.querySelector('.input-multi-chq-vencimento')?.focus();
+                            e.preventDefault();
+                            return;
+                        }
                     }
                 }
 

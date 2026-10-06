@@ -3045,6 +3045,63 @@ class TesteDashboard180DiasECheques(TestCase):
         self.assertEqual(ch1.valor, Decimal('100.00'))
         self.assertEqual(ch2.valor, Decimal('100.00'))
 
+    def test_venda_multiplo_com_cheque(self):
+        """Valida registro de venda com combinação de meios de pagamento incluindo cheque"""
+        self.client.force_login(self.user)
+
+        itens_payload = [
+            {
+                'produto_id': self.produto.id,
+                'lote_id': self.lote.id,
+                'quantidade': 4,
+                'preco_unitario': 50.00
+            }
+        ]  # Total 200.00
+
+        hoje = timezone.now().date()
+        multiplos_payload = [
+            {'forma': 'DINHEIRO', 'valor': 50.00, 'observacoes': 'Entrada em dinheiro'},
+            {'forma': 'CHEQUE', 'valor': 150.00, 'observacoes': 'Cheque para 30 dias'}
+        ]
+
+        cheques_payload = [
+            {
+                'numero': 'CHQ-MULT-001',
+                'banco': '001 - Banco do Brasil',
+                'agencia': '1234',
+                'conta': '98765-4',
+                'titular': 'Maria Souza',
+                'cpf_cnpj_titular': '123.456.789-00',
+                'telefone_titular': '(11) 98888-7777',
+                'valor': 150.00,
+                'tipo': 'PRE_DATADO',
+                'data_compensacao': (hoje + timedelta(days=30)).strftime('%Y-%m-%d'),
+                'status': 'PENDENTE',
+                'observacoes': 'Cheque recebido em combinação'
+            }
+        ]
+
+        post_data = {
+            'itens_json': json.dumps(itens_payload),
+            'forma_pagamento': 'MULTIPLO',
+            'cliente_id': self.cliente.id,
+            'pagamentos_multiplos_json': json.dumps(multiplos_payload),
+            'cheques_json': json.dumps(cheques_payload)
+        }
+
+        response = self.client.post(reverse('registrar_venda'), data=post_data, HTTP_HOST='localhost')
+        self.assertEqual(response.status_code, 302)
+
+        venda = Venda.objects.filter(empresa=self.empresa, forma_pagamento='MULTIPLO').first()
+        self.assertIsNotNone(venda)
+        self.assertEqual(venda.valor_total, Decimal('200.00'))
+        self.assertEqual(venda.pagamentos.count(), 2)
+        self.assertEqual(venda.cheques.count(), 1)
+        ch = venda.cheques.first()
+        self.assertEqual(ch.numero, 'CHQ-MULT-001')
+        self.assertEqual(ch.valor, Decimal('150.00'))
+        self.assertEqual(ch.titular, 'Maria Souza')
+
     def test_alterar_status_cheque_e_sincronizacao_venda(self):
         """Valida que compensar todos os cheques de uma venda atualiza a venda para PAGO"""
         self.client.force_login(self.user)
