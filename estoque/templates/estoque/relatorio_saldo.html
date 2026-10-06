@@ -1,79 +1,216 @@
 {% extends 'estoque/base.html' %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4 d-print-none">
-    <h3><i class="bi bi-clipboard-data"></i> Posição de Estoque Valorizado</h3>
-    <div>
-        <button onclick="window.print()" class="btn btn-outline-dark">
-            <i class="bi bi-printer"></i> Imprimir / Salvar PDF
-        </button>
-        <a href="{% url 'relatorios_gerais' %}" class="btn btn-secondary">Voltar</a>
+<div class="d-print-none mb-3">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="{% url 'relatorios_gerais' %}" class="text-decoration-none">Relatórios</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Posição de Estoque</li>
+                </ol>
+            </nav>
+            <h2 class="h3 fw-bold mb-0 text-dark">
+                <i class="bi bi-box-seam text-success me-2"></i>Posição de Estoque Valorizado
+            </h2>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <button onclick="window.print()" class="btn btn-outline-dark">
+                <i class="bi bi-printer me-1"></i> Imprimir / PDF
+            </button>
+            <a href="{% url 'relatorios_gerais' %}" class="btn btn-secondary">
+                <i class="bi bi-arrow-left me-1"></i> Voltar
+            </a>
+        </div>
     </div>
 </div>
 
-<div class="card shadow-sm">
-    <div class="card-header bg-light">
-        <div class="row">
-            <div class="col-md-6">
-             <strong>Empresa:</strong> {{ empresa.nome|default:"JGTECH" }}<br>
-    
-            {% if empresa.cnpj %}<small>CNPJ: {{ empresa.cnpj }}</small><br>{% endif %}
-    
-            <strong>Data Emissão:</strong> {{ data_atual|date:"d/m/Y H:i" }}
-            </div>
+<!-- Cabeçalho de Impressão -->
+<div class="d-none d-print-block mb-3 border-bottom pb-2">
+    <div class="d-flex justify-content-between align-items-start">
+        <div>
+            <h3 class="h4 fw-bold mb-1">{{ empresa.nome|default:"JGTECH - Sistema de Estoque" }}</h3>
+            {% if empresa.cnpj %}<p class="mb-0 text-muted small">CNPJ: {{ empresa.cnpj }}</p>{% endif %}
+            <h4 class="h5 fw-bold text-success mt-1 mb-0">Posição de Estoque Valorizado</h4>
+        </div>
+        <div class="text-end small text-muted">
+            <div><strong>Emissão:</strong> {{ data_atual|date:"d/m/Y H:i" }}</div>
+            <div><strong>Valor Total:</strong> R$ {{ valor_total_estoque|floatformat:2 }}</div>
+            <div><strong>Unidades em Saldo:</strong> {{ total_itens }} itens</div>
+        </div>
+    </div>
+</div>
 
-            <div class="col-md-6 text-end">
-                <h5 class="mb-0 text-success">Valor Total: R$ {{ valor_total_estoque|floatformat:2 }}</h5>
-                <small class="text-muted">{{ total_itens }} itens no total</small>
+<!-- Filtros (Apenas Tela) -->
+<div class="card shadow-sm border-0 mb-4 d-print-none bg-light">
+    <div class="card-body p-3">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-12 col-md-3">
+                <label class="form-label small fw-bold mb-1">Buscar Produto / SKU / Lote</label>
+                <input type="text" name="q" class="form-control form-control-sm" placeholder="Nome, SKU ou nº lote..." value="{{ q }}">
+            </div>
+            <div class="col-6 col-md-3">
+                <label class="form-label small fw-bold mb-1">Categoria</label>
+                <select name="categoria" class="form-select form-select-sm">
+                    <option value="">Todas as Categorias</option>
+                    {% for cat in categorias %}
+                        <option value="{{ cat.id }}" {% if categoria_selecionada == cat.id|stringformat:"s" %}selected{% endif %}>{{ cat.nome }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label small fw-bold mb-1">Validade</label>
+                <select name="validade" class="form-select form-select-sm">
+                    <option value="">Todos os Lotes</option>
+                    <option value="vencidos" {% if validade_selecionada == 'vencidos' %}selected{% endif %}>Apenas Vencidos</option>
+                    <option value="30dias" {% if validade_selecionada == '30dias' %}selected{% endif %}>Vencendo em 30 dias</option>
+                    <option value="60dias" {% if validade_selecionada == '60dias' %}selected{% endif %}>Vencendo em 60 dias</option>
+                    <option value="180dias" {% if validade_selecionada == '180dias' %}selected{% endif %}>Vencendo em 180 dias</option>
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label small fw-bold mb-1">Ordenar Por</label>
+                <select name="ordenacao" class="form-select form-select-sm">
+                    <option value="produto" {% if ordenacao == 'produto' or ordenacao == 'produto__nome' %}selected{% endif %}>Produto (A-Z)</option>
+                    <option value="-quantidade" {% if ordenacao == '-quantidade' %}selected{% endif %}>Maior Quantidade</option>
+                    <option value="quantidade" {% if ordenacao == 'quantidade' %}selected{% endif %}>Menor Quantidade</option>
+                    <option value="-valor" {% if ordenacao == '-valor' %}selected{% endif %}>Maior Valor (R$)</option>
+                    <option value="validade" {% if ordenacao == 'validade' %}selected{% endif %}>Validade Próxima</option>
+                </select>
+            </div>
+            <div class="col-6 col-md-2 d-flex gap-1">
+                <button type="submit" class="btn btn-success btn-sm flex-grow-1">
+                    <i class="bi bi-filter"></i> Filtrar
+                </button>
+                <a href="{% url 'relatorio_estoque_saldo' %}" class="btn btn-outline-secondary btn-sm" title="Limpar">
+                    <i class="bi bi-x-circle"></i>
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Resumo dos Indicadores -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="card shadow-sm border-0 border-start border-success border-4 h-100">
+            <div class="card-body p-3">
+                <span class="text-muted small text-uppercase fw-bold d-block mb-1">Valor Total em Estoque</span>
+                <h3 class="fw-bold mb-0 text-success">R$ {{ valor_total_estoque|floatformat:2 }}</h3>
             </div>
         </div>
     </div>
+    <div class="col-6 col-md-3">
+        <div class="card shadow-sm border-0 border-start border-primary border-4 h-100">
+            <div class="card-body p-3">
+                <span class="text-muted small text-uppercase fw-bold d-block mb-1">Unidades em Saldo</span>
+                <h3 class="fw-bold mb-0 text-primary">{{ total_itens }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card shadow-sm border-0 border-start border-secondary border-4 h-100">
+            <div class="card-body p-3">
+                <span class="text-muted small text-uppercase fw-bold d-block mb-1">Lotes Ativos</span>
+                <h3 class="fw-bold mb-0 text-dark">{{ total_lotes }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card shadow-sm border-0 border-start border-danger border-4 h-100">
+            <div class="card-body p-3">
+                <span class="text-muted small text-uppercase fw-bold d-block mb-1">Alertas de Validade</span>
+                <div class="d-flex align-items-baseline gap-2">
+                    <span class="fw-bold fs-4 text-danger">{{ lotes_vencidos_total|default:0 }} <small class="fs-6 fw-normal">vencidos</small></span>
+                    <span class="text-warning fw-semibold small">| {{ lotes_vencendo_30d|default:0 }} a vencer</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tabela de Lotes em Estoque -->
+<div class="card shadow-sm border-0">
     <div class="card-body p-0">
-        <table class="table table-striped table-sm mb-0">
-            <thead>
-                <tr>
-                    <th>Produto</th>
-                    <th>SKU</th>
-                    <th>Lote</th>
-                    <th>Fabricação</th>
-                    <th>Validade</th>
-                    <th class="text-end">Custo Unit.</th>
-                    <th class="text-center">Qtd Atual</th>
-                    <th class="text-end">Total (R$)</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for lote in lotes %}
-                <tr>
-                    <td>{{ lote.produto.nome }}</td>
-                    <td>{{ lote.produto.sku|default:"-" }}</td>
-                    <td>{{ lote.numero_lote }}</td>
-                    <td>{{ lote.data_fabricacao|date:"d/m/y"|default:"-" }}</td>
-                    <td>{{ lote.data_validade|date:"d/m/y"|default:"-" }}</td>
-                    <td class="text-end">R$ {{ lote.preco_compra|floatformat:2 }}</td>
-                    <td class="text-center fw-bold">{{ lote.quantidade_atual }}</td>
-                    <td class="text-end fw-bold">
-                        R$ {% widthratio lote.quantidade_atual 1 lote.preco_compra %}
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="8" class="text-center py-4">Estoque zerado.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Produto</th>
+                        <th>SKU</th>
+                        <th>Lote</th>
+                        <th>Fabricação</th>
+                        <th>Validade</th>
+                        <th class="text-end">Custo Unit.</th>
+                        <th class="text-center">Qtd Atual</th>
+                        <th class="text-end">Total (R$)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for lote in lotes %}
+                    <tr>
+                        <td>
+                            <div class="fw-bold text-dark">{{ lote.produto.nome }}</div>
+                            {% if lote.produto.categoria %}
+                                <span class="badge bg-light text-muted border small">{{ lote.produto.categoria.nome }}</span>
+                            {% endif %}
+                        </td>
+                        <td><small class="text-muted">{{ lote.produto.sku|default:"-" }}</small></td>
+                        <td>
+                            <span class="badge bg-light text-dark border">{{ lote.numero_lote }}</span>
+                        </td>
+                        <td><small>{{ lote.data_fabricacao|date:"d/m/Y"|default:"-" }}</small></td>
+                        <td>
+                            {% if lote.data_validade %}
+                                {% if lote.data_validade < hoje %}
+                                    <span class="badge bg-danger">
+                                        <i class="bi bi-exclamation-triangle-fill me-1"></i>{{ lote.data_validade|date:"d/m/Y" }} (Vencido)
+                                    </span>
+                                {% else %}
+                                    <small class="text-dark">{{ lote.data_validade|date:"d/m/Y" }}</small>
+                                {% endif %}
+                            {% else %}
+                                <small class="text-muted fst-italic">Não informada</small>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">R$ {{ lote.preco_compra|floatformat:2 }}</td>
+                        <td class="text-center fw-bold fs-6">{{ lote.quantidade_atual }}</td>
+                        <td class="text-end fw-bold text-success fs-6">
+                            R$ {{ lote.valor_lote|floatformat:2 }}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center py-5 text-muted">
+                            <i class="bi bi-box-seam fs-1 d-block mb-2"></i>
+                            Nenhum lote com saldo encontrado para os filtros selecionados.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                {% if lotes %}
+                <tfoot class="table-light fw-bold">
+                    <tr>
+                        <td colspan="6" class="text-end">TOTAL GERAL:</td>
+                        <td class="text-center text-primary fs-6">{{ total_itens }}</td>
+                        <td class="text-end text-success fs-6">R$ {{ valor_total_estoque|floatformat:2 }}</td>
+                    </tr>
+                </tfoot>
+                {% endif %}
+            </table>
+        </div>
     </div>
 </div>
 
 <style>
-    
     @media print {
         .d-print-none { display: none !important; }
-        .card { border: none !important; shadow: none !important; }
-        footer, header, nav { display: none !important; }
-        body { background: white; padding: 0; margin: 0; }
-        .container { max-width: 100% !important; }
+        .d-none.d-print-block { display: block !important; }
+        nav, header, footer, .navbar { display: none !important; }
+        body { background-color: #ffffff !important; font-size: 11px; }
+        .card { border: 1px solid #dee2e6 !important; box-shadow: none !important; }
+        .table { font-size: 10px; }
+        .container, .container-fluid { max-width: 100% !important; padding: 0 !important; margin: 0 !important; }
     }
 </style>
 {% endblock %}

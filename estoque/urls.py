@@ -49,6 +49,8 @@ urlpatterns = [
     path('api/criar_categoria/', views.criar_categoria_api, name='criar_categoria_api'),
 
     path('relatorios/', views.relatorios_gerais, name='relatorios_gerais'),
+    path('relatorios/vendas/', views.relatorio_vendas, name='relatorio_vendas'),
+    path('relatorios/vendas/exportar-csv/', views.exportar_relatorio_vendas_csv, name='exportar_relatorio_vendas_csv'),
     path('relatorios/estoque/', views.relatorio_estoque_saldo, name='relatorio_estoque_saldo'),
     path('relatorios/movimentacoes/', views.relatorio_movimentacoes, name='relatorio_movimentacoes'),
     path('entradas/excluir/<int:pk>/', views.excluir_entrada, name='excluir_entrada'),

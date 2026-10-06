@@ -3654,3 +3654,116 @@ class VendaAdiantamentoPagamentoTestCase(TestCase):
         self.assertEqual(pgs_criados[0].valor, Decimal('50.00'))
         self.assertEqual(pgs_criados[1].forma_pagamento, 'PIX')
         self.assertEqual(pgs_criados[1].valor, Decimal('50.00'))
+
+
+class RelatoriosViewsTestCase(TestCase):
+    def setUp(self):
+        self.empresa = Empresa.objects.create(nome='Empresa Relatórios', cnpj='11.222.333/0001-44')
+        ConfiguracaoEmpresa.objects.get_or_create(empresa=self.empresa, defaults={'modulo_vendas_pdv': True})
+        self.user = User.objects.create_user(username='operador_relatorios', password='RelatorioPass123!')
+        self.profile = UserProfile.objects.create(user=self.user, empresa=self.empresa, e_dono=True)
+        self.client.force_login(self.user)
+
+        self.cliente = Cliente.objects.create(empresa=self.empresa, nome='Cliente Relatório Especial', cpf_cnpj='123.456.789-00')
+        self.categoria = Categoria.objects.create(empresa=self.empresa, nome='Eletrônicos')
+        self.produto = Produto.objects.create(
+            empresa=self.empresa,
+            nome='Teclado Mecânico Pro',
+            sku='TEC-001',
+            categoria=self.categoria,
+            preco_venda=Decimal('150.00')
+        )
+        hoje = timezone.localdate()
+        self.lote = Lote.objects.create(
+            produto=self.produto,
+            numero_lote='LOTE-REL-01',
+            quantidade_inicial=50,
+            quantidade_atual=40,
+            preco_compra=Decimal('80.00'),
+            data_validade=hoje + timedelta(days=20)
+        )
+
+        # Venda 1: Quitada à vista (R$ 300.00)
+        self.venda1 = Venda.objects.create(
+            empresa=self.empresa,
+            codigo_venda='V-REL-001',
+            cliente=self.cliente,
+            usuario=self.user,
+            valor_subtotal=Decimal('300.00'),
+            desconto=Decimal('0.00'),
+            valor_adicional=Decimal('0.00'),
+            valor_total=Decimal('300.00'),
+            forma_pagamento='PIX',
+            status='CONCLUIDA',
+            status_pagamento='PAGO'
+        )
+        ItemVenda.objects.create(
+            venda=self.venda1,
+            produto=self.produto,
+            lote=self.lote,
+            quantidade=2,
+            preco_unitario=Decimal('150.00'),
+            subtotal=Decimal('300.00')
+        )
+        PagamentoVenda.objects.create(
+            empresa=self.empresa,
+            venda=self.venda1,
+            forma_pagamento='PIX',
+            valor=Decimal('300.00'),
+            usuario=self.user
+        )
+
+    def test_central_relatorios_gerais(self):
+        resp = self.client.get(reverse('relatorios_gerais'), HTTP_HOST='localhost')
+        self.assertEqual(resp.status_code, 200)
+        self.assertTemplateUsed(resp, 'estoque/relatorios_index.html')
+        self.assertIn('total_faturado_mes', resp.context)
+        self.assertIn('qtd_vendas_mes', resp.context)
+        self.assertIn('valor_estoque', resp.context)
+        self.assertEqual(resp.context['total_faturado_mes'], Decimal('300.00'))
+        self.assertEqual(resp.context['qtd_vendas_mes'], 1)
+
+    def test_relatorio_vendas_view(self):
+        resp = self.client.get(reverse('relatorio_vendas'), HTTP_HOST='localhost')
+        self.assertEqual(resp.status_code, 200)
+        self.assertTemplateUsed(resp, 'estoque/relatorio_vendas.html')
+        self.assertEqual(resp.context['total_registros'], 1)
+        self.assertEqual(resp.context['faturamento_liquido'], Decimal('300.00'))
+        self.assertEqual(resp.context['itens_vendidos_total'], 2)
+        self.assertEqual(len(resp.context['top_produtos']), 1)
+
+    def test_relatorio_vendas_com_filtros(self):
+        # Filtro com cliente correto
+        resp = self.client.get(reverse('relatorio_vendas'), {'cliente': self.cliente.id, 'forma_pagamento': 'PIX'}, HTTP_HOST='localhost')
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.context['total_registros'], 1)
+
+        # Filtro com busca sem resultado
+        resp_vazio = self.client.get(reverse('relatorio_vendas'), {'q': 'Inexistente999'}, HTTP_HOST='localhost')
+        self.assertEqual(resp_vazio.status_code, 200)
+        self.assertEqual(resp_vazio.context['total_registros'], 0)
+
+    def test_exportar_relatorio_vendas_csv(self):
+        resp = self.client.get(reverse('exportar_relatorio_vendas_csv'), HTTP_HOST='localhost')
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.headers.get('Content-Type'), 'text/csv; charset=utf-8-sig')
+        content = resp.content.decode('utf-8-sig')
+        self.assertIn('Código da Venda;Data/Hora;Cliente', content)
+        self.assertIn(self.venda1.codigo_venda, content)
+        self.assertIn('Cliente Relatório Especial', content)
+
+    def test_relatorio_estoque_saldo(self):
+        resp = self.client.get(reverse('relatorio_estoque_saldo'), {'q': 'Teclado'}, HTTP_HOST='localhost')
+        self.assertEqual(resp.status_code, 200)
+        self.assertTemplateUsed(resp, 'estoque/relatorio_saldo.html')
+        self.assertEqual(resp.context['total_itens'], 40)
+        self.assertEqual(resp.context['total_lotes'], 1)
+        self.assertEqual(resp.context['valor_total_estoque'], Decimal('3200.00'))
+
+    def test_relatorio_movimentacoes(self):
+        resp = self.client.get(reverse('relatorio_movimentacoes'), HTTP_HOST='localhost')
+        self.assertEqual(resp.status_code, 200)
+        self.assertTemplateUsed(resp, 'estoque/relatorio_movimentacoes.html')
+        self.assertIn('movimentacoes', resp.context)
+
+

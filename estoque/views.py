@@ -1,3 +1,4 @@
+import csv
 import logging
 import re
 from django.shortcuts import render, redirect, get_object_or_404
@@ -1555,28 +1556,429 @@ def relatorios_gerais(request):
     empresa = get_empresa_usuario(request.user)
     if not empresa:
         return redirect('cadastro_saas')
-    return render(request, 'estoque/relatorios_index.html', {'empresa': empresa})
+
+    hoje = timezone.now().date()
+    inicio_mes = hoje.replace(day=1)
+
+    # 1. Indicadores do Mês Comercial
+    vendas_mes = Venda.objects.filter(empresa=empresa, status='CONCLUIDA', data_venda__date__gte=inicio_mes)
+    total_faturado_mes = vendas_mes.aggregate(total=Sum('valor_total'))['total'] or Decimal('0.00')
+    qtd_vendas_mes = vendas_mes.count()
+    ticket_medio_mes = (total_faturado_mes / qtd_vendas_mes) if qtd_vendas_mes > 0 else Decimal('0.00')
+
+    # 2. Indicadores de Estoque Atual
+    lotes_ativos = Lote.objects.filter(produto__empresa=empresa, quantidade_atual__gt=0)
+    total_itens_estoque = lotes_ativos.aggregate(s=Sum('quantidade_atual'))['s'] or 0
+    valor_estoque = lotes_ativos.annotate(v=F('quantidade_atual') * F('preco_compra')).aggregate(s=Sum('v'))['s'] or Decimal('0.00')
+    lotes_vencendo_30d = lotes_ativos.filter(data_validade__isnull=False, data_validade__gte=hoje, data_validade__lte=hoje + timedelta(days=30)).count()
+
+    # 3. Indicadores de Recebíveis (Cheques a Compensar + Crediário Aberto)
+    cheques_pendentes = Cheque.objects.filter(empresa=empresa, status='PENDENTE').aggregate(s=Sum('valor'))['s'] or Decimal('0.00')
+    contas_abertas = ContaReceber.objects.filter(empresa=empresa, status__in=['PENDENTE', 'ATRASADO'])
+    crediario_pendente = sum((Decimal(str(c.saldo_restante)) for c in contas_abertas), Decimal('0.00'))
+    total_recebiveis = cheques_pendentes + crediario_pendente
+
+    # Módulos ativos da empresa
+    modulos, _ = ConfiguracaoEmpresa.objects.get_or_create(empresa=empresa)
+
+    return render(request, 'estoque/relatorios_index.html', {
+        'empresa': empresa,
+        'total_faturado_mes': total_faturado_mes,
+        'qtd_vendas_mes': qtd_vendas_mes,
+        'ticket_medio_mes': ticket_medio_mes,
+        'total_itens_estoque': total_itens_estoque,
+        'valor_estoque': valor_estoque,
+        'lotes_vencendo_30d': lotes_vencendo_30d,
+        'cheques_pendentes': cheques_pendentes,
+        'crediario_pendente': crediario_pendente,
+        'total_recebiveis': total_recebiveis,
+        'modulos': modulos,
+        'hoje': hoje,
+    })
+
+
+def _obter_filtros_relatorio_vendas(request, empresa):
+    vendas_qs = Venda.objects.filter(empresa=empresa).select_related('cliente', 'usuario').prefetch_related('itens', 'itens__produto', 'pagamentos')
+
+    hoje = timezone.now().date()
+    periodo_predefinido = request.GET.get('periodo', '').strip()
+    data_inicio_str = request.GET.get('data_inicio', '').strip()
+    data_fim_str = request.GET.get('data_fim', '').strip()
+
+    data_inicio = None
+    data_fim = None
+
+    if periodo_predefinido == 'hoje':
+        data_inicio = hoje
+        data_fim = hoje
+    elif periodo_predefinido == 'ontem':
+        ontem = hoje - timedelta(days=1)
+        data_inicio = ontem
+        data_fim = ontem
+    elif periodo_predefinido == '7dias':
+        data_inicio = hoje - timedelta(days=7)
+        data_fim = hoje
+    elif periodo_predefinido == '30dias':
+        data_inicio = hoje - timedelta(days=30)
+        data_fim = hoje
+    elif periodo_predefinido == 'este_mes':
+        data_inicio = hoje.replace(day=1)
+        data_fim = hoje
+    elif periodo_predefinido == 'mes_passado':
+        primeiro_deste_mes = hoje.replace(day=1)
+        ultimo_mes_passado = primeiro_deste_mes - timedelta(days=1)
+        data_inicio = ultimo_mes_passado.replace(day=1)
+        data_fim = ultimo_mes_passado
+    elif periodo_predefinido == 'este_ano':
+        data_inicio = hoje.replace(month=1, day=1)
+        data_fim = hoje
+    elif periodo_predefinido == 'tudo':
+        data_inicio = None
+        data_fim = None
+    else:
+        # Se nenhuma data enviada e nenhum período predefinido na requisição inicial, assume mês corrente
+        if not data_inicio_str and not data_fim_str and 'data_inicio' not in request.GET and 'data_fim' not in request.GET:
+            data_inicio = hoje.replace(day=1)
+            data_fim = hoje
+            periodo_predefinido = 'este_mes'
+        else:
+            if data_inicio_str:
+                try:
+                    data_inicio = datetime.strptime(data_inicio_str, '%Y-%m-%d').date()
+                except ValueError:
+                    data_inicio = None
+            if data_fim_str:
+                try:
+                    data_fim = datetime.strptime(data_fim_str, '%Y-%m-%d').date()
+                except ValueError:
+                    data_fim = None
+
+    if data_inicio:
+        vendas_qs = vendas_qs.filter(data_venda__date__gte=data_inicio)
+    if data_fim:
+        vendas_qs = vendas_qs.filter(data_venda__date__lte=data_fim)
+
+    cliente_id = request.GET.get('cliente', '').strip()
+    if cliente_id:
+        if cliente_id == 'sem_cliente':
+            vendas_qs = vendas_qs.filter(cliente__isnull=True)
+        else:
+            try:
+                vendas_qs = vendas_qs.filter(cliente_id=int(cliente_id))
+            except ValueError:
+                pass
+
+    vendedor_id = request.GET.get('vendedor', '').strip()
+    if vendedor_id:
+        try:
+            vendas_qs = vendas_qs.filter(usuario_id=int(vendedor_id))
+        except ValueError:
+            pass
+
+    forma_pagamento = request.GET.get('forma_pagamento', '').strip()
+    if forma_pagamento:
+        vendas_qs = vendas_qs.filter(forma_pagamento=forma_pagamento)
+
+    status_pagamento = request.GET.get('status_pagamento', '').strip()
+    if status_pagamento:
+        vendas_qs = vendas_qs.filter(status_pagamento=status_pagamento)
+
+    status_venda = request.GET.get('status_venda', 'CONCLUIDA').strip()
+    if status_venda in ['CONCLUIDA', 'CANCELADA']:
+        vendas_qs = vendas_qs.filter(status=status_venda)
+    elif status_venda == 'TODAS':
+        pass
+    else:
+        status_venda = 'CONCLUIDA'
+        vendas_qs = vendas_qs.filter(status='CONCLUIDA')
+
+    produto_id = request.GET.get('produto', '').strip()
+    if produto_id:
+        try:
+            vendas_qs = vendas_qs.filter(itens__produto_id=int(produto_id)).distinct()
+        except ValueError:
+            pass
+
+    q = request.GET.get('q', '').strip()
+    if q:
+        vendas_qs = vendas_qs.filter(
+            Q(codigo_venda__icontains=q) |
+            Q(cliente__nome__icontains=q) |
+            Q(cliente__cpf_cnpj__icontains=q) |
+            Q(observacoes__icontains=q)
+        ).distinct()
+
+    ordenacao = request.GET.get('ordenacao', '-data_venda').strip()
+    campos_ordenacao_validos = ['-data_venda', 'data_venda', '-valor_total', 'valor_total', '-desconto', 'codigo_venda']
+    if ordenacao not in campos_ordenacao_validos:
+        ordenacao = '-data_venda'
+    vendas_qs = vendas_qs.order_by(ordenacao)
+
+    filtros_dict = {
+        'data_inicio': data_inicio,
+        'data_fim': data_fim,
+        'periodo_predefinido': periodo_predefinido,
+        'cliente_id': cliente_id,
+        'vendedor_id': vendedor_id,
+        'forma_pagamento': forma_pagamento,
+        'status_pagamento': status_pagamento,
+        'status_venda': status_venda,
+        'produto_id': produto_id,
+        'q': q,
+        'ordenacao': ordenacao,
+    }
+    return vendas_qs, filtros_dict
+
+
+@login_required
+@requer_modulo('modulo_vendas_pdv')
+def relatorio_vendas(request):
+    empresa = get_empresa_usuario(request.user)
+    if not empresa:
+        return redirect('cadastro_saas')
+
+    vendas_qs, filtros = _obter_filtros_relatorio_vendas(request, empresa)
+    total_registros = vendas_qs.count()
+
+    # Métricas agregadas do conjunto completo filtrado
+    vendas_concluidas = vendas_qs.filter(status='CONCLUIDA')
+
+    stats = vendas_concluidas.aggregate(
+        total_subtotal=Sum('valor_subtotal'),
+        total_desconto=Sum('desconto'),
+        total_adicional=Sum('valor_adicional'),
+        total_liquido=Sum('valor_total'),
+    )
+
+    faturamento_bruto = stats['total_subtotal'] or Decimal('0.00')
+    total_descontos = stats['total_desconto'] or Decimal('0.00')
+    total_adicionais = stats['total_adicional'] or Decimal('0.00')
+    faturamento_liquido = stats['total_liquido'] or Decimal('0.00')
+
+    qtd_vendas_concluidas = vendas_concluidas.count()
+    qtd_vendas_canceladas = vendas_qs.filter(status='CANCELADA').count()
+    ticket_medio = (faturamento_liquido / qtd_vendas_concluidas) if qtd_vendas_concluidas > 0 else Decimal('0.00')
+
+    itens_vendidos_total = ItemVenda.objects.filter(venda__in=vendas_concluidas).aggregate(total=Sum('quantidade'))['total'] or 0
+
+    total_liquidado = sum((v.total_pago for v in vendas_concluidas), Decimal('0.00'))
+    total_aberto_pendente = sum((v.saldo_restante for v in vendas_concluidas), Decimal('0.00'))
+
+    # Distribuição por forma de pagamento
+    distribuicao_pagamentos = {}
+    for fp_key, fp_label in Venda.FORMAS_PAGAMENTO:
+        vendas_fp = vendas_concluidas.filter(forma_pagamento=fp_key)
+        total_fp = vendas_fp.aggregate(s=Sum('valor_total'))['s'] or Decimal('0.00')
+        qtd_fp = vendas_fp.count()
+        if qtd_fp > 0 or total_fp > 0:
+            perc = (float(total_fp) / float(faturamento_liquido) * 100) if faturamento_liquido > 0 else 0
+            distribuicao_pagamentos[fp_key] = {
+                'label': fp_label,
+                'total': total_fp,
+                'qtd': qtd_fp,
+                'percentual': round(perc, 1)
+            }
+
+    # Top 10 Produtos Mais Vendidos
+    top_produtos = (
+        ItemVenda.objects.filter(venda__in=vendas_concluidas)
+        .values('produto__id', 'produto__nome', 'nome_produto')
+        .annotate(
+            qtd_total=Sum('quantidade'),
+            valor_total=Sum('subtotal')
+        )
+        .order_by('-qtd_total')[:10]
+    )
+
+    # Limite / Paginação
+    limite = request.GET.get('limite', '50').strip()
+    if limite == 'todos':
+        vendas_exibicao = list(vendas_qs)
+        paginator = None
+        page_obj = None
+    else:
+        try:
+            limite_int = int(limite)
+        except ValueError:
+            limite_int = 50
+        paginator = Paginator(vendas_qs, limite_int)
+        page_num = request.GET.get('page', 1)
+        page_obj = paginator.get_page(page_num)
+        vendas_exibicao = page_obj.object_list
+
+    clientes = Cliente.objects.filter(empresa=empresa, ativo=True).order_by('nome')
+    vendedores = User.objects.filter(userprofile__empresa=empresa).order_by('first_name', 'username')
+    produtos = Produto.objects.filter(empresa=empresa, ativo=True).order_by('nome')
+
+    # Preservar querystring para paginação
+    get_params = request.GET.copy()
+    if 'page' in get_params:
+        del get_params['page']
+    querystring_limpa = get_params.urlencode()
+
+    context = {
+        'empresa': empresa,
+        'vendas': vendas_exibicao,
+        'page_obj': page_obj,
+        'total_registros': total_registros,
+        'faturamento_bruto': faturamento_bruto,
+        'total_descontos': total_descontos,
+        'total_adicionais': total_adicionais,
+        'faturamento_liquido': faturamento_liquido,
+        'ticket_medio': ticket_medio,
+        'qtd_vendas_concluidas': qtd_vendas_concluidas,
+        'qtd_vendas_canceladas': qtd_vendas_canceladas,
+        'itens_vendidos_total': itens_vendidos_total,
+        'total_liquidado': total_liquidado,
+        'total_aberto_pendente': total_aberto_pendente,
+        'distribuicao_pagamentos': distribuicao_pagamentos,
+        'top_produtos': top_produtos,
+        'clientes': clientes,
+        'vendedores': vendedores,
+        'produtos': produtos,
+        'formas_pagamento_choices': Venda.FORMAS_PAGAMENTO,
+        'status_pagamento_choices': Venda.STATUS_PAGAMENTO,
+        'data_inicio': filtros['data_inicio'].strftime('%Y-%m-%d') if filtros['data_inicio'] else '',
+        'data_fim': filtros['data_fim'].strftime('%Y-%m-%d') if filtros['data_fim'] else '',
+        'periodo_predefinido': filtros['periodo_predefinido'],
+        'cliente_selecionado': filtros['cliente_id'],
+        'vendedor_selecionado': filtros['vendedor_id'],
+        'forma_selecionada': filtros['forma_pagamento'],
+        'status_pag_selecionado': filtros['status_pagamento'],
+        'status_venda_selecionado': filtros['status_venda'],
+        'produto_selecionado': filtros['produto_id'],
+        'q': filtros['q'],
+        'ordenacao': filtros['ordenacao'],
+        'limite': limite,
+        'querystring_limpa': querystring_limpa,
+        'data_emissao': timezone.now(),
+    }
+    return render(request, 'estoque/relatorio_vendas.html', context)
+
+
+@login_required
+@requer_modulo('modulo_vendas_pdv')
+def exportar_relatorio_vendas_csv(request):
+    empresa = get_empresa_usuario(request.user)
+    if not empresa:
+        return HttpResponse(status=403)
+
+    vendas_qs, _ = _obter_filtros_relatorio_vendas(request, empresa)
+
+    response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
+    nome_slug = slugify(empresa.nome) or 'empresa'
+    data_slug = timezone.now().strftime('%Y%m%d_%H%M')
+    response['Content-Disposition'] = f'attachment; filename="relatorio_vendas_{nome_slug}_{data_slug}.csv"'
+
+    writer = csv.writer(response, delimiter=';')
+    writer.writerow([
+        'Código da Venda', 'Data/Hora', 'Cliente', 'CPF/CNPJ Cliente',
+        'Vendedor', 'Forma de Pagamento', 'Detalhes dos Pagamentos', 'Qtd Itens',
+        'Subtotal (R$)', 'Desconto (R$)', 'Adicional/Frete (R$)', 'Valor Total (R$)',
+        'Status da Venda', 'Status Pagamento', 'Observações'
+    ])
+
+    for v in vendas_qs:
+        writer.writerow([
+            v.codigo_venda,
+            v.data_venda.strftime('%d/%m/%Y %H:%M'),
+            v.cliente.nome if v.cliente else 'Consumidor Final',
+            v.cliente.cpf_cnpj if v.cliente and v.cliente.cpf_cnpj else '-',
+            v.usuario.get_full_name() or v.usuario.username if v.usuario else 'Sistema',
+            v.get_forma_pagamento_display(),
+            v.resumo_meios_pagamento,
+            v.itens.count(),
+            f"{v.valor_subtotal:.2f}".replace('.', ','),
+            f"{v.desconto:.2f}".replace('.', ','),
+            f"{v.valor_adicional:.2f}".replace('.', ','),
+            f"{v.valor_total:.2f}".replace('.', ','),
+            v.get_status_display(),
+            v.get_status_pagamento_display(),
+            (v.observacoes or '').replace('\n', ' ').replace('\r', '')
+        ])
+
+    return response
+
 
 @login_required
 def relatorio_estoque_saldo(request):
     empresa = get_empresa_usuario(request.user)
+    if not empresa:
+        return redirect('cadastro_saas')
+
     lotes = Lote.objects.filter(
         quantidade_atual__gt=0, 
         produto__empresa=empresa
-    ).select_related('produto').order_by('produto__nome')
+    ).select_related('produto', 'produto__categoria')
 
-    
-    total_itens = lotes.aggregate(soma=Sum('quantidade_atual'))['soma'] or 0
-    
-    valor_total_estoque = lotes.annotate(
+    # Filtros
+    q = request.GET.get('q', '').strip()
+    if q:
+        lotes = lotes.filter(
+            Q(produto__nome__icontains=q) |
+            Q(produto__sku__icontains=q) |
+            Q(numero_lote__icontains=q)
+        )
+
+    categoria_id = request.GET.get('categoria', '').strip()
+    if categoria_id:
+        try:
+            lotes = lotes.filter(produto__categoria_id=int(categoria_id))
+        except ValueError:
+            pass
+
+    hoje = timezone.now().date()
+    validade = request.GET.get('validade', '').strip()
+    if validade == 'vencidos':
+        lotes = lotes.filter(data_validade__isnull=False, data_validade__lt=hoje)
+    elif validade == '30dias':
+        lotes = lotes.filter(data_validade__isnull=False, data_validade__gte=hoje, data_validade__lte=hoje + timedelta(days=30))
+    elif validade == '60dias':
+        lotes = lotes.filter(data_validade__isnull=False, data_validade__gte=hoje, data_validade__lte=hoje + timedelta(days=60))
+    elif validade == '180dias':
+        lotes = lotes.filter(data_validade__isnull=False, data_validade__gte=hoje, data_validade__lte=hoje + timedelta(days=180))
+
+    lotes = lotes.annotate(
         valor_lote=F('quantidade_atual') * F('preco_compra')
-    ).aggregate(soma=Sum('valor_lote'))['soma'] or 0
+    )
+
+    ordenacao = request.GET.get('ordenacao', 'produto__nome').strip()
+    if ordenacao == 'produto':
+        lotes = lotes.order_by('produto__nome')
+    elif ordenacao == '-quantidade':
+        lotes = lotes.order_by('-quantidade_atual')
+    elif ordenacao == 'quantidade':
+        lotes = lotes.order_by('quantidade_atual')
+    elif ordenacao == 'validade':
+        lotes = lotes.order_by(F('data_validade').asc(nulls_last=True))
+    elif ordenacao == '-valor':
+        lotes = lotes.order_by('-valor_lote')
+    else:
+        lotes = lotes.order_by('produto__nome')
+
+    total_itens = lotes.aggregate(soma=Sum('quantidade_atual'))['soma'] or 0
+    valor_total_estoque = lotes.aggregate(soma=Sum('valor_lote'))['soma'] or Decimal('0.00')
+
+    total_lotes = lotes.count()
+    lotes_vencidos_total = lotes.filter(data_validade__isnull=False, data_validade__lt=hoje).count()
+    lotes_vencendo_30d = lotes.filter(data_validade__isnull=False, data_validade__gte=hoje, data_validade__lte=hoje + timedelta(days=30)).count()
+
+    categorias = Categoria.objects.filter(empresa=empresa).order_by('nome')
 
     return render(request, 'estoque/relatorio_saldo.html', {
         'lotes': lotes,
         'total_itens': total_itens,
         'valor_total_estoque': valor_total_estoque,
+        'total_lotes': total_lotes,
+        'lotes_vencidos_total': lotes_vencidos_total,
+        'lotes_vencendo_30d': lotes_vencendo_30d,
+        'categorias': categorias,
+        'q': q,
+        'categoria_selecionada': categoria_id,
+        'validade_selecionada': validade,
+        'ordenacao': ordenacao,
         'data_atual': timezone.now(),
+        'hoje': hoje,
         'empresa': empresa 
     })
 
@@ -1674,19 +2076,23 @@ def excluir_saida(request, pk):
 @login_required
 def relatorio_movimentacoes(request):
     empresa = get_empresa_usuario(request.user)
+    if not empresa:
+        return redirect('cadastro_saas')
     
     # 1. Captura os parâmetros do filtro
-    data_inicio = request.GET.get('data_inicio', '')
-    data_fim = request.GET.get('data_fim', '')
-    tipo_filtro = request.GET.get('tipo', '')  # NOVO: Filtro de Tipo
+    data_inicio = request.GET.get('data_inicio', '').strip()
+    data_fim = request.GET.get('data_fim', '').strip()
+    tipo_filtro = request.GET.get('tipo', '').strip()
+    q_produto = request.GET.get('q_produto', '').strip()
     
     movimentacoes = []
 
-    # 2. Busca ENTRADAS (Se o filtro for vazio ou 'ENTRADA')
+    # 2. Busca ENTRADAS
     if tipo_filtro in ['', 'ENTRADA']:
-        lotes = Lote.objects.filter(produto__empresa=empresa)
+        lotes = Lote.objects.filter(produto__empresa=empresa).select_related('produto')
         if data_inicio: lotes = lotes.filter(data_entrada__date__gte=data_inicio)
         if data_fim: lotes = lotes.filter(data_entrada__date__lte=data_fim)
+        if q_produto: lotes = lotes.filter(produto__nome__icontains=q_produto)
         
         for lote in lotes:
             movimentacoes.append({
@@ -1696,50 +2102,70 @@ def relatorio_movimentacoes(request):
                 'responsavel': lote.fornecedor or 'Sistema',
                 'quantidade_inicial': lote.quantidade_inicial,
                 'numero_lote': lote.numero_lote,
+                'detalhe': f"Lote: {lote.numero_lote}" + (f" | Fornecedor: {lote.fornecedor}" if lote.fornecedor else "")
             })
 
-    # 3. Busca SAÍDAS (Se o filtro for vazio ou 'SAIDA')
+    # 3. Busca SAÍDAS
     if tipo_filtro in ['', 'SAIDA']:
-        saidas = SaidaEstoque.objects.filter(produto__empresa=empresa)
+        saidas = SaidaEstoque.objects.filter(produto__empresa=empresa).select_related('produto', 'usuario')
         if data_inicio: saidas = saidas.filter(data__date__gte=data_inicio)
         if data_fim: saidas = saidas.filter(data__date__lte=data_fim)
+        if q_produto: saidas = saidas.filter(produto__nome__icontains=q_produto)
         
         for saida in saidas:
             movimentacoes.append({
                 'data_evento': saida.data,
                 'tipo_movimento': 'SAIDA',
                 'produto': saida.produto,
-                'responsavel': saida.usuario.get_full_name() if saida.usuario else 'Sistema',
+                'responsavel': saida.usuario.get_full_name() if saida.usuario and saida.usuario.get_full_name() else (saida.usuario.username if saida.usuario else 'Sistema'),
                 'quantidade': saida.quantidade,
                 'motivo': saida.motivo,
                 'valor_venda': saida.valor_venda,
+                'detalhe': f"Motivo: {saida.motivo or 'Saída de Estoque'}"
             })
 
-    # 4. Busca EMPRÉSTIMOS (Se o filtro for vazio ou 'EMPRESTIMO')
+    # 4. Busca EMPRÉSTIMOS
     if tipo_filtro in ['', 'EMPRESTIMO']:
-        emprestimos = Emprestimo.objects.filter(produto__empresa=empresa)
+        emprestimos = Emprestimo.objects.filter(produto__empresa=empresa).select_related('produto', 'responsavel_saida')
         if data_inicio: emprestimos = emprestimos.filter(data_saida__date__gte=data_inicio)
         if data_fim: emprestimos = emprestimos.filter(data_saida__date__lte=data_fim)
+        if q_produto: emprestimos = emprestimos.filter(produto__nome__icontains=q_produto)
         
         for emp in emprestimos:
             movimentacoes.append({
                 'data_evento': emp.data_saida,
                 'tipo_movimento': 'EMPRESTIMO',
                 'produto': emp.produto,
-                'responsavel': emp.responsavel_saida.get_full_name() if emp.responsavel_saida else 'Sistema',
+                'responsavel': emp.responsavel_saida.get_full_name() if emp.responsavel_saida and emp.responsavel_saida.get_full_name() else (emp.responsavel_saida.username if emp.responsavel_saida else 'Sistema'),
                 'quantidade': emp.quantidade,
                 'solicitante': emp.solicitante,
+                'detalhe': f"Solicitante: {emp.solicitante}" + (" | Devolvido: Sim" if emp.devolvido else " | Em Aberto")
             })
 
     # 5. Ordena TUDO misturado pela data (Mais recente no topo)
     movimentacoes.sort(key=lambda x: x['data_evento'], reverse=True)
 
+    # Totais agregados
+    total_entradas_qtd = sum((m.get('quantidade_inicial', 0) for m in movimentacoes if m['tipo_movimento'] == 'ENTRADA'), 0)
+    total_saidas_qtd = sum((m.get('quantidade', 0) for m in movimentacoes if m['tipo_movimento'] == 'SAIDA'), 0)
+    total_emprestimos_qtd = sum((m.get('quantidade', 0) for m in movimentacoes if m['tipo_movimento'] == 'EMPRESTIMO'), 0)
+
     return render(request, 'estoque/relatorio_movimentacoes.html', {
         'movimentacoes': movimentacoes,
         'data_inicio': data_inicio,
         'data_fim': data_fim,
-        'tipo_filtro': tipo_filtro, # Enviando o filtro atual para o HTML lembrar da escolha
-        'empresa': empresa
+        'tipo_filtro': tipo_filtro,
+        'q_produto': q_produto,
+        'total_registros': len(movimentacoes),
+        'total_movimentacoes': len(movimentacoes),
+        'total_entradas_qtd': total_entradas_qtd,
+        'total_entradas': total_entradas_qtd,
+        'total_saidas_qtd': total_saidas_qtd,
+        'total_saidas': total_saidas_qtd,
+        'total_emprestimos_qtd': total_emprestimos_qtd,
+        'total_emprestimos': total_emprestimos_qtd,
+        'empresa': empresa,
+        'data_atual': timezone.now()
     })
 
 # -> MÓDULO DE BACKUPS
