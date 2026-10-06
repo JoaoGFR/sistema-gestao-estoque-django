@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relatório de Vendas - {{ cliente.nome }}</title>
+    <!-- Bootstrap CSS e Ícones -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #f8f9fa;
+            color: #212529;
+            font-size: 12px;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+
+        .report-sheet {
+            max-width: 210mm;
+            min-height: 297mm;
+            margin: 15px auto;
+            background: #ffffff;
+            padding: 20mm 15mm;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+            border-radius: 4px;
+        }
+
+        .header-title {
+            color: #1e3c72;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+        }
+
+        .section-header {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #495057;
+            border-bottom: 2px solid #dee2e6;
+            padding-bottom: 4px;
+            margin-bottom: 10px;
+        }
+
+        .kpi-card {
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 10px 12px;
+            background: #fafafa;
+        }
+
+        .kpi-title {
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #64748b;
+            margin-bottom: 3px;
+        }
+
+        .kpi-value {
+            font-size: 16px;
+            font-weight: 800;
+            margin-bottom: 0;
+            line-height: 1.2;
+        }
+
+        .table-custom {
+            font-size: 11px;
+        }
+
+        .table-custom th {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            background-color: #f1f5f9 !important;
+            color: #334155;
+            font-weight: 700;
+            padding: 6px 8px;
+        }
+
+        .table-custom td {
+            padding: 6px 8px;
+            vertical-align: middle;
+        }
+
+        .badge-status {
+            font-size: 9px;
+            padding: 3px 6px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+
+        @media print {
+            body {
+                background: #ffffff !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+
+            .d-print-none {
+                display: none !important;
+            }
+
+            .report-sheet {
+                box-shadow: none !important;
+                border: none !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                max-width: 100% !important;
+                min-height: auto !important;
+            }
+
+            @page {
+                size: A4;
+                margin: 12mm 10mm;
+            }
+
+            tr {
+                page-break-inside: avoid;
+            }
+
+            .kpi-card {
+                break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Barra de Ações Superior (Apenas Tela) -->
+    <div class="d-print-none bg-dark text-white py-2 px-3 mb-3 shadow-sm sticky-top">
+        <div class="container-fluid d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-file-earmark-pdf fs-4 text-danger"></i>
+                <span class="fw-bold">Visualização do Relatório em PDF: {{ cliente.nome }}</span>
+            </div>
+            <div class="d-flex gap-2">
+                <button onclick="window.print()" class="btn btn-primary btn-sm fw-semibold">
+                    <i class="bi bi-printer me-1"></i> Imprimir / Salvar PDF
+                </button>
+                <a href="{% url 'detalhe_cliente' cliente.pk %}" class="btn btn-outline-light btn-sm">
+                    <i class="bi bi-arrow-left me-1"></i> Voltar à Ficha
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Folha do Relatório A4 -->
+    <div class="report-sheet">
+
+        <!-- Cabeçalho da Empresa & Emissão -->
+        <div class="d-flex justify-content-between align-items-start border-bottom pb-3 mb-3">
+            <div>
+                <h1 class="h4 header-title mb-1">{{ empresa.nome|default:"JGTECH - Sistema de Estoque" }}</h1>
+                {% if empresa.cnpj %}<div class="text-muted small"><strong>CNPJ:</strong> {{ empresa.cnpj }}</div>{% endif %}
+                {% if empresa.telefone %}<div class="text-muted small"><strong>Telefone:</strong> {{ empresa.telefone }}</div>{% endif %}
+                {% if empresa.endereco %}<div class="text-muted small">{{ empresa.endereco }}</div>{% endif %}
+            </div>
+            <div class="text-end small text-muted">
+                <div class="badge bg-primary text-white p-2 px-3 fw-bold mb-1">RELATÓRIO HISTÓRICO DE VENDAS</div>
+                <div><strong>Emissão:</strong> {{ data_emissao|date:"d/m/Y H:i" }}</div>
+                <div><strong>Operador:</strong> {{ usuario_emissor.get_full_name|default:usuario_emissor.username }}</div>
+            </div>
+        </div>
+
+        <!-- Dados do Cliente -->
+        <div class="section-header">Identificação do Cliente</div>
+        <div class="row g-2 mb-3 bg-light p-2 rounded-2 border">
+            <div class="col-6 col-md-4">
+                <div class="text-muted" style="font-size: 10px;">NOME / RAZÃO SOCIAL</div>
+                <div class="fw-bold text-dark">{{ cliente.nome }}</div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="text-muted" style="font-size: 10px;">CPF / CNPJ</div>
+                <div class="fw-bold text-dark">{{ cliente.cpf_cnpj|default:"Não informado" }}</div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="text-muted" style="font-size: 10px;">TELEFONE / WHATSAPP</div>
+                <div class="fw-bold text-dark">{{ cliente.telefone|default:"Não informado" }}</div>
+            </div>
+            <div class="col-6 col-md-2 text-md-end">
+                <div class="text-muted" style="font-size: 10px;">SITUAÇÃO</div>
+                {% if cliente.ativo %}
+                    <span class="badge bg-success-subtle text-success border border-success-subtle">Ativo</span>
+                {% else %}
+                    <span class="badge bg-secondary">Inativo</span>
+                {% endif %}
+            </div>
+
+            {% if cliente.email or cliente.endereco or cliente.cidade %}
+            <div class="col-12 border-top pt-1 mt-1" style="font-size: 11px;">
+                {% if cliente.email %}<span class="me-3"><strong>E-mail:</strong> {{ cliente.email }}</span>{% endif %}
+                {% if cliente.endereco %}<span class="me-3"><strong>Endereço:</strong> {{ cliente.endereco }}</span>{% endif %}
+                {% if cliente.cidade %}<span><strong>Cidade:</strong> {{ cliente.cidade }}</span>{% endif %}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Resumo Financeiro Executivo do Cliente -->
+        <div class="section-header">Indicadores Comerciais do Cliente</div>
+        <div class="row g-2 mb-4">
+            <div class="col-6 col-md-3">
+                <div class="kpi-card border-start border-primary border-3">
+                    <div class="kpi-title">Faturamento Líquido</div>
+                    <div class="kpi-value text-primary">R$ {{ faturamento_liquido|floatformat:2 }}</div>
+                    <div class="text-muted" style="font-size: 9px;">
+                        Bruto: R$ {{ faturamento_bruto|floatformat:2 }}
+                        {% if total_descontos > 0 %}<span class="text-danger">(-{{ total_descontos|floatformat:2 }})</span>{% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-6 col-md-3">
+                <div class="kpi-card border-start border-success border-3">
+                    <div class="kpi-title">Compras Realizadas</div>
+                    <div class="kpi-value text-success">{{ qtd_concluidas }}</div>
+                    <div class="text-muted" style="font-size: 9px;">
+                        {{ total_itens|floatformat:0 }} itens adquiridos
+                        {% if qtd_canceladas > 0 %}<span class="text-danger">({{ qtd_canceladas }} cancelada{{ qtd_canceladas|pluralize:"s" }})</span>{% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-6 col-md-3">
+                <div class="kpi-card border-start border-dark border-3">
+                    <div class="kpi-title">Ticket Médio</div>
+                    <div class="kpi-value text-dark">R$ {{ ticket_medio|floatformat:2 }}</div>
+                    <div class="text-muted" style="font-size: 9px;">Média por pedido concluído</div>
+                </div>
+            </div>
+
+            <div class="col-6 col-md-3">
+                <div class="kpi-card border-start border-warning border-3">
+                    <div class="kpi-title">Liquidado vs Aberto</div>
+                    <div class="kpi-value text-success">R$ {{ total_liquidado|floatformat:2 }}</div>
+                    <div class="text-danger fw-bold" style="font-size: 9px;">
+                        A receber: R$ {{ total_em_aberto|floatformat:2 }}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Análises Complementares: Pagamentos & Top Produtos -->
+        <div class="row g-3 mb-4">
+            <!-- Formas de Pagamento -->
+            <div class="col-md-6">
+                <div class="section-header">Meios de Pagamento Utilizados</div>
+                <div class="border rounded-2 p-2 bg-white">
+                    {% if distribuicao_pagamentos %}
+                    <table class="table table-sm table-borderless mb-0" style="font-size: 11px;">
+                        <thead class="text-muted border-bottom" style="font-size: 10px;">
+                            <tr>
+                                <th>Forma</th>
+                                <th class="text-center">Qtd</th>
+                                <th class="text-end">Total (R$)</th>
+                                <th class="text-end">%</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for key, p in distribuicao_pagamentos.items %}
+                            <tr>
+                                <td class="fw-semibold">{{ p.label }}</td>
+                                <td class="text-center">{{ p.qtd }}</td>
+                                <td class="text-end fw-bold">R$ {{ p.total|floatformat:2 }}</td>
+                                <td class="text-end text-muted">{{ p.percentual }}%</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <div class="text-center py-2 text-muted small">Nenhum pagamento registrado.</div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Top Produtos Comprados -->
+            <div class="col-md-6">
+                <div class="section-header">Produtos Mais Comprados</div>
+                <div class="border rounded-2 p-2 bg-white">
+                    {% if top_produtos %}
+                    <table class="table table-sm table-borderless mb-0" style="font-size: 11px;">
+                        <thead class="text-muted border-bottom" style="font-size: 10px;">
+                            <tr>
+                                <th>Produto</th>
+                                <th class="text-center">Qtd</th>
+                                <th class="text-end">Valor Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in top_produtos %}
+                            <tr>
+                                <td class="fw-semibold text-truncate" style="max-width: 140px;">
+                                    {{ item.produto__nome|default:item.nome_produto }}
+                                </td>
+                                <td class="text-center fw-bold text-primary">{{ item.qtd_total|floatformat:0 }}</td>
+                                <td class="text-end fw-bold text-success">R$ {{ item.valor_total|floatformat:2 }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <div class="text-center py-2 text-muted small">Nenhum item registrado.</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabela Completa do Histórico de Vendas -->
+        <div class="section-header">Extrato Detalhado de Vendas ({{ total_vendas }} Registro{{ total_vendas|pluralize:"s" }})</div>
+        <div class="table-responsive mb-4">
+            <table class="table table-bordered table-striped table-custom mb-0">
+                <thead>
+                    <tr>
+                        <th style="width: 70px;">Código</th>
+                        <th style="width: 95px;">Data/Hora</th>
+                        <th>Vendedor</th>
+                        <th>Forma de Pagamento</th>
+                        <th class="text-center" style="width: 75px;">Status</th>
+                        <th class="text-end" style="width: 80px;">Desc / Acr</th>
+                        <th class="text-end" style="width: 90px;">Total Líquido</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for venda in vendas %}
+                    <tr {% if venda.status == 'CANCELADA' %}class="table-danger text-muted"{% endif %}>
+                        <td class="fw-bold">
+                            #{{ venda.codigo_venda }}
+                        </td>
+                        <td>
+                            <div>{{ venda.data_venda|date:"d/m/Y" }}</div>
+                            <small class="text-muted">{{ venda.data_venda|date:"H:i" }}</small>
+                        </td>
+                        <td>
+                            <small>{{ venda.usuario.get_full_name|default:venda.usuario.username|default:"-" }}</small>
+                        </td>
+                        <td>
+                            <small>{{ venda.resumo_meios_pagamento|default:venda.get_forma_pagamento_display }}</small>
+                        </td>
+                        <td class="text-center">
+                            {% if venda.status == 'CANCELADA' %}
+                                <span class="badge-status bg-danger text-white">Cancelada</span>
+                            {% elif venda.saldo_restante <= 0 %}
+                                <span class="badge-status bg-success-subtle text-success border border-success">Quitada</span>
+                            {% else %}
+                                <span class="badge-status bg-warning-subtle text-dark border border-warning">Pendente</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end" style="font-size: 10px;">
+                            {% if venda.desconto > 0 %}
+                                <span class="text-danger">-R$ {{ venda.desconto|floatformat:2 }}</span>
+                            {% endif %}
+                            {% if venda.valor_adicional > 0 %}
+                                <span class="text-success">+R$ {{ venda.valor_adicional|floatformat:2 }}</span>
+                            {% endif %}
+                            {% if venda.desconto == 0 and venda.valor_adicional == 0 %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end fw-bold {% if venda.status == 'CANCELADA' %}text-decoration-line-through text-muted{% else %}text-dark{% endif %}">
+                            R$ {{ venda.valor_total|floatformat:2 }}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4 text-muted">
+                            Nenhuma venda registrada para este cliente.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                {% if vendas %}
+                <tfoot class="table-light fw-bold">
+                    <tr>
+                        <td colspan="5" class="text-end">TOTAIS ACUMULADOS:</td>
+                        <td class="text-end" style="font-size: 10px;">
+                            {% if total_descontos > 0 %}<span class="text-danger d-block">-R$ {{ total_descontos|floatformat:2 }}</span>{% endif %}
+                            {% if total_adicionais > 0 %}<span class="text-success d-block">+R$ {{ total_adicionais|floatformat:2 }}</span>{% endif %}
+                        </td>
+                        <td class="text-end text-primary fs-6">
+                            R$ {{ faturamento_liquido|floatformat:2 }}
+                        </td>
+                    </tr>
+                </tfoot>
+                {% endif %}
+            </table>
+        </div>
+
+        <!-- Rodapé do Documento -->
+        <div class="mt-4 pt-3 border-top text-muted" style="font-size: 9px;">
+            <div class="row align-items-center">
+                <div class="col-6">
+                    Documento corporativo emitido em <strong>{{ data_emissao|date:"d/m/Y \à\s H:i:s" }}</strong> por <strong>{{ usuario_emissor.username }}</strong>.
+                </div>
+                <div class="col-6 text-end">
+                    {{ empresa.nome|default:"JGTECH" }} &bull; Sistema de Gestão Empresarial e Estoque
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Script de Inicialização da Impressão -->
+    <script>
+        // Permite abrir e imprimir diretamente caso solicitado via query string ?print=1
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('print') === '1') {
+            window.addEventListener('load', function() {
+                window.print();
+            });
+        }
+    </script>
+</body>
+</html>

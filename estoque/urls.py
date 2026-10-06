@@ -87,6 +87,7 @@ urlpatterns = [
     path('clientes/novo/', views.criar_cliente, name='criar_cliente'),
     path('clientes/editar/<int:pk>/', views.editar_cliente, name='editar_cliente'),
     path('clientes/ficha/<int:pk>/', views.detalhe_cliente, name='detalhe_cliente'),
+    path('clientes/ficha/<int:pk>/vendas/pdf/', views.relatorio_vendas_cliente_pdf, name='relatorio_vendas_cliente_pdf'),
     path('api/clientes/', views.api_buscar_clientes, name='api_buscar_clientes'),
     path('api/produtos/', views.api_buscar_produtos, name='api_buscar_produtos'),
 

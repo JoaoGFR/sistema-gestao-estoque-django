@@ -3077,6 +3077,91 @@ def detalhe_cliente(request, pk):
 
 @login_required
 @requer_modulo('modulo_clientes_crediario')
+def relatorio_vendas_cliente_pdf(request, pk):
+    """
+    Gera o relatório analítico e consolidado de todo o histórico de vendas de um cliente
+    específico, formatado para impressão ou exportação em PDF.
+    """
+    empresa = get_empresa_usuario(request.user)
+    if not empresa:
+        return redirect('cadastro_saas')
+
+    cliente = get_object_or_404(Cliente, pk=pk, empresa=empresa)
+    vendas = cliente.vendas.filter(empresa=empresa).select_related('usuario').prefetch_related('itens__produto', 'pagamentos').order_by('-data_venda')
+
+    total_vendas = vendas.count()
+    vendas_concluidas = vendas.filter(status='CONCLUIDA')
+    qtd_concluidas = vendas_concluidas.count()
+    qtd_canceladas = vendas.filter(status='CANCELADA').count()
+
+    stats = vendas_concluidas.aggregate(
+        total_subtotal=Sum('valor_subtotal'),
+        total_desconto=Sum('desconto'),
+        total_adicional=Sum('valor_adicional'),
+        total_liquido=Sum('valor_total'),
+    )
+
+    faturamento_bruto = stats['total_subtotal'] or Decimal('0.00')
+    total_descontos = stats['total_desconto'] or Decimal('0.00')
+    total_adicionais = stats['total_adicional'] or Decimal('0.00')
+    faturamento_liquido = stats['total_liquido'] or Decimal('0.00')
+    ticket_medio = (faturamento_liquido / qtd_concluidas) if qtd_concluidas > 0 else Decimal('0.00')
+
+    total_itens = ItemVenda.objects.filter(venda__in=vendas_concluidas).aggregate(total=Sum('quantidade'))['total'] or 0
+    total_liquidado = sum((v.total_pago for v in vendas_concluidas), Decimal('0.00'))
+    total_em_aberto = sum((v.saldo_restante for v in vendas_concluidas), Decimal('0.00'))
+
+    # Meios de pagamento utilizados pelo cliente
+    distribuicao_pagamentos = {}
+    for fp_key, fp_label in Venda.FORMAS_PAGAMENTO:
+        vendas_fp = vendas_concluidas.filter(forma_pagamento=fp_key)
+        total_fp = vendas_fp.aggregate(s=Sum('valor_total'))['s'] or Decimal('0.00')
+        qtd_fp = vendas_fp.count()
+        if qtd_fp > 0:
+            perc = (float(total_fp) / float(faturamento_liquido) * 100) if faturamento_liquido > 0 else 0
+            distribuicao_pagamentos[fp_key] = {
+                'label': fp_label,
+                'total': total_fp,
+                'qtd': qtd_fp,
+                'percentual': round(perc, 1)
+            }
+
+    # Top produtos mais comprados pelo cliente
+    top_produtos = (
+        ItemVenda.objects.filter(venda__in=vendas_concluidas)
+        .values('produto__nome', 'nome_produto')
+        .annotate(
+            qtd_total=Sum('quantidade'),
+            valor_total=Sum('subtotal')
+        )
+        .order_by('-qtd_total')[:10]
+    )
+
+    context = {
+        'empresa': empresa,
+        'cliente': cliente,
+        'vendas': vendas,
+        'total_vendas': total_vendas,
+        'qtd_concluidas': qtd_concluidas,
+        'qtd_canceladas': qtd_canceladas,
+        'faturamento_bruto': faturamento_bruto,
+        'total_descontos': total_descontos,
+        'total_adicionais': total_adicionais,
+        'faturamento_liquido': faturamento_liquido,
+        'ticket_medio': ticket_medio,
+        'total_itens': total_itens,
+        'total_liquidado': total_liquidado,
+        'total_em_aberto': total_em_aberto,
+        'distribuicao_pagamentos': distribuicao_pagamentos,
+        'top_produtos': top_produtos,
+        'data_emissao': timezone.now(),
+        'usuario_emissor': request.user,
+    }
+    return render(request, 'estoque/relatorio_vendas_cliente_pdf.html', context)
+
+
+@login_required
+@requer_modulo('modulo_clientes_crediario')
 def api_buscar_clientes(request):
     empresa = get_empresa_usuario(request.user)
     if not empresa:

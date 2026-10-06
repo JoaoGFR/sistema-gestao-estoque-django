@@ -3766,4 +3766,20 @@ class RelatoriosViewsTestCase(TestCase):
         self.assertTemplateUsed(resp, 'estoque/relatorio_movimentacoes.html')
         self.assertIn('movimentacoes', resp.context)
 
+    def test_relatorio_vendas_cliente_pdf(self):
+        resp = self.client.get(reverse('relatorio_vendas_cliente_pdf', args=[self.cliente.pk]), HTTP_HOST='localhost')
+        self.assertEqual(resp.status_code, 200)
+        self.assertTemplateUsed(resp, 'estoque/relatorio_vendas_cliente_pdf.html')
+        self.assertEqual(resp.context['cliente'], self.cliente)
+        self.assertEqual(resp.context['total_vendas'], 1)
+        self.assertEqual(resp.context['faturamento_liquido'], Decimal('300.00'))
+        self.assertContains(resp, self.cliente.nome)
+        self.assertContains(resp, self.venda1.codigo_venda)
+
+    def test_botao_relatorio_pdf_na_ficha_cliente(self):
+        resp = self.client.get(reverse('detalhe_cliente', args=[self.cliente.pk]), HTTP_HOST='localhost')
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, reverse('relatorio_vendas_cliente_pdf', args=[self.cliente.pk]))
+
+
 
