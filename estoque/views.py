@@ -15,7 +15,7 @@ from django.utils import timezone
 from datetime import timedelta
 from decimal import Decimal, InvalidOperation
 from django.db import transaction
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.utils.text import slugify
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.cache import never_cache
@@ -1901,6 +1901,205 @@ def exportar_relatorio_vendas_csv(request):
 
 
 @login_required
+@requer_modulo('modulo_clientes_crediario')
+def relatorio_clientes_debitos(request):
+    """
+    Relatório analítico e consolidado de todos os clientes da empresa com débitos
+    e saldos em aberto (crediário, cheques pendentes, compras com pagamento parcial).
+    Exibe o detalhamento por cliente, listando produtos comprados, parcelas com
+    vencimento e dias de atraso, total da compra, total amortizado e saldo devedor.
+    """
+    empresa = get_empresa_usuario(request.user)
+    if not empresa:
+        return redirect('cadastro_saas')
+
+    q = request.GET.get('q', '').strip()
+    apenas_vencidas = request.GET.get('apenas_vencidas', '').strip() in ['1', 'true', 'sim']
+    ordem = request.GET.get('ordem', 'nome').strip()
+
+    vendas_qs = Venda.objects.filter(
+        empresa=empresa,
+        cliente__isnull=False
+    ).exclude(
+        status='CANCELADA'
+    ).select_related(
+        'cliente', 'usuario'
+    ).prefetch_related(
+        'itens__produto', 'pagamentos', 'parcelas', 'cheques'
+    ).order_by('cliente__nome', '-data_venda')
+
+    if q:
+        vendas_qs = vendas_qs.filter(
+            Q(cliente__nome__icontains=q) |
+            Q(cliente__cpf_cnpj__icontains=q) |
+            Q(codigo_venda__icontains=q)
+        )
+
+    vendas_pendentes = [v for v in vendas_qs if v.saldo_restante > Decimal('0.00')]
+    hoje = timezone.now().date()
+
+    if apenas_vencidas:
+        vendas_filtradas = []
+        for v in vendas_pendentes:
+            tem_atraso = any(p.esta_vencida or (p.status in ['PENDENTE', 'ATRASADO'] and p.data_vencimento < hoje) for p in v.parcelas.all())
+            if tem_atraso or (v.cliente and v.cliente.tem_debitos_vencidos):
+                vendas_filtradas.append(v)
+        vendas_pendentes = vendas_filtradas
+
+    # Agrupamento por cliente
+    clientes_dict = {}
+    for v in vendas_pendentes:
+        c_id = v.cliente.id
+        if c_id not in clientes_dict:
+            clientes_dict[c_id] = {
+                'cliente': v.cliente,
+                'vendas': [],
+                'total_vendas': Decimal('0.00'),
+                'total_pago': Decimal('0.00'),
+                'saldo_devedor': Decimal('0.00'),
+                'tem_vencidas': False,
+                'qtd_compras': 0,
+            }
+        clientes_dict[c_id]['vendas'].append(v)
+        clientes_dict[c_id]['total_vendas'] += v.valor_total
+        clientes_dict[c_id]['total_pago'] += v.total_pago
+        clientes_dict[c_id]['saldo_devedor'] += v.saldo_restante
+        clientes_dict[c_id]['qtd_compras'] += 1
+
+        for p in v.parcelas.all():
+            if p.esta_vencida or (p.status in ['PENDENTE', 'ATRASADO'] and p.data_vencimento < hoje):
+                clientes_dict[c_id]['tem_vencidas'] = True
+                break
+
+    # Ordenação dos grupos de clientes
+    if ordem == 'maior_divida':
+        grupos_clientes = sorted(clientes_dict.values(), key=lambda g: g['saldo_devedor'], reverse=True)
+    elif ordem == 'compras':
+        grupos_clientes = sorted(clientes_dict.values(), key=lambda g: g['qtd_compras'], reverse=True)
+    else:  # 'nome'
+        grupos_clientes = sorted(clientes_dict.values(), key=lambda g: (g['cliente'].nome or '').lower())
+
+    total_clientes = len(grupos_clientes)
+    total_compras_pendentes = len(vendas_pendentes)
+    total_geral_faturado = sum((g['total_vendas'] for g in grupos_clientes), Decimal('0.00'))
+    total_geral_pago = sum((g['total_pago'] for g in grupos_clientes), Decimal('0.00'))
+    total_geral_em_aberto = sum((g['saldo_devedor'] for g in grupos_clientes), Decimal('0.00'))
+
+    context = {
+        'empresa': empresa,
+        'grupos_clientes': grupos_clientes,
+        'total_clientes': total_clientes,
+        'total_compras_pendentes': total_compras_pendentes,
+        'total_geral_faturado': total_geral_faturado,
+        'total_geral_pago': total_geral_pago,
+        'total_geral_em_aberto': total_geral_em_aberto,
+        'q': q,
+        'apenas_vencidas': apenas_vencidas,
+        'ordem': ordem,
+        'data_emissao': timezone.now(),
+        'usuario_emissor': request.user,
+    }
+    return render(request, 'estoque/relatorio_clientes_debitos_pdf.html', context)
+
+
+@login_required
+@requer_modulo('modulo_clientes_crediario')
+def exportar_relatorio_clientes_debitos_csv(request):
+    """
+    Exporta os dados detalhados de todos os clientes com débitos em aberto em formato CSV.
+    """
+    empresa = get_empresa_usuario(request.user)
+    if not empresa:
+        return redirect('cadastro_saas')
+
+    q = request.GET.get('q', '').strip()
+    apenas_vencidas = request.GET.get('apenas_vencidas', '').strip() in ['1', 'true', 'sim']
+    ordem = request.GET.get('ordem', 'nome').strip()
+
+    vendas_qs = Venda.objects.filter(
+        empresa=empresa,
+        cliente__isnull=False
+    ).exclude(
+        status='CANCELADA'
+    ).select_related(
+        'cliente', 'usuario'
+    ).prefetch_related(
+        'itens__produto', 'pagamentos', 'parcelas', 'cheques'
+    ).order_by('cliente__nome', '-data_venda')
+
+    if q:
+        vendas_qs = vendas_qs.filter(
+            Q(cliente__nome__icontains=q) |
+            Q(cliente__cpf_cnpj__icontains=q) |
+            Q(codigo_venda__icontains=q)
+        )
+
+    vendas_pendentes = [v for v in vendas_qs if v.saldo_restante > Decimal('0.00')]
+    hoje = timezone.now().date()
+
+    if apenas_vencidas:
+        vendas_filtradas = []
+        for v in vendas_pendentes:
+            tem_atraso = any(p.esta_vencida or (p.status in ['PENDENTE', 'ATRASADO'] and p.data_vencimento < hoje) for p in v.parcelas.all())
+            if tem_atraso or (v.cliente and v.cliente.tem_debitos_vencidos):
+                vendas_filtradas.append(v)
+        vendas_pendentes = vendas_filtradas
+
+    if ordem == 'maior_divida':
+        vendas_pendentes.sort(key=lambda v: v.saldo_restante, reverse=True)
+    else:
+        vendas_pendentes.sort(key=lambda v: (v.cliente.nome or '').lower())
+
+    nome_slug = slugify(empresa.nome) or 'empresa'
+    data_slug = timezone.now().strftime('%Y%m%d_%H%M')
+    response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
+    response['Content-Disposition'] = f'attachment; filename="clientes_debitos_{nome_slug}_{data_slug}.csv"'
+
+    writer = csv.writer(response, delimiter=';')
+    writer.writerow([
+        'Cliente',
+        'CPF/CNPJ',
+        'Telefone',
+        'Cidade',
+        'Código da Venda',
+        'Data/Hora',
+        'Itens / Produtos Comprados',
+        'Forma de Pagamento / Parcelas',
+        'Total da Venda (R$)',
+        'Total Já Pago (R$)',
+        'Saldo Devedor (R$)'
+    ])
+
+    for v in vendas_pendentes:
+        itens_str = ", ".join([f"{i.quantidade}x {i.nome_exibicao}" for i in v.itens.all()])
+        parcelas_str = " | ".join([
+            f"Parc {p.numero_parcela}/{p.total_parcelas}: R$ {p.saldo_restante:.2f} (Venc: {p.data_vencimento.strftime('%d/%m/%Y')})"
+            for p in v.parcelas.all() if p.status != 'PAGO'
+        ])
+        fp_str = v.resumo_meios_pagamento or v.get_forma_pagamento_display()
+        if parcelas_str:
+            fp_str = f"{fp_str} [{parcelas_str}]"
+
+        writer.writerow([
+            v.cliente.nome,
+            v.cliente.cpf_cnpj or '-',
+            v.cliente.telefone or '-',
+            v.cliente.cidade or '-',
+            v.codigo_venda,
+            v.data_venda.strftime('%d/%m/%Y %H:%M'),
+            itens_str,
+            fp_str,
+            f"{v.valor_total:.2f}".replace('.', ','),
+            f"{v.total_pago:.2f}".replace('.', ','),
+            f"{v.saldo_restante:.2f}".replace('.', ',')
+        ])
+
+    return response
+
+
+
+
+@login_required
 def relatorio_estoque_saldo(request):
     empresa = get_empresa_usuario(request.user)
     if not empresa:
@@ -3081,42 +3280,51 @@ def relatorio_vendas_cliente_pdf(request, pk):
     """
     Gera o relatório analítico e consolidado de todo o histórico de vendas de um cliente
     específico, formatado para impressão ou exportação em PDF.
+    Suporta o parâmetro 'apenas_pendentes=1' para filtrar exclusivamente vendas com
+    dívidas em aberto (seja por crediário, adiantamentos incompletos ou cheques pendentes).
     """
     empresa = get_empresa_usuario(request.user)
     if not empresa:
         return redirect('cadastro_saas')
 
     cliente = get_object_or_404(Cliente, pk=pk, empresa=empresa)
-    vendas = cliente.vendas.filter(empresa=empresa).select_related('usuario').prefetch_related('itens__produto', 'pagamentos').order_by('-data_venda')
+    apenas_pendentes = request.GET.get('apenas_pendentes', '').strip() in ['1', 'true', 'sim']
 
-    total_vendas = vendas.count()
-    vendas_concluidas = vendas.filter(status='CONCLUIDA')
-    qtd_concluidas = vendas_concluidas.count()
-    qtd_canceladas = vendas.filter(status='CANCELADA').count()
+    # Busca todas as vendas do cliente pré-carregando relacionamentos para cálculo de saldo sem N+1 queries
+    vendas_qs = cliente.vendas.filter(empresa=empresa).select_related('usuario').prefetch_related(
+        'itens__produto', 'pagamentos', 'parcelas', 'cheques'
+    ).order_by('-data_venda')
+    vendas_todas = list(vendas_qs)
 
-    stats = vendas_concluidas.aggregate(
-        total_subtotal=Sum('valor_subtotal'),
-        total_desconto=Sum('desconto'),
-        total_adicional=Sum('valor_adicional'),
-        total_liquido=Sum('valor_total'),
-    )
+    total_historico_vendas = len(vendas_todas)
+    total_divida_acumulada = sum((v.saldo_restante for v in vendas_todas if v.status != 'CANCELADA'), Decimal('0.00'))
 
-    faturamento_bruto = stats['total_subtotal'] or Decimal('0.00')
-    total_descontos = stats['total_desconto'] or Decimal('0.00')
-    total_adicionais = stats['total_adicional'] or Decimal('0.00')
-    faturamento_liquido = stats['total_liquido'] or Decimal('0.00')
+    if apenas_pendentes:
+        vendas = [v for v in vendas_todas if v.status != 'CANCELADA' and v.saldo_restante > Decimal('0.00')]
+    else:
+        vendas = vendas_todas
+
+    total_vendas = len(vendas)
+    vendas_concluidas = [v for v in vendas if v.status == 'CONCLUIDA']
+    qtd_concluidas = len(vendas_concluidas)
+    qtd_canceladas = len([v for v in vendas if v.status == 'CANCELADA'])
+
+    faturamento_bruto = sum((v.valor_subtotal for v in vendas_concluidas), Decimal('0.00'))
+    total_descontos = sum((v.desconto for v in vendas_concluidas), Decimal('0.00'))
+    total_adicionais = sum((v.valor_adicional for v in vendas_concluidas), Decimal('0.00'))
+    faturamento_liquido = sum((v.valor_total for v in vendas_concluidas), Decimal('0.00'))
     ticket_medio = (faturamento_liquido / qtd_concluidas) if qtd_concluidas > 0 else Decimal('0.00')
 
-    total_itens = ItemVenda.objects.filter(venda__in=vendas_concluidas).aggregate(total=Sum('quantidade'))['total'] or 0
+    total_itens = sum((sum(i.quantidade for i in v.itens.all()) for v in vendas_concluidas), 0)
     total_liquidado = sum((v.total_pago for v in vendas_concluidas), Decimal('0.00'))
     total_em_aberto = sum((v.saldo_restante for v in vendas_concluidas), Decimal('0.00'))
 
     # Meios de pagamento utilizados pelo cliente
     distribuicao_pagamentos = {}
     for fp_key, fp_label in Venda.FORMAS_PAGAMENTO:
-        vendas_fp = vendas_concluidas.filter(forma_pagamento=fp_key)
-        total_fp = vendas_fp.aggregate(s=Sum('valor_total'))['s'] or Decimal('0.00')
-        qtd_fp = vendas_fp.count()
+        vendas_fp = [v for v in vendas_concluidas if v.forma_pagamento == fp_key]
+        total_fp = sum((v.valor_total for v in vendas_fp), Decimal('0.00'))
+        qtd_fp = len(vendas_fp)
         if qtd_fp > 0:
             perc = (float(total_fp) / float(faturamento_liquido) * 100) if faturamento_liquido > 0 else 0
             distribuicao_pagamentos[fp_key] = {
@@ -3126,22 +3334,30 @@ def relatorio_vendas_cliente_pdf(request, pk):
                 'percentual': round(perc, 1)
             }
 
-    # Top produtos mais comprados pelo cliente
-    top_produtos = (
-        ItemVenda.objects.filter(venda__in=vendas_concluidas)
-        .values('produto__nome', 'nome_produto')
-        .annotate(
-            qtd_total=Sum('quantidade'),
-            valor_total=Sum('subtotal')
-        )
-        .order_by('-qtd_total')[:10]
-    )
+    # Top produtos mais comprados
+    produtos_dict = {}
+    for v in vendas_concluidas:
+        for item in v.itens.all():
+            nome = item.produto.nome if item.produto else (item.nome_produto or "Produto Excluído")
+            if nome not in produtos_dict:
+                produtos_dict[nome] = {'qtd_total': 0, 'valor_total': Decimal('0.00')}
+            produtos_dict[nome]['qtd_total'] += item.quantidade
+            produtos_dict[nome]['valor_total'] += item.subtotal
+
+    top_produtos = sorted(
+        [{'nome': k, 'produto__nome': k, 'nome_produto': k, 'qtd_total': v['qtd_total'], 'valor_total': v['valor_total']} for k, v in produtos_dict.items()],
+        key=lambda x: x['qtd_total'],
+        reverse=True
+    )[:10]
 
     context = {
         'empresa': empresa,
         'cliente': cliente,
         'vendas': vendas,
+        'apenas_pendentes': apenas_pendentes,
         'total_vendas': total_vendas,
+        'total_historico_vendas': total_historico_vendas,
+        'total_divida_acumulada': total_divida_acumulada,
         'qtd_concluidas': qtd_concluidas,
         'qtd_canceladas': qtd_canceladas,
         'faturamento_bruto': faturamento_bruto,

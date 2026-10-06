@@ -3776,10 +3776,154 @@ class RelatoriosViewsTestCase(TestCase):
         self.assertContains(resp, self.cliente.nome)
         self.assertContains(resp, self.venda1.codigo_venda)
 
+    def test_relatorio_vendas_cliente_pdf_apenas_pendentes(self):
+        # Cria uma venda com dívida pendente no crediário
+        venda_pendente = Venda.objects.create(
+            empresa=self.empresa,
+            codigo_venda='V-REL-PEND-02',
+            cliente=self.cliente,
+            usuario=self.user,
+            valor_subtotal=Decimal('200.00'),
+            desconto=Decimal('0.00'),
+            valor_adicional=Decimal('0.00'),
+            valor_total=Decimal('200.00'),
+            forma_pagamento='CREDIARIO',
+            status='CONCLUIDA',
+            status_pagamento='PENDENTE'
+        )
+        ContaReceber.objects.create(
+            empresa=self.empresa,
+            cliente=self.cliente,
+            venda=venda_pendente,
+            numero_parcela=1,
+            total_parcelas=1,
+            valor_parcela=Decimal('200.00'),
+            valor_pago=Decimal('0.00'),
+            data_vencimento=timezone.localdate() + timedelta(days=15),
+            status='PENDENTE'
+        )
+
+        # Sem filtro: traz ambas (venda1 quitada e venda_pendente)
+        resp_todas = self.client.get(reverse('relatorio_vendas_cliente_pdf', args=[self.cliente.pk]), HTTP_HOST='localhost')
+        self.assertEqual(resp_todas.status_code, 200)
+        self.assertEqual(resp_todas.context['total_vendas'], 2)
+
+        # Com filtro apenas_pendentes=1: traz apenas venda_pendente
+        resp_pend = self.client.get(reverse('relatorio_vendas_cliente_pdf', args=[self.cliente.pk]), {'apenas_pendentes': '1'}, HTTP_HOST='localhost')
+        self.assertEqual(resp_pend.status_code, 200)
+        self.assertTrue(resp_pend.context['apenas_pendentes'])
+        self.assertEqual(resp_pend.context['total_vendas'], 1)
+        self.assertEqual(resp_pend.context['total_em_aberto'], Decimal('200.00'))
+        self.assertContains(resp_pend, 'V-REL-PEND-02')
+        self.assertNotContains(resp_pend, 'V-REL-001')
+
     def test_botao_relatorio_pdf_na_ficha_cliente(self):
         resp = self.client.get(reverse('detalhe_cliente', args=[self.cliente.pk]), HTTP_HOST='localhost')
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, reverse('relatorio_vendas_cliente_pdf', args=[self.cliente.pk]))
+        self.assertContains(resp, 'apenas_pendentes=1')
+
+    def test_relatorio_clientes_debitos_view(self):
+        # Cria uma venda com dívida em aberto no crediário
+        venda_pendente = Venda.objects.create(
+            empresa=self.empresa,
+            codigo_venda='V-DEB-01',
+            cliente=self.cliente,
+            usuario=self.user,
+            valor_subtotal=Decimal('350.00'),
+            desconto=Decimal('0.00'),
+            valor_adicional=Decimal('0.00'),
+            valor_total=Decimal('350.00'),
+            forma_pagamento='CREDIARIO',
+            status='CONCLUIDA',
+            status_pagamento='PENDENTE'
+        )
+        ContaReceber.objects.create(
+            empresa=self.empresa,
+            cliente=self.cliente,
+            venda=venda_pendente,
+            numero_parcela=1,
+            total_parcelas=1,
+            valor_parcela=Decimal('350.00'),
+            valor_pago=Decimal('0.00'),
+            data_vencimento=timezone.localdate() + timedelta(days=10),
+            status='PENDENTE'
+        )
+        ItemVenda.objects.create(
+            venda=venda_pendente,
+            produto=self.produto,
+            quantidade=1,
+            preco_unitario=Decimal('350.00'),
+            subtotal=Decimal('350.00')
+        )
+
+        resp = self.client.get(reverse('relatorio_clientes_debitos'), HTTP_HOST='localhost')
+        self.assertEqual(resp.status_code, 200)
+        self.assertTemplateUsed(resp, 'estoque/relatorio_clientes_debitos_pdf.html')
+        self.assertEqual(resp.context['total_clientes'], 1)
+        self.assertEqual(resp.context['total_compras_pendentes'], 1)
+        self.assertEqual(resp.context['total_geral_em_aberto'], Decimal('350.00'))
+        self.assertContains(resp, self.cliente.nome)
+        self.assertContains(resp, 'V-DEB-01')
+
+    def test_relatorio_clientes_debitos_filtros_e_ordenacao(self):
+        # Cria um segundo cliente com débito vencido
+        cliente2 = Cliente.objects.create(
+            empresa=self.empresa,
+            nome='Ana Vencida',
+            cpf_cnpj='111.222.333-44',
+            telefone='(11) 98888-7777',
+            cidade='São Paulo',
+            limite_credito=Decimal('1000.00')
+        )
+        venda2 = Venda.objects.create(
+            empresa=self.empresa,
+            codigo_venda='V-DEB-VENC-02',
+            cliente=cliente2,
+            usuario=self.user,
+            valor_subtotal=Decimal('500.00'),
+            desconto=Decimal('0.00'),
+            valor_adicional=Decimal('0.00'),
+            valor_total=Decimal('500.00'),
+            forma_pagamento='CREDIARIO',
+            status='CONCLUIDA',
+            status_pagamento='PENDENTE'
+        )
+        ContaReceber.objects.create(
+            empresa=self.empresa,
+            cliente=cliente2,
+            venda=venda2,
+            numero_parcela=1,
+            total_parcelas=1,
+            valor_parcela=Decimal('500.00'),
+            valor_pago=Decimal('0.00'),
+            data_vencimento=timezone.localdate() - timedelta(days=5),
+            status='ATRASADO'
+        )
+
+        # Filtro de busca por nome
+        resp_q = self.client.get(reverse('relatorio_clientes_debitos'), {'q': 'Ana'}, HTTP_HOST='localhost')
+        self.assertEqual(resp_q.status_code, 200)
+        self.assertEqual(resp_q.context['total_clientes'], 1)
+        self.assertContains(resp_q, 'Ana Vencida')
+
+        # Filtro apenas vencidas
+        resp_venc = self.client.get(reverse('relatorio_clientes_debitos'), {'apenas_vencidas': '1'}, HTTP_HOST='localhost')
+        self.assertEqual(resp_venc.status_code, 200)
+        self.assertContains(resp_venc, 'Ana Vencida')
+
+        # Ordenação por maior dívida
+        resp_ord = self.client.get(reverse('relatorio_clientes_debitos'), {'ordem': 'maior_divida'}, HTTP_HOST='localhost')
+        self.assertEqual(resp_ord.status_code, 200)
+        self.assertTrue(len(resp_ord.context['grupos_clientes']) >= 1)
+
+    def test_exportar_relatorio_clientes_debitos_csv(self):
+        resp = self.client.get(reverse('exportar_relatorio_clientes_debitos_csv'), HTTP_HOST='localhost')
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.headers.get('Content-Type'), 'text/csv; charset=utf-8-sig')
+        content = resp.content.decode('utf-8-sig')
+        self.assertIn('Cliente;CPF/CNPJ;Telefone;Cidade', content)
+
 
 
 

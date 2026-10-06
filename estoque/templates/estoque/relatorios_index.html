@@ -62,19 +62,26 @@
 
     <div class="col-6 col-lg-3">
         <div class="card shadow-sm border-0 border-start border-warning border-4 h-100 bg-white">
-            <div class="card-body p-3">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <span class="text-muted small text-uppercase fw-bold">Recebíveis Pendentes</span>
-                    <i class="bi bi-clock-history fs-4 text-warning"></i>
+            <div class="card-body p-3 d-flex flex-column justify-content-between">
+                <div>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="text-muted small text-uppercase fw-bold">Recebíveis Pendentes</span>
+                        <i class="bi bi-clock-history fs-4 text-warning"></i>
+                    </div>
+                    <h4 class="fw-bold mb-1 text-dark">
+                        R$ {{ total_recebiveis|default:0|floatformat:2 }}
+                    </h4>
+                    <div class="small text-muted">
+                        <span>Crediário: R$ {{ crediario_pendente|floatformat:2 }}</span>
+                        {% if cheques_pendentes > 0 %}
+                            <span class="d-block text-warning fw-semibold">Cheques: R$ {{ cheques_pendentes|floatformat:2 }}</span>
+                        {% endif %}
+                    </div>
                 </div>
-                <h4 class="fw-bold mb-1 text-dark">
-                    R$ {{ total_recebiveis|default:0|floatformat:2 }}
-                </h4>
-                <div class="small text-muted">
-                    <span>Crediário: R$ {{ crediario_pendente|floatformat:2 }}</span>
-                    {% if cheques_pendentes > 0 %}
-                        <span class="d-block text-warning fw-semibold">Cheques: R$ {{ cheques_pendentes|floatformat:2 }}</span>
-                    {% endif %}
+                <div class="mt-2 pt-2 border-top">
+                    <a href="{% url 'relatorio_clientes_debitos' %}" class="small text-danger text-decoration-none fw-bold">
+                        <i class="bi bi-file-earmark-text me-1"></i>Ver Débitos por Cliente &rarr;
+                    </a>
                 </div>
             </div>
         </div>
@@ -87,12 +94,12 @@
         <h4 class="fw-bold text-dark mb-0">
             <i class="bi bi-cart-check text-primary me-2"></i>Vendas & Faturamento
         </h4>
-        <span class="badge bg-primary-subtle text-primary border border-primary-subtle">Comercial</span>
+        <span class="badge bg-primary-subtle text-primary border border-primary-subtle">Comercial & Financeiro</span>
     </div>
 
     <div class="row g-4">
         <!-- Relatório Analítico de Vendas (Destaque Principal) -->
-        <div class="col-md-6 col-lg-4">
+        <div class="col-md-6">
             <div class="card shadow-sm h-100 border-primary border-2 position-relative">
                 <span class="position-absolute top-0 end-0 translate-middle badge rounded-pill bg-success me-4 mt-1">
                     Novo & Completo
@@ -122,8 +129,39 @@
             </div>
         </div>
 
+        <!-- Relatório Geral de Clientes com Débitos em Aberto -->
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100 border-danger border-2 position-relative">
+                <span class="position-absolute top-0 end-0 translate-middle badge rounded-pill bg-danger me-4 mt-1">
+                    Cobrança & Débitos
+                </span>
+                <div class="card-body d-flex flex-column p-4">
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        <div class="p-3 bg-danger bg-opacity-10 text-danger rounded-3">
+                            <i class="bi bi-people-fill fs-2"></i>
+                        </div>
+                        <div>
+                            <h5 class="card-title fw-bold mb-1">Clientes com Débitos em Aberto</h5>
+                            <span class="badge bg-light text-danger border border-danger-subtle">Detalhamento Geral de Vendas</span>
+                        </div>
+                    </div>
+                    <p class="card-text text-muted flex-grow-1">
+                        Relatório analítico e consolidado de todos os clientes com saldos devedores pendentes (crediário, cheques e pagamentos parciais), com detalhamento de produtos comprados, parcelas, vencimentos, dias de atraso e impressão PDF.
+                    </p>
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'relatorio_clientes_debitos' %}" class="btn btn-danger fw-semibold">
+                            <i class="bi bi-file-earmark-pdf me-1"></i> Abrir Relatório Geral de Débitos
+                        </a>
+                        <a href="{% url 'exportar_relatorio_clientes_debitos_csv' %}" class="btn btn-outline-danger btn-sm">
+                            <i class="bi bi-file-earmark-spreadsheet me-1"></i> Exportar Dados (CSV/Excel)
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Crediário e Contas a Receber -->
-        <div class="col-md-6 col-lg-4">
+        <div class="col-md-6">
             <div class="card shadow-sm h-100 border-0">
                 <div class="card-body d-flex flex-column p-4">
                     <div class="d-flex align-items-center gap-3 mb-3">
@@ -148,7 +186,7 @@
         </div>
 
         <!-- Custódia de Cheques -->
-        <div class="col-md-6 col-lg-4">
+        <div class="col-md-6">
             <div class="card shadow-sm h-100 border-0">
                 <div class="card-body d-flex flex-column p-4">
                     <div class="d-flex align-items-center gap-3 mb-3">
